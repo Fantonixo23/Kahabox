@@ -29,3 +29,6 @@ Thumbs.db
 
 # Sentry
 .env.sentry-build-plugin
+
+# App Android (APK) — se genera con `npx cap add android`
+web/android/

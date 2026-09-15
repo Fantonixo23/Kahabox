@@ -11,5 +11,8 @@
     "build": "npm run build -w web",
     "typecheck": "npm run typecheck -w web",
     "preview": "npm run preview -w web"
+  },
+  "dependencies": {
+    "@oxlint/binding-win32-x64-msvc": "^1.83.0"
   }
 }
