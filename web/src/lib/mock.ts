@@ -1,0 +1,682 @@
+import type { Session, User } from '@supabase/supabase-js'
+
+import type { Database } from './database'
+import { UMBRAL_STOCK_BAJO, type Moneda } from './format'
+
+type Producto = Database['public']['Tables']['productos_maestro']['Row']
+type Venta = Database['public']['Tables']['ventas']['Row']
+type Miembro = Database['public']['Tables']['usuarios_tenant']['Row']
+
+export type StockRow = Database['public']['Views']['stock_tienda_dueno']['Row'] & {
+  producto: Producto | null
+}
+
+const TENANT = '11111111-1111-1111-1111-111111111111'
+const SUCURSAL = '22222222-2222-2222-2222-222222222222'
+export const DEMO_USER_ID = '99999999-9999-4999-9999-999999999999'
+
+function hace(horas: number, minutos = 0): string {
+  const fecha = new Date()
+  fecha.setHours(fecha.getHours() - horas, fecha.getMinutes() - minutos, 0, 0)
+  return fecha.toISOString()
+}
+
+const productos: Producto[] = [
+  {
+    id: 'aaaa0001-0000-0000-0000-000000000001',
+    codigo_barras: '7791234000011',
+    nombre: 'Auriculares Bluetooth inalámbricos',
+    marca: 'Beken',
+    categoria: 'electrónica',
+    foto_url: null,
+    creado_por_tenant_id: TENANT,
+    created_at: hace(240),
+  },
+  {
+    id: 'aaaa0002-0000-0000-0000-000000000002',
+    codigo_barras: '7791234000028',
+    nombre: 'Funda de celular silicona',
+    marca: 'Nilkin',
+    categoria: 'accesorios',
+    foto_url: null,
+    creado_por_tenant_id: TENANT,
+    created_at: hace(200),
+  },
+  {
+    id: 'aaaa0003-0000-0000-0000-000000000003',
+    codigo_barras: '7791234000035',
+    nombre: 'Cable USB-C 2m',
+    marca: 'Generic',
+    categoria: 'accesorios',
+    foto_url: null,
+    creado_por_tenant_id: TENANT,
+    created_at: hace(170),
+  },
+  {
+    id: 'aaaa0004-0000-0000-0000-000000000004',
+    codigo_barras: '7791234000042',
+    nombre: 'Cargador GaN 65W',
+    marca: 'Baseus',
+    categoria: 'electrónica',
+    foto_url: null,
+    creado_por_tenant_id: TENANT,
+    created_at: hace(90),
+  },
+  {
+    id: 'aaaa0005-0000-0000-0000-000000000005',
+    codigo_barras: null,
+    nombre: 'Remera básica algodón',
+    marca: 'King Tee',
+    categoria: 'indumentaria',
+    foto_url: null,
+    creado_por_tenant_id: TENANT,
+    created_at: hace(70),
+  },
+  {
+    id: 'aaaa0006-0000-0000-0000-000000000006',
+    codigo_barras: '7791234000066',
+    nombre: 'Pendrive USB 64GB',
+    marca: 'SanDisk',
+    categoria: 'electrónica',
+    foto_url: null,
+    creado_por_tenant_id: TENANT,
+    created_at: hace(50),
+  },
+]
+
+let stock: StockRow[] = [
+  {
+    id: 'bbbb0001-0000-0000-0000-000000000001',
+    tenant_id: TENANT,
+    sucursal_id: SUCURSAL,
+    producto_id: productos[0].id,
+    sku: 'AUR-BT-NEGRO',
+    variante: 'Negro',
+    precio: 180000,
+    costo: 120000,
+    moneda: 'PYG',
+    cantidad: 12,
+    updated_at: hace(20),
+    producto: productos[0],
+  },
+  {
+    id: 'bbbb0002-0000-0000-0000-000000000002',
+    tenant_id: TENANT,
+    sucursal_id: SUCURSAL,
+    producto_id: productos[1].id,
+    sku: 'FUNDA-IP14',
+    variante: 'iPhone 14',
+    precio: 45000,
+    costo: 25000,
+    moneda: 'PYG',
+    cantidad: 20,
+    updated_at: hace(18),
+    producto: productos[1],
+  },
+  {
+    id: 'bbbb0003-0000-0000-0000-000000000003',
+    tenant_id: TENANT,
+    sucursal_id: SUCURSAL,
+    producto_id: productos[2].id,
+    sku: 'CABLE-C2M',
+    variante: '2 metros',
+    precio: 25000,
+    costo: 12000,
+    moneda: 'PYG',
+    cantidad: 0,
+    updated_at: hace(30),
+    producto: productos[2],
+  },
+  {
+    id: 'bbbb0004-0000-0000-0000-000000000004',
+    tenant_id: TENANT,
+    sucursal_id: SUCURSAL,
+    producto_id: productos[3].id,
+    sku: 'CARG-GAN65-BCO',
+    variante: 'Blanco',
+    precio: 120000,
+    costo: 70000,
+    moneda: 'PYG',
+    cantidad: 3,
+    updated_at: hace(6),
+    producto: productos[3],
+  },
+  {
+    id: 'bbbb0005-0000-0000-0000-000000000005',
+    tenant_id: TENANT,
+    sucursal_id: SUCURSAL,
+    producto_id: productos[4].id,
+    sku: 'REME-S-CEL',
+    variante: 'S / Celeste',
+    precio: 55000,
+    costo: 35000,
+    moneda: 'PYG',
+    cantidad: 4,
+    updated_at: hace(4),
+    producto: productos[4],
+  },
+  {
+    id: 'bbbb0006-0000-0000-0000-000000000006',
+    tenant_id: TENANT,
+    sucursal_id: SUCURSAL,
+    producto_id: productos[5].id,
+    sku: 'PD-64GB',
+    variante: null,
+    precio: 90000,
+    costo: 60000,
+    moneda: 'PYG',
+    cantidad: 15,
+    updated_at: hace(1),
+    producto: productos[5],
+  },
+]
+
+const ventas: Venta[] = [
+  {
+    id: 'cccc0001-0000-0000-0000-000000000001',
+    tenant_id: TENANT,
+    sucursal_id: SUCURSAL,
+    vendedor_id: DEMO_USER_ID,
+    total: 180000,
+    estado: 'confirmada',
+    created_at: hace(3, 20),
+  },
+  {
+    id: 'cccc0002-0000-0000-0000-000000000002',
+    tenant_id: TENANT,
+    sucursal_id: SUCURSAL,
+    vendedor_id: DEMO_USER_ID,
+    total: 45000,
+    estado: 'confirmada',
+    created_at: hace(2, 10),
+  },
+  {
+    id: 'cccc0003-0000-0000-0000-000000000003',
+    tenant_id: TENANT,
+    sucursal_id: SUCURSAL,
+    vendedor_id: DEMO_USER_ID,
+    total: 240000,
+    estado: 'confirmada',
+    created_at: hace(0, 45),
+  },
+  {
+    id: 'cccc0004-0000-0000-0000-000000000004',
+    tenant_id: TENANT,
+    sucursal_id: SUCURSAL,
+    vendedor_id: DEMO_USER_ID,
+    total: 50000,
+    estado: 'pendiente_sync',
+    created_at: hace(0, 10),
+  },
+]
+
+const miembros: Miembro[] = [
+  {
+    id: 'dddd0001-0000-0000-0000-000000000001',
+    user_id: DEMO_USER_ID,
+    tenant_id: TENANT,
+    rol: 'dueño',
+    created_at: hace(480),
+  },
+  {
+    id: 'dddd0002-0000-0000-0000-000000000002',
+    user_id: '88888888-8888-4888-8888-888888888888',
+    tenant_id: TENANT,
+    rol: 'vendedor',
+    created_at: hace(300),
+  },
+  {
+    id: 'dddd0003-0000-0000-0000-000000000003',
+    user_id: '77777777-7777-4777-7777-777777777777',
+    tenant_id: TENANT,
+    rol: 'vendedor',
+    created_at: hace(120),
+  },
+]
+
+export function getMockStock(): StockRow[] {
+  return [...stock].sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+}
+
+export function getMockVentas(): Venta[] {
+  return [...ventas].sort((a, b) => b.created_at.localeCompare(a.created_at))
+}
+
+export function getMockMiembros(): Miembro[] {
+  return [...miembros].sort((a, b) => b.created_at.localeCompare(a.created_at))
+}
+
+export function crearProductoMock(entrada: {
+  nombre: string
+  codigo_barras: string | null
+  marca: string | null
+  categoria: string | null
+  variante: string | null
+  sku: string | null
+  precio: number
+  costo: number | null
+  moneda: Moneda
+  cantidad: number
+}) {
+  let maestro = productos.find(
+    (p) => entrada.codigo_barras && p.codigo_barras === entrada.codigo_barras,
+  )
+
+  if (!maestro) {
+    maestro = {
+      id: crypto.randomUUID(),
+      codigo_barras: entrada.codigo_barras,
+      nombre: entrada.nombre,
+      marca: entrada.marca,
+      categoria: entrada.categoria,
+      foto_url: null,
+      creado_por_tenant_id: TENANT,
+      created_at: new Date().toISOString(),
+    }
+    productos.unshift(maestro)
+  }
+
+  const ahora = new Date().toISOString()
+  stock.unshift({
+    id: crypto.randomUUID(),
+    tenant_id: TENANT,
+    sucursal_id: SUCURSAL,
+    producto_id: maestro.id,
+    sku: entrada.sku,
+    variante: entrada.variante,
+    precio: entrada.precio,
+    costo: entrada.costo,
+    moneda: entrada.moneda === 'USD' ? 'USD' : 'PYG',
+    cantidad: entrada.cantidad,
+    updated_at: ahora,
+    producto: maestro,
+  })
+  guardar()
+}
+
+export function reponerStockMock(
+  codigoBarras: string,
+  cantidad: number,
+): string | null {
+  const cantidadSumar = Number.isFinite(cantidad)
+    ? Math.max(0, Math.floor(cantidad))
+    : 0
+  if (!codigoBarras || cantidadSumar <= 0) return null
+  const linea = stock.find((s) => s.producto?.codigo_barras === codigoBarras)
+  if (!linea) return null
+  linea.cantidad += cantidadSumar
+  linea.updated_at = new Date().toISOString()
+  guardar()
+  return linea.producto?.nombre ?? null
+}
+
+export function registrarVentaMock(stockId: string, cantidad: number): Venta {
+  const linea = stock.find((s) => s.id === stockId)
+  if (!linea) throw new Error('La línea de stock ya no existe.')
+  if (cantidad > linea.cantidad) throw new Error(`Solo hay ${linea.cantidad} unidades.`)
+
+  linea.cantidad -= cantidad
+  linea.updated_at = new Date().toISOString()
+
+  const venta: Venta = {
+    id: crypto.randomUUID(),
+    tenant_id: TENANT,
+    sucursal_id: SUCURSAL,
+    vendedor_id: DEMO_USER_ID,
+    total: linea.precio * cantidad,
+    estado: 'confirmada',
+    created_at: new Date().toISOString(),
+  }
+  ventas.unshift(venta)
+  guardar()
+  return venta
+}
+
+export type VentaCajaItem = {
+  stockLineaId: string
+  cantidad: number
+  precioUnitario: number
+  moneda: Moneda
+}
+
+export function registrarVentaCaja(params: {
+  items: VentaCajaItem[]
+  totalGs: number
+  estado?: Venta['estado']
+}): Venta {
+  const ahora = new Date().toISOString()
+
+  params.items.forEach((item) => {
+    const linea = stock.find((s) => s.id === item.stockLineaId)
+    if (!linea) return
+    linea.cantidad = Math.max(0, linea.cantidad - item.cantidad)
+    linea.updated_at = ahora
+  })
+
+  const venta: Venta = {
+    id: crypto.randomUUID(),
+    tenant_id: TENANT,
+    sucursal_id: SUCURSAL,
+    vendedor_id: DEMO_USER_ID,
+    total: Math.round(params.totalGs),
+    estado: params.estado ?? 'confirmada',
+    created_at: ahora,
+  }
+  ventas.unshift(venta)
+  guardar()
+  return venta
+}
+
+export type Proveedor = {
+  id: string
+  tenant_id: string
+  nombre: string
+  ruc: string | null
+  telefono: string | null
+  email: string | null
+  direccion: string | null
+  activo: boolean
+  created_at: string
+}
+
+export type PagoProveedor = {
+  id: string
+  tenant_id: string
+  proveedor_id: string
+  fecha: string
+  concepto: string | null
+  monto: number
+  moneda: Moneda
+  metodo: 'efectivo' | 'tarjeta' | 'transferencia'
+  created_by: string | null
+  created_at: string
+}
+
+export type PagoProveedorConProveedor = PagoProveedor & {
+  proveedor: Proveedor | null
+}
+
+const proveedores: Proveedor[] = [
+  {
+    id: 'eeee0001-0000-0000-0000-000000000001',
+    tenant_id: TENANT,
+    nombre: 'Distribuidora Central SRL',
+    ruc: '80012345-6',
+    telefono: '(021) 450-123',
+    email: 'ventas@central.com.py',
+    direccion: 'Santísima Trinidad 2140',
+    activo: true,
+    created_at: hace(900),
+  },
+  {
+    id: 'eeee0002-0000-0000-0000-000000000002',
+    tenant_id: TENANT,
+    nombre: 'Tecnology Import SA',
+    ruc: '80067890-1',
+    telefono: '(0985) 123-456',
+    email: null,
+    direccion: 'Av. Mariscal López 2890',
+    activo: true,
+    created_at: hace(700),
+  },
+  {
+    id: 'eeee0003-0000-0000-0000-000000000003',
+    tenant_id: TENANT,
+    nombre: 'Textiles Paraguay SA',
+    ruc: '80011223-4',
+    telefono: null,
+    email: 'hola@textilespy.com',
+    direccion: null,
+    activo: false,
+    created_at: hace(500),
+  },
+]
+
+const pagosProveedor: PagoProveedor[] = [
+  {
+    id: 'ffff0001-0000-0000-0000-000000000001',
+    tenant_id: TENANT,
+    proveedor_id: proveedores[0].id,
+    fecha: hace(0, 30).slice(0, 10),
+    concepto: 'Reposición de cables y fundas',
+    monto: 1500000,
+    moneda: 'PYG',
+    metodo: 'transferencia',
+    created_by: DEMO_USER_ID,
+    created_at: hace(0, 30),
+  },
+  {
+    id: 'ffff0002-0000-0000-0000-000000000002',
+    tenant_id: TENANT,
+    proveedor_id: proveedores[1].id,
+    fecha: hace(2).slice(0, 10),
+    concepto: 'Pago a cuenta cargador GaN',
+    monto: 400,
+    moneda: 'USD',
+    metodo: 'tarjeta',
+    created_by: DEMO_USER_ID,
+    created_at: hace(2),
+  },
+  {
+    id: 'ffff0003-0000-0000-0000-000000000003',
+    tenant_id: TENANT,
+    proveedor_id: proveedores[0].id,
+    fecha: hace(5).slice(0, 10),
+    concepto: 'Factura 0045',
+    monto: 850000,
+    moneda: 'PYG',
+    metodo: 'efectivo',
+    created_by: DEMO_USER_ID,
+    created_at: hace(5),
+  },
+  {
+    id: 'ffff0004-0000-0000-0000-000000000004',
+    tenant_id: TENANT,
+    proveedor_id: proveedores[2].id,
+    fecha: hace(9).slice(0, 10),
+    concepto: null,
+    monto: 1200000,
+    moneda: 'PYG',
+    metodo: 'transferencia',
+    created_by: DEMO_USER_ID,
+    created_at: hace(9),
+  },
+]
+
+type DemoSnapshot = {
+  productos: Producto[]
+  stock: StockRow[]
+  ventas: Venta[]
+  miembros: Miembro[]
+  proveedores: Proveedor[]
+  pagosProveedor: PagoProveedor[]
+}
+
+const DEMO_KEY = 'kahabox_demo_v1'
+
+function reemplazar<T>(destino: T[], fuente: T[]) {
+  destino.splice(0, destino.length, ...fuente)
+}
+
+function cargarPersistido() {
+  try {
+    const raw = localStorage.getItem(DEMO_KEY)
+    if (!raw) return
+    const data = JSON.parse(raw) as Partial<DemoSnapshot>
+    if (Array.isArray(data.productos)) reemplazar(productos, data.productos)
+    if (Array.isArray(data.stock)) reemplazar(stock, data.stock)
+    if (Array.isArray(data.ventas)) reemplazar(ventas, data.ventas)
+    if (Array.isArray(data.miembros)) reemplazar(miembros, data.miembros)
+    if (Array.isArray(data.proveedores)) reemplazar(proveedores, data.proveedores)
+    if (Array.isArray(data.pagosProveedor)) reemplazar(pagosProveedor, data.pagosProveedor)
+  } catch {
+    // Snapshot dañado: se mantiene el seed demo.
+  }
+}
+
+function guardar() {
+  try {
+    const snapshot: DemoSnapshot = {
+      productos,
+      stock,
+      ventas,
+      miembros,
+      proveedores,
+      pagosProveedor,
+    }
+    localStorage.setItem(DEMO_KEY, JSON.stringify(snapshot))
+  } catch {
+    // Sin storage (modo privado): convive en memoria, como antes.
+  }
+}
+
+if (typeof localStorage !== 'undefined') cargarPersistido()
+
+export function getMockProveedores(): Proveedor[] {
+  return [...proveedores].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+}
+
+export function getMockPagosProveedores(): PagoProveedorConProveedor[] {
+  return [...pagosProveedor]
+    .sort((a, b) => b.fecha.localeCompare(a.fecha))
+    .map((p) => ({
+      ...p,
+      proveedor: proveedores.find((pr) => pr.id === p.proveedor_id) ?? null,
+    }))
+}
+
+export function crearProveedorMock(entrada: {
+  nombre: string
+  ruc?: string
+  telefono?: string
+  email?: string
+  direccion?: string
+}): Proveedor {
+  const proveedor: Proveedor = {
+    id: crypto.randomUUID(),
+    tenant_id: TENANT,
+    nombre: entrada.nombre,
+    ruc: entrada.ruc?.trim() || null,
+    telefono: entrada.telefono?.trim() || null,
+    email: entrada.email?.trim() || null,
+    direccion: entrada.direccion?.trim() || null,
+    activo: true,
+    created_at: new Date().toISOString(),
+  }
+  proveedores.unshift(proveedor)
+  guardar()
+  return proveedor
+}
+
+export function actualizarProveedorMock(
+  id: string,
+  cambios: Partial<Pick<Proveedor, 'nombre' | 'ruc' | 'telefono' | 'email' | 'direccion' | 'activo'>>,
+): boolean {
+  const idx = proveedores.findIndex((p) => p.id === id)
+  if (idx < 0) return false
+  proveedores[idx] = { ...proveedores[idx], ...cambios }
+  guardar()
+  return true
+}
+
+export function eliminarProveedorMock(id: string): boolean {
+  const idx = proveedores.findIndex((p) => p.id === id)
+  if (idx < 0) return false
+  proveedores.splice(idx, 1)
+  for (let i = pagosProveedor.length - 1; i >= 0; i--) {
+    if (pagosProveedor[i].proveedor_id === id) pagosProveedor.splice(i, 1)
+  }
+  guardar()
+  return true
+}
+
+export function registrarPagoProveedorMock(entrada: {
+  proveedor_id: string
+  fecha: string
+  concepto?: string
+  monto: number
+  moneda: Moneda
+  metodo: 'efectivo' | 'tarjeta' | 'transferencia'
+}): PagoProveedor {
+  const ahora = new Date().toISOString()
+  const pago: PagoProveedor = {
+    id: crypto.randomUUID(),
+    tenant_id: TENANT,
+    proveedor_id: entrada.proveedor_id,
+    fecha: entrada.fecha,
+    concepto: entrada.concepto?.trim() || null,
+    monto: entrada.monto,
+    moneda: entrada.moneda,
+    metodo: entrada.metodo,
+    created_by: DEMO_USER_ID,
+    created_at: ahora,
+  }
+  pagosProveedor.unshift(pago)
+  guardar()
+  return pago
+}
+
+export function eliminarPagoProveedorMock(id: string): boolean {
+  const idx = pagosProveedor.findIndex((p) => p.id === id)
+  if (idx < 0) return false
+  pagosProveedor.splice(idx, 1)
+  guardar()
+  return true
+}
+
+export function getMockResumen() {
+  const stockBajo = stock.filter(
+    (s) => s.cantidad > 0 && s.cantidad <= UMBRAL_STOCK_BAJO,
+  ).length
+  const agotados = stock.filter((s) => s.cantidad === 0).length
+
+  const monedas = new Set(stock.map((s) => s.moneda))
+  const valorStock =
+    stock.length > 0 && monedas.size === 1
+      ? stock.reduce((acc, s) => acc + s.precio * s.cantidad, 0)
+      : null
+
+  const hoy = new Date().toISOString().slice(0, 10)
+  const ventasHoy = ventas
+    .filter((v) => v.estado === 'confirmada' && v.created_at.slice(0, 10) === hoy)
+    .reduce((acc, v) => acc + v.total, 0)
+
+  const pagosHoy = pagosProveedor
+    .filter((p) => p.fecha === hoy && p.moneda === 'PYG')
+    .reduce((acc, p) => acc + p.monto, 0)
+
+  return { stockBajo, agotados, ventasHoy, valorStock, pagosHoy }
+}
+
+export const demoUser = {
+  id: DEMO_USER_ID,
+  aud: 'authenticated',
+  role: 'authenticated',
+  email: 'demo@kahabox.com',
+  email_confirmed_at: hace(480),
+  phone: '',
+  confirmation_sent_at: null,
+  confirmed_at: hace(480),
+  last_sign_in_at: hace(1),
+  app_metadata: {
+    provider: 'demo',
+    providers: ['demo'],
+    tenant_id: TENANT,
+    rol: 'dueño',
+  },
+  user_metadata: { nombre: 'Kaha Demo', nombre_tienda: 'Kaha Demo' },
+  identities: [],
+  created_at: hace(480),
+  updated_at: hace(1),
+  is_anonymous: false,
+  factors: null,
+} as unknown as User
+
+export const demoSession = {
+  access_token: 'demo-mode',
+  token_type: 'bearer',
+  expires_in: 3600 * 24,
+  expires_at: Math.floor(Date.now() / 1000) + 3600 * 24,
+  refresh_token: 'demo-mode-refresh',
+  user: demoUser,
+} as unknown as Session

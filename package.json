@@ -1,0 +1,15 @@
+{
+  "name": "kahabox",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SaaS multi-tenant de gestión de stock para PYMES revendedoras — monorepo (frontend + Supabase)",
+  "workspaces": [
+    "web"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w web",
+    "build": "npm run build -w web",
+    "typecheck": "npm run typecheck -w web",
+    "preview": "npm run preview -w web"
+  }
+}

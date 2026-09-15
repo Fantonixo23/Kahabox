@@ -1,0 +1,48 @@
+-- Proveedores y pagos a proveedores
+-- Registro de proveedores y de los pagos (egresos) hechos a cada uno.
+-- La deuda pendiente por compras se modela en una fase posterior (módulo de
+-- compras); por ahora los pagos funcionan como libro de egresos por proveedor.
+
+create table proveedores (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references tenants (id) on delete cascade,
+  nombre text not null,
+  ruc text,
+  telefono text,
+  email text,
+  direccion text,
+  activo boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+alter table proveedores enable row level security;
+
+create policy "proveedores_mi_tenant" on proveedores
+  for all
+  to authenticated
+  using (tenant_id = (auth.jwt() -> 'tenant_id')::uuid)
+  with check (tenant_id = (auth.jwt() -> 'tenant_id')::uuid);
+
+create table pagos_proveedores (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references tenants (id) on delete cascade,
+  proveedor_id uuid not null references proveedores (id) on delete cascade,
+  fecha date not null default current_date,
+  concepto text,
+  monto numeric(14, 2) not null check (monto > 0),
+  moneda text not null default 'PYG' check (moneda in ('PYG', 'USD', 'ARS', 'BRL')),
+  metodo text not null default 'efectivo' check (metodo in ('efectivo', 'tarjeta', 'transferencia')),
+  created_by uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+alter table pagos_proveedores enable row level security;
+
+create policy "pagos_proveedores_mi_tenant" on pagos_proveedores
+  for all
+  to authenticated
+  using (tenant_id = (auth.jwt() -> 'tenant_id')::uuid)
+  with check (tenant_id = (auth.jwt() -> 'tenant_id')::uuid);
+
+create index pagos_proveedores_proveedor_fecha_idx
+  on pagos_proveedores (proveedor_id, fecha desc);
