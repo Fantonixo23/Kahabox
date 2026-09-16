@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from 'react'
 
+import type { Moneda } from '@/lib/format'
+
 export type CertificadoSifen = {
   nombre: string
   tamano: number
@@ -7,13 +9,23 @@ export type CertificadoSifen = {
   base64: string | null
 }
 
+export type AnchoTicketPc = 88 | 44
+
+export type CajaNumero = 1 | 2 | 3
+
 export type ConfigApp = {
   nombreNegocio: string
   sifenActivo: boolean
   sifenRuc: string
   certificado: CertificadoSifen | null
+  anchoTicketPc: AnchoTicketPc
+  cajaNumero: CajaNumero
   modulosOcultos: string[]
+  monedasActivas: Moneda[]
+  monedaPrincipal: Moneda
 }
+
+const MONEDAS_DEFAULT: Moneda[] = ['PYG', 'USD', 'ARS', 'BRL']
 
 export type Modulo = { ruta: string; label: string; corto: string }
 
@@ -35,12 +47,36 @@ const CLAVE = 'kahabox:config'
 const CLAVE_MODULOS_OCULTOS = 'kahabox:modulos-ocultos'
 
 function configInicial(): ConfigApp {
+  const guardada = leerConfigGuardada()
   return {
     nombreNegocio: '',
     sifenActivo: false,
     sifenRuc: '',
     certificado: null,
+    anchoTicketPc: 88,
+    cajaNumero: 1,
     modulosOcultos: leerModulosOcultos(),
+    monedasActivas: MONEDAS_DEFAULT,
+    monedaPrincipal: 'PYG',
+    ...guardada,
+  }
+}
+
+function leerConfigGuardada(): Partial<ConfigApp> {
+  try {
+    const raw = localStorage.getItem(CLAVE)
+    if (!raw) return {}
+    const datos = JSON.parse(raw) as Partial<ConfigApp>
+    if (Array.isArray(datos.monedasActivas)) {
+      datos.monedasActivas = datos.monedasActivas.filter((m): m is Moneda =>
+        MONEDAS_DEFAULT.includes(m as Moneda),
+      )
+    } else {
+      delete datos.monedasActivas
+    }
+    return datos
+  } catch {
+    return {}
   }
 }
 
@@ -67,6 +103,10 @@ function guardar() {
         sifenActivo: config.sifenActivo,
         sifenRuc: config.sifenRuc,
         certificado: config.certificado,
+        anchoTicketPc: config.anchoTicketPc,
+        cajaNumero: config.cajaNumero,
+        monedasActivas: config.monedasActivas,
+        monedaPrincipal: config.monedaPrincipal,
       }),
     )
     localStorage.setItem(
@@ -93,6 +133,20 @@ export function actualizarConfig(patch: Partial<ConfigApp>) {
 
 export function nombreNegocio(): string {
   return config.nombreNegocio.trim() || 'KAHABOX'
+}
+
+// Divisas que el usuario dejó habilitadas en Configuración. Si por algún
+// motivo quedan todas fuera, se cae a la lista completa para no romper selects.
+export function monedasActivas(): Moneda[] {
+  return config.monedasActivas.length > 0
+    ? config.monedasActivas
+    : MONEDAS_DEFAULT
+}
+
+export function monedaPrincipal(): Moneda {
+  return monedasActivas().includes(config.monedaPrincipal)
+    ? config.monedaPrincipal
+    : monedasActivas()[0]
 }
 
 export function useConfig(): ConfigApp {

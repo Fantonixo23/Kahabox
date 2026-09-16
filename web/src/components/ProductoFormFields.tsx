@@ -1,4 +1,5 @@
 import BarcodeScanner from '@/components/BarcodeScanner'
+import MoneyInput from '@/components/MoneyInput'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -8,7 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { Moneda } from '@/lib/format'
+import { MONEDAS, type Moneda } from '@/lib/format'
+import { useConfig } from '@/lib/config'
 
 export type ProductoFormValues = {
   nombre: string
@@ -48,6 +50,9 @@ export function ProductoFormFields({
   ) => void
   onCodigoEscaneado?: (codigo: string) => void
 }) {
+  const { monedasActivas } = useConfig()
+  const activas =
+    monedasActivas.length > 0 ? monedasActivas : MONEDAS.map((m) => m.codigo)
   return (
     <div className="grid gap-3">
       <div className="space-y-1.5">
@@ -118,25 +123,21 @@ export function ProductoFormFields({
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor="pf-precio">Precio *</Label>
-          <Input
+          <MoneyInput
             id="pf-precio"
-            type="number"
-            min={0}
-            step="0.01"
             value={form.precio}
-            onChange={(e) => set('precio', e.target.value)}
+            onChange={(v) => set('precio', v)}
+            placeholder="0"
             required
           />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="pf-costo">Costo</Label>
-          <Input
+          <MoneyInput
             id="pf-costo"
-            type="number"
-            min={0}
-            step="0.01"
             value={form.costo}
-            onChange={(e) => set('costo', e.target.value)}
+            onChange={(v) => set('costo', v)}
+            placeholder="0"
           />
         </div>
       </div>
@@ -160,8 +161,11 @@ export function ProductoFormFields({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="PYG">Guaraníes (Gs)</SelectItem>
-              <SelectItem value="USD">Dólares (US$)</SelectItem>
+              {MONEDAS.filter((m) => activas.includes(m.codigo)).map((m) => (
+                <SelectItem key={m.codigo} value={m.codigo}>
+                  {m.etiqueta}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

@@ -1,9 +1,12 @@
 import { useState } from 'react'
 
 import {
+  Coins,
   EyeOff,
   FileKey2,
   Info,
+  MonitorSmartphone,
+  Printer,
   ShieldCheck,
   Store as StoreIcon,
   Trash2,
@@ -19,12 +22,22 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { cn } from 'cn'
+import { MONEDAS, type Moneda } from '@/lib/format'
 import {
   MODULOS,
   actualizarConfig,
   nombreNegocio,
   useConfig,
+  type AnchoTicketPc,
+  type CajaNumero,
   type CertificadoSifen,
 } from '@/lib/config'
 
@@ -48,6 +61,16 @@ export default function ConfiguracionPage() {
 
   function actualizarCertificado(cert: CertificadoSifen) {
     actualizarConfig({ certificado: cert })
+  }
+
+  function alternarMoneda(codigo: Moneda) {
+    const activas = config.monedasActivas.includes(codigo)
+      ? config.monedasActivas.filter((m) => m !== codigo)
+      : [...config.monedasActivas, codigo]
+    const principal = activas.includes(config.monedaPrincipal)
+      ? config.monedaPrincipal
+      : (activas[0] ?? config.monedaPrincipal)
+    actualizarConfig({ monedasActivas: activas, monedaPrincipal: principal })
   }
 
   return (
@@ -88,6 +111,72 @@ export default function ConfiguracionPage() {
               <span className="text-xs font-medium text-emerald-600">
                 {mensaje}
               </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Coins className="size-4" />
+            Monedas
+          </CardTitle>
+          <CardDescription>
+            Elegí con qué divisas trabajás y cuál se usa por defecto. Las
+            desactivadas dejan de aparecer en los selectores de Caja, Stock y
+            Pagos.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            {MONEDAS.map((m) => {
+              const activa = config.monedasActivas.includes(m.codigo)
+              return (
+                <label
+                  key={m.codigo}
+                  className="flex cursor-pointer items-center justify-between gap-3 rounded-md border px-3 py-2.5"
+                >
+                  <span className="text-sm font-medium">{m.etiqueta}</span>
+                  <input
+                    type="checkbox"
+                    className="size-4 accent-primary"
+                    checked={activa}
+                    onChange={() => alternarMoneda(m.codigo)}
+                  />
+                </label>
+              )
+            })}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="cfg-moneda-principal">Moneda por defecto</Label>
+            <Select
+              value={config.monedaPrincipal}
+              onValueChange={(v) =>
+                actualizarConfig({ monedaPrincipal: v as Moneda })
+              }
+            >
+              <SelectTrigger
+                id="cfg-moneda-principal"
+                className="w-full sm:max-w-xs"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MONEDAS.filter((m) =>
+                  config.monedasActivas.includes(m.codigo),
+                ).map((m) => (
+                  <SelectItem key={m.codigo} value={m.codigo}>
+                    {m.etiqueta}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {config.monedasActivas.length === 0 && (
+              <p className="text-xs text-amber-600">
+                Activá al menos una moneda para elegir una por defecto.
+              </p>
             )}
           </div>
         </CardContent>
@@ -183,6 +272,77 @@ export default function ConfiguracionPage() {
               </label>
             )
           })}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Printer className="size-4" />
+            Impresión del ticket
+          </CardTitle>
+          <CardDescription>
+            Ancho del recibo cuando imprimís en la PC desde el botón "Imprimir
+            PC". En el celular se imprime siempre por RawBT.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="cfg-ancho-ticket">Ancho del ticket</Label>
+            <Select
+              value={String(config.anchoTicketPc)}
+              onValueChange={(v) =>
+                actualizarConfig({ anchoTicketPc: Number(v) as AnchoTicketPc })
+              }
+            >
+              <SelectTrigger id="cfg-ancho-ticket" className="w-full sm:max-w-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="88">88 mm — ancho estándar</SelectItem>
+                <SelectItem value="44">44 mm — angosto</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MonitorSmartphone className="size-4" />
+            Caja de esta computadora
+          </CardTitle>
+          <CardDescription>
+            Número de caja para el escáner remoto. El QR que muestra la Caja
+            lleva a este número de caja en el celular.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="cfg-caja">Número de Caja</Label>
+            <div className="flex gap-2 sm:max-w-xs">
+              {([1, 2, 3] as CajaNumero[]).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => actualizarConfig({ cajaNumero: n })}
+                  className={cn(
+                    'flex h-10 flex-1 items-center justify-center rounded-lg border text-sm font-semibold transition-colors',
+                    config.cajaNumero === n
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'bg-background text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Estas en la Caja {config.cajaNumero} (canal{' '}
+              <span className="font-mono">caja-{config.cajaNumero}</span>).
+            </p>
+          </div>
         </CardContent>
       </Card>
 

@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 
 import { HandCoins, Plus, Trash2, WalletCards } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
+import MoneyInput from '@/components/MoneyInput'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -31,13 +32,14 @@ import {
 } from '@/components/ui/table'
 import { aGs, tasasBase } from '@/lib/cotizaciones'
 import { MONEDAS, formatMoney, type Moneda } from '@/lib/format'
+import { monedaPrincipal, useConfig } from '@/lib/config'
+import type { PagoProveedorConProveedor, Proveedor } from '@/lib/mock'
 import {
-  eliminarPagoProveedorMock,
-  getMockPagosProveedores,
-  getMockProveedores,
-  registrarPagoProveedorMock,
-  type PagoProveedorConProveedor,
-} from '@/lib/mock'
+  eliminarPago,
+  listarPagos,
+  listarProveedores,
+  registrarPago,
+} from '@/lib/proveedoresData'
 
 const METODOS: Record<string, string> = {
   efectivo: 'Efectivo',
@@ -59,10 +61,11 @@ type Form = {
 }
 
 export default function PagosProveedoresPage() {
-  const [pagos, setPagos] = useState<PagoProveedorConProveedor[]>(() =>
-    getMockPagosProveedores(),
-  )
-  const [proveedores, setProveedores] = useState(() => getMockProveedores())
+  const { monedasActivas } = useConfig()
+  const activas =
+    monedasActivas.length > 0 ? monedasActivas : MONEDAS.map((m) => m.codigo)
+  const [pagos, setPagos] = useState<PagoProveedorConProveedor[] | null>(null)
+  const [proveedores, setProveedores] = useState<Proveedor[]>([])
   const [filtro, setFiltro] = useState<string>('todos')
   const [abierto, setAbierto] = useState(false)
   const [form, setForm] = useState<Form>({
@@ -70,16 +73,29 @@ export default function PagosProveedoresPage() {
     fecha: hoy(),
     concepto: '',
     monto: '',
-    moneda: 'PYG',
+    moneda: monedaPrincipal(),
     metodo: 'efectivo',
   })
   const [error, setError] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
+  const [ocupado, setOcupado] = useState(false)
 
-  function recargar() {
-    setPagos(getMockPagosProveedores())
-    setProveedores(getMockProveedores())
-  }
+  const recargar = useCallback(async () => {
+    try {
+      const [listaPagos, listaProveedores] = await Promise.all([
+        listarPagos(),
+        listarProveedores(),
+      ])
+      setPagos(listaPagos)
+      setProveedores(listaProveedores)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudieron cargar los pagos.')
+    }
+  }, [])
+
+  useEffect(() => {
+    void recargar()
+  }, [recargar])
 
   function abrirDialogo() {
     setError(null)
@@ -88,13 +104,13 @@ export default function PagosProveedoresPage() {
       fecha: hoy(),
       concepto: '',
       monto: '',
-      moneda: 'PYG',
+      moneda: monedaPrincipal(),
       metodo: 'efectivo',
     })
     setAbierto(true)
   }
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     const proveedor_id = form.proveedor_id
     const monto = Number(form.monto)
@@ -106,20 +122,28 @@ export default function PagosProveedoresPage() {
       setError('Ingresá un monto válido mayor a cero.')
       return
     }
-    registrarPagoProveedorMock({
-      proveedor_id,
-      fecha: form.fecha || hoy(),
-      concepto: form.concepto || undefined,
-      monto,
-      moneda: form.moneda,
-      metodo: form.metodo,
-    })
-    setAbierto(false)
-    setAviso('Pago registrado.')
-    recargar()
+    setError(null)
+    setOcupado(true)
+    try {
+      await registrarPago({
+        proveedor_id,
+        fecha: form.fecha || hoy(),
+        concepto: form.concepto || undefined,
+        monto,
+        moneda: form.moneda,
+        metodo: form.metodo,
+      })
+      setAbierto(false)
+      setAviso('Pago registrado.')
+      await recargar()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo registrar el pago.')
+    } finally {
+      setOcupado(false)
+    }
   }
 
-  const visibles = pagos.filter(
+  const visibles = (pagos ?? []).filter(
     (p) => filtro === 'todos' || p.proveedor_id === filtro,
   )
 
@@ -169,7 +193,9 @@ export default function PagosProveedoresPage() {
         </Badge>
       </div>
 
-      {visibles.length === 0 ? (
+      {pagos === null ? (
+        <p className="text-sm text-muted-foreground">Cargando…</p>
+      ) : visibles.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-md border border-dashed p-10 text-center">
           <WalletCards className="size-6 text-muted-foreground" />
           <p className="text-sm font-medium">Sin pagos registrados</p>
@@ -211,10 +237,23 @@ export default function PagosProveedoresPage() {
                       variant="ghost"
                       size="icon-sm"
                       className="text-muted-foreground hover:text-destructive"
-                      onClick={() => {
-                        eliminarPagoProveedorMock(p.id)
-                        setAviso('Pago eliminado.')
-                        recargar()
+                      disabled={ocupado}
+                      onClick={async () => {
+                        setError(null)
+                        setOcupado(true)
+                        try {
+                          await eliminarPago(p.id)
+                          setAviso('Pago eliminado.')
+                          await recargar()
+                        } catch (e) {
+                          setError(
+                            e instanceof Error
+                              ? e.message
+                              : 'No se pudo eliminar el pago.',
+                          )
+                        } finally {
+                          setOcupado(false)
+                        }
                       }}
                       aria-label={`Eliminar pago de ${p.proveedor?.nombre ?? 'proveedor'}`}
                     >
@@ -289,11 +328,10 @@ export default function PagosProveedoresPage() {
             <div className="grid gap-2">
               <Label htmlFor="pp-monto">Monto *</Label>
               <div className="flex items-center gap-2">
-                <Input
+                <MoneyInput
                   id="pp-monto"
-                  inputMode="decimal"
                   value={form.monto}
-                  onChange={(e) => setForm({ ...form, monto: e.target.value })}
+                  onChange={(v) => setForm({ ...form, monto: v })}
                   placeholder="0"
                   className="flex-1"
                 />
@@ -305,11 +343,13 @@ export default function PagosProveedoresPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {MONEDAS.map((m) => (
-                      <SelectItem key={m.codigo} value={m.codigo}>
-                        {m.codigo}
-                      </SelectItem>
-                    ))}
+                    {MONEDAS.filter((m) => activas.includes(m.codigo)).map(
+                      (m) => (
+                        <SelectItem key={m.codigo} value={m.codigo}>
+                          {m.codigo}
+                        </SelectItem>
+                      ),
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -345,7 +385,7 @@ export default function PagosProveedoresPage() {
               >
                 Cancelar
               </Button>
-              <Button type="submit">Registrar pago</Button>
+              <Button type="submit" disabled={ocupado}>Registrar pago</Button>
             </DialogFooter>
           </form>
         </DialogContent>

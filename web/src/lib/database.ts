@@ -57,6 +57,60 @@ export type Database = {
           },
         ]
       }
+      pagos_proveedores: {
+        Row: {
+          id: string
+          tenant_id: string
+          proveedor_id: string
+          fecha: string
+          concepto: string | null
+          monto: number
+          moneda: 'PYG' | 'USD' | 'ARS' | 'BRL'
+          metodo: 'efectivo' | 'tarjeta' | 'transferencia'
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id?: string
+          proveedor_id: string
+          fecha?: string
+          concepto?: string | null
+          monto: number
+          moneda?: 'PYG' | 'USD' | 'ARS' | 'BRL'
+          metodo?: 'efectivo' | 'tarjeta' | 'transferencia'
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          proveedor_id?: string
+          fecha?: string
+          concepto?: string | null
+          monto?: number
+          moneda?: 'PYG' | 'USD' | 'ARS' | 'BRL'
+          metodo?: 'efectivo' | 'tarjeta' | 'transferencia'
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'pagos_proveedores_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'tenants'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'pagos_proveedores_proveedor_id_fkey'
+            columns: ['proveedor_id']
+            isOneToOne: false
+            referencedRelation: 'proveedores'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       productos_maestro: {
         Row: {
           id: string
@@ -89,6 +143,50 @@ export type Database = {
           created_at?: string
         }
         Relationships: []
+      }
+      proveedores: {
+        Row: {
+          id: string
+          tenant_id: string
+          nombre: string
+          ruc: string | null
+          telefono: string | null
+          email: string | null
+          direccion: string | null
+          activo: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id?: string
+          nombre: string
+          ruc?: string | null
+          telefono?: string | null
+          email?: string | null
+          direccion?: string | null
+          activo?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          nombre?: string
+          ruc?: string | null
+          telefono?: string | null
+          email?: string | null
+          direccion?: string | null
+          activo?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'proveedores_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'tenants'
+            referencedColumns: ['id']
+          },
+        ]
       }
       sucursales: {
         Row: {
@@ -255,6 +353,65 @@ Relationships: [
             columns: ['venta_id']
             isOneToOne: false
             referencedRelation: 'ventas'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      stock_movimientos: {
+        Row: {
+          id: string
+          tenant_id: string
+          sucursal_id: string | null
+          linea_id: string | null
+          producto_nombre: string
+          codigo_barras: string | null
+          sku: string | null
+          tipo: 'entrada' | 'salida' | 'transferencia_origen' | 'transferencia_destino'
+          cantidad: number
+          motivo: string | null
+          ref_sucursal_id: string | null
+          ref_sucursal_nombre: string | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id?: string
+          sucursal_id?: string | null
+          linea_id?: string | null
+          producto_nombre: string
+          codigo_barras?: string | null
+          sku?: string | null
+          tipo?: 'entrada' | 'salida' | 'transferencia_origen' | 'transferencia_destino'
+          cantidad: number
+          motivo?: string | null
+          ref_sucursal_id?: string | null
+          ref_sucursal_nombre?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          sucursal_id?: string | null
+          linea_id?: string | null
+          producto_nombre?: string
+          codigo_barras?: string | null
+          sku?: string | null
+          tipo?: 'entrada' | 'salida' | 'transferencia_origen' | 'transferencia_destino'
+          cantidad?: number
+          motivo?: string | null
+          ref_sucursal_id?: string | null
+          ref_sucursal_nombre?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'stock_movimientos_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'tenants'
             referencedColumns: ['id']
           },
         ]

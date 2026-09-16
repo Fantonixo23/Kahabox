@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 
 import { Pencil, Plus, Trash2, Truck } from 'lucide-react'
 
@@ -16,14 +16,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { aGs, tasasBase } from '@/lib/cotizaciones'
 import { formatMoney } from '@/lib/format'
+import type { PagoProveedorConProveedor, Proveedor } from '@/lib/mock'
 import {
-  actualizarProveedorMock,
-  crearProveedorMock,
-  eliminarProveedorMock,
-  getMockPagosProveedores,
-  getMockProveedores,
-  type Proveedor,
-} from '@/lib/mock'
+  actualizarProveedor,
+  crearProveedor,
+  eliminarProveedor,
+  listarPagos,
+  listarProveedores,
+} from '@/lib/proveedoresData'
 
 type EstadoDialog =
   | { modo: 'crear' }
@@ -38,9 +38,12 @@ type Form = {
   direccion: string
 }
 
-function calcularPagado(proveedorId: string): number {
+function totalPagado(
+  proveedorId: string,
+  pagos: PagoProveedorConProveedor[],
+): number {
   const tasas = tasasBase()
-  return getMockPagosProveedores()
+  return pagos
     .filter((p) => p.proveedor_id === proveedorId)
     .reduce((acc, p) => acc + aGs(p.monto, p.moneda, tasas), 0)
 }
@@ -56,9 +59,8 @@ function formDesde(p: Proveedor): Form {
 }
 
 export default function ProveedoresPage() {
-  const [proveedores, setProveedores] = useState<Proveedor[]>(() =>
-    getMockProveedores(),
-  )
+  const [proveedores, setProveedores] = useState<Proveedor[] | null>(null)
+  const [pagos, setPagos] = useState<PagoProveedorConProveedor[]>([])
   const [dialog, setDialog] = useState<EstadoDialog>(null)
   const [aEliminar, setAEliminar] = useState<Proveedor | null>(null)
   const [form, setForm] = useState<Form>({
@@ -70,6 +72,24 @@ export default function ProveedoresPage() {
   })
   const [error, setError] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
+  const [ocupado, setOcupado] = useState(false)
+
+  const recargar = useCallback(async () => {
+    try {
+      const [lista, listaPagos] = await Promise.all([
+        listarProveedores(),
+        listarPagos(),
+      ])
+      setProveedores(lista)
+      setPagos(listaPagos)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudieron cargar los proveedores.')
+    }
+  }, [])
+
+  useEffect(() => {
+    void recargar()
+  }, [recargar])
 
   function abrirCrear() {
     setError(null)
@@ -83,48 +103,61 @@ export default function ProveedoresPage() {
     setDialog({ modo: 'editar', proveedor: p })
   }
 
-  function recargar() {
-    setProveedores(getMockProveedores())
-  }
-
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (!form.nombre.trim()) {
       setError('Ingresá el nombre del proveedor.')
       return
     }
-    if (dialog?.modo === 'editar') {
-      actualizarProveedorMock(dialog.proveedor.id, {
-        nombre: form.nombre.trim(),
-        ruc: form.ruc.trim() || null,
-        telefono: form.telefono.trim() || null,
-        email: form.email.trim() || null,
-        direccion: form.direccion.trim() || null,
-      })
-      setAviso('Proveedor actualizado.')
-    } else {
-      crearProveedorMock({
-        nombre: form.nombre.trim(),
-        ruc: form.ruc.trim() || undefined,
-        telefono: form.telefono.trim() || undefined,
-        email: form.email.trim() || undefined,
-        direccion: form.direccion.trim() || undefined,
-      })
-      setAviso('Proveedor creado.')
+    setError(null)
+    setOcupado(true)
+    try {
+      if (dialog?.modo === 'editar') {
+        await actualizarProveedor(dialog.proveedor.id, {
+          nombre: form.nombre.trim(),
+          ruc: form.ruc.trim() || undefined,
+          telefono: form.telefono.trim() || undefined,
+          email: form.email.trim() || undefined,
+          direccion: form.direccion.trim() || undefined,
+        })
+        setAviso('Proveedor actualizado.')
+      } else {
+        await crearProveedor({
+          nombre: form.nombre.trim(),
+          ruc: form.ruc.trim() || undefined,
+          telefono: form.telefono.trim() || undefined,
+          email: form.email.trim() || undefined,
+          direccion: form.direccion.trim() || undefined,
+        })
+        setAviso('Proveedor creado.')
+      }
+      setDialog(null)
+      await recargar()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo guardar el proveedor.')
+    } finally {
+      setOcupado(false)
     }
-    recargar()
-    setDialog(null)
   }
 
-  function confirmarEliminar() {
+  async function confirmarEliminar() {
     if (!aEliminar) return
-    eliminarProveedorMock(aEliminar.id)
-    setAviso('Proveedor eliminado.')
-    setAEliminar(null)
-    recargar()
+    setError(null)
+    setOcupado(true)
+    try {
+      await eliminarProveedor(aEliminar.id)
+      setAviso('Proveedor eliminado.')
+      setAEliminar(null)
+      await recargar()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo eliminar el proveedor.')
+    } finally {
+      setOcupado(false)
+    }
   }
 
-  const activos = proveedores.filter((p) => p.activo).length
+  const lista = proveedores ?? []
+  const activos = lista.filter((p) => p.activo).length
 
   return (
     <div className="space-y-4">
@@ -148,11 +181,13 @@ export default function ProveedoresPage() {
       )}
 
       <div className="flex flex-wrap gap-3 text-sm">
-        <Badge variant="secondary"> {proveedores.length} proveedores</Badge>
+        <Badge variant="secondary"> {lista.length} proveedores</Badge>
         <Badge variant="outline"> {activos} activos</Badge>
       </div>
 
-      {proveedores.length === 0 ? (
+      {proveedores === null ? (
+        <p className="text-sm text-muted-foreground">Cargando…</p>
+      ) : lista.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-md border border-dashed p-10 text-center">
           <Truck className="size-6 text-muted-foreground" />
           <p className="text-sm font-medium">Todavía no tenés proveedores</p>
@@ -162,7 +197,7 @@ export default function ProveedoresPage() {
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {proveedores.map((p) => (
+          {lista.map((p) => (
             <div key={p.id} className="rounded-lg border bg-card p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3">
@@ -223,7 +258,7 @@ export default function ProveedoresPage() {
                   Pagado (Gs)
                 </span>
                 <span className="text-sm font-semibold tabular-nums">
-                  {formatMoney(calcularPagado(p.id), 'PYG')}
+                  {formatMoney(totalPagado(p.id, pagos), 'PYG')}
                 </span>
               </div>
             </div>
@@ -303,7 +338,7 @@ export default function ProveedoresPage() {
             </div>
             <DialogFooter>
               <DialogCancel onCancel={() => setDialog(null)} />
-              <Button type="submit">
+              <Button type="submit" disabled={ocupado}>
                 {dialog?.modo === 'editar' ? 'Guardar cambios' : 'Crear proveedor'}
               </Button>
             </DialogFooter>
@@ -329,7 +364,7 @@ export default function ProveedoresPage() {
             <Button variant="outline" onClick={() => setAEliminar(null)}>
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={confirmarEliminar}>
+            <Button variant="destructive" onClick={confirmarEliminar} disabled={ocupado}>
               <Trash2 />
               Eliminar
             </Button>

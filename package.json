@@ -13,6 +13,10 @@
     "preview": "npm run preview -w web"
   },
   "dependencies": {
-    "@oxlint/binding-win32-x64-msvc": "^1.83.0"
+    "@oxlint/binding-win32-x64-msvc": "^1.83.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.6"
   }
 }

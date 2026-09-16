@@ -1,10 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react'
 
+import { Link } from 'react-router-dom'
+
 import {
   Check,
+  LogIn,
   Package,
   PackagePlus,
   Plus,
+  QrCode,
   ScanBarcode,
   Send,
   Wifi,
@@ -30,10 +34,12 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  guardarSala,
-  leerSala,
-  limpiarSala,
+  cajaDeUrl,
+  guardarCajaEscaneador,
+  leerCajaEscaneador,
+  salaDeCaja,
   useEscaneadorSala,
+  type CajaNumero,
   type PayloadNuevoProducto,
   type PayloadReponer,
 } from '@/lib/escaneoRemoto'
@@ -147,11 +153,15 @@ function ReponerStockRemotoDialog({
 }) {
   const [codigo, setCodigo] = useState('')
   const [cantidad, setCantidad] = useState('')
+  const [tipo, setTipo] = useState<'entrada' | 'salida'>('entrada')
+  const [motivo, setMotivo] = useState('')
 
   useEffect(() => {
     if (!open) return
     setCodigo(codigoInicial)
     setCantidad('')
+    setTipo('entrada')
+    setMotivo('')
   }, [open, codigoInicial])
 
   function handleSubmit(event: FormEvent) {
@@ -159,7 +169,12 @@ function ReponerStockRemotoDialog({
     const code = codigo.trim()
     const n = Number(cantidad)
     if (!code || !Number.isFinite(n) || n <= 0) return
-    onGuardar({ codigo_barras: code, cantidad: Math.floor(n) })
+    onGuardar({
+      codigo_barras: code,
+      cantidad: Math.floor(n),
+      tipo,
+      motivo: motivo.trim() || null,
+    })
   }
 
   return (
@@ -168,7 +183,7 @@ function ReponerStockRemotoDialog({
         <DialogHeader>
           <DialogTitle>Reponer stock</DialogTitle>
           <DialogDescription>
-            Suma unidades a un producto que ya está en tu stock.
+            Sumá o descontá unidades de un producto que ya está en tu stock.
           </DialogDescription>
         </DialogHeader>
 
@@ -200,8 +215,36 @@ function ReponerStockRemotoDialog({
               />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setTipo('entrada')}
+              className={cn(
+                'h-10 rounded-lg border text-sm font-semibold transition-colors',
+                tipo === 'entrada'
+                  ? 'border-emerald-400/60 bg-emerald-50 text-emerald-700'
+                  : 'bg-background text-muted-foreground hover:text-foreground',
+              )}
+            >
+              Entrada (+)
+            </button>
+            <button
+              type="button"
+              onClick={() => setTipo('salida')}
+              className={cn(
+                'h-10 rounded-lg border text-sm font-semibold transition-colors',
+                tipo === 'salida'
+                  ? 'border-amber-400/60 bg-amber-50 text-amber-700'
+                  : 'bg-background text-muted-foreground hover:text-foreground',
+              )}
+            >
+              Salida (−)
+            </button>
+          </div>
           <div className="space-y-1.5">
-            <Label htmlFor="rep-cantidad">Unidades a sumar</Label>
+            <Label htmlFor="rep-cantidad">
+              Unidades a {tipo === 'entrada' ? 'sumar' : 'descontar'}
+            </Label>
             <Input
               id="rep-cantidad"
               type="number"
@@ -213,6 +256,16 @@ function ReponerStockRemotoDialog({
               required
             />
           </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="rep-motivo">Motivo (opcional)</Label>
+            <Input
+              id="rep-motivo"
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              placeholder="Ej. compra a proveedor / merma"
+              autoCapitalize="off"
+            />
+          </div>
         </form>
 
         <DialogFooter>
@@ -220,7 +273,7 @@ function ReponerStockRemotoDialog({
             Cancelar
           </Button>
           <Button type="submit" form="reponer-stock-remoto">
-            Sumar unidades
+            Aplicar ajuste
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -229,8 +282,7 @@ function ReponerStockRemotoDialog({
 }
 
 export default function EscaneadorPage() {
-  const [sala, setSala] = useState(() => leerSala())
-  const [inputSala, setInputSala] = useState(() => leerSala())
+  const [caja, setCaja] = useState<CajaNumero>(() => leerCajaEscaneador())
   const [manual, setManual] = useState('')
   const [aviso, setAviso] = useState<string | null>(null)
   const [nota, setNota] = useState<string | null>(null)
@@ -241,10 +293,22 @@ export default function EscaneadorPage() {
   const [codigoConocido, setCodigoConocido] = useState('')
   const [codigoDesconocido, setCodigoDesconocido] = useState<string | null>(null)
 
-  const { estado, enviar, enviarProducto, reponerStock } = useEscaneadorSala(sala, {
-    onProducto: recibirProductoRemoto,
-    onSnapshot: recibirSnapshot,
-  })
+  const sala = salaDeCaja(caja)
+
+  useEffect(() => {
+    const cajaDelQr = cajaDeUrl()
+    if (cajaDelQr && cajaDelQr !== caja) {
+      setCaja(cajaDelQr)
+      guardarCajaEscaneador(cajaDelQr)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const { estado, enviar, enviarProducto, reponerStock, sinSesion } =
+    useEscaneadorSala(sala, {
+      onProducto: recibirProductoRemoto,
+      onSnapshot: recibirSnapshot,
+    })
 
   function recibirProductoRemoto(producto: PayloadNuevoProducto) {
     if (
@@ -308,23 +372,26 @@ export default function EscaneadorPage() {
     }
   }
 
-  function entrarSala(event: FormEvent) {
-    event.preventDefault()
-    const codigo = inputSala.trim().toUpperCase()
-    if (codigo.length < 4) {
-      setAviso('El código de sala se ve así: K-XXXXXX (lo muestra la Caja en la compu).')
-      return
-    }
-    guardarSala(codigo)
-    setSala(codigo)
+  function setCajaYGuardar(n: CajaNumero) {
+    setCaja(n)
+    guardarCajaEscaneador(n)
     setAviso(null)
   }
 
-  function salirDeSala() {
-    limpiarSala()
-    setSala('')
-    setInputSala('')
-    setEnviados([])
+  function manejarQr(url: string) {
+    try {
+      const u = new URL(url.includes('://') ? url : `http://${url}`)
+      const n = Number(u.searchParams.get('caja'))
+      if (n === 1 || n === 2 || n === 3) {
+        setCajaYGuardar(n as CajaNumero)
+        setAviso(null)
+        setNota(`Conectando a la Caja ${n}…`)
+      } else {
+        setAviso('Ese QR no es de una caja de Kahabox.')
+      }
+    } catch {
+      setAviso('Quedó guardado, pero no se reconoció el QR.')
+    }
   }
 
   function pushEnviado(codigo: string, tipo: EnvioRegistro['tipo']) {
@@ -337,13 +404,12 @@ export default function EscaneadorPage() {
   }
 
   function marcar(code: string) {
-    if (!sala) return
     const ok = enviar(code)
     if (ok) {
       pushEnviado(code, 'codigo')
       setAviso(null)
     } else {
-      setAviso('Sin conexión con la sala. Esperá y volvé a escanear.')
+      setAviso('Sin conexión con la Caja. Esperá y volvé a escanear.')
     }
   }
 
@@ -363,39 +429,41 @@ export default function EscaneadorPage() {
     crearProductoMock(producto)
     const etiqueta = producto.nombre || producto.codigo_barras || 'Producto'
     pushEnviado(etiqueta, 'producto')
-    if (sala && enviarProducto(producto)) {
+    if (enviarProducto(producto)) {
       setNota(`${etiqueta} fue creado y enviado a la Caja.`)
-    } else if (sala) {
-      setAviso('Quedó guardado en tu stock, pero la Caja no estaba conectada.')
     } else {
-      setNota(`${etiqueta} quedó guardado en tu stock.`)
+      setAviso('Quedó guardado en tu stock, pero la Caja no estaba conectada.')
     }
     setAgregarOpen(false)
   }
 
   function guardarReponer(reponer: PayloadReponer) {
-    const nombre = reponerStockMock(reponer.codigo_barras, reponer.cantidad)
+    const nombre = reponerStockMock(
+      reponer.codigo_barras,
+      reponer.cantidad,
+      reponer.tipo,
+      reponer.motivo,
+    )
     if (!nombre) {
       setAviso('Ese código no está en tu stock todavía: primero dale de alta como producto nuevo.')
       setReponerOpen(false)
       return
     }
-    const etiqueta = `${nombre} +${reponer.cantidad}`
-    const ok = sala && reponerStock(reponer)
+    const etiqueta = `${nombre} ${reponer.tipo === 'entrada' ? '+' : '−'}${reponer.cantidad}`
     pushEnviado(etiqueta, 'reponer')
-    if (ok) {
-      setNota(`Se sumaron ${reponer.cantidad} unidades de ${nombre} (enviado a la Caja).`)
-    } else if (sala) {
-      setAviso('Quedó sumado en tu stock, pero la Caja no estaba conectada.')
+    if (reponerStock(reponer)) {
+      setNota(
+        `Se ${reponer.tipo === 'entrada' ? 'sumaron' : 'descontaron'} ${reponer.cantidad} unidades de ${nombre} (enviado a la Caja).`,
+      )
     } else {
-      setNota(`Se sumaron ${reponer.cantidad} unidades de ${nombre}.`)
+      setAviso('Quedó en tu stock, pero la Caja no estaba conectada.')
     }
     setReponerOpen(false)
   }
 
   useKeyboardScanner((code) => manejarCodigo(code))
 
-  const conectado = sala !== '' && estado === 'conectado'
+  const conectado = estado === 'conectado'
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -406,56 +474,78 @@ export default function EscaneadorPage() {
           variant="outline"
           className="ml-auto font-mono text-xs tabular-nums"
         >
-          {sala || 'Sin Caja conectada'}
+          Caja {caja}
         </Badge>
-        {sala ? (
-          conectado ? (
-            <Wifi className="size-4 text-emerald-600" />
-          ) : (
-            <WifiOff className="size-4 text-amber-600" />
-          )
+        {conectado ? (
+          <Wifi className="size-4 text-emerald-600" />
         ) : (
-          <WifiOff className="size-4 text-muted-foreground" />
+          <WifiOff className="size-4 text-amber-600" />
         )}
       </header>
 
       <main className="flex-1 space-y-4 p-4">
-        {!sala ? (
-          <div className="rounded-xl border bg-card p-4">
-            <h2 className="text-sm font-semibold">Conectar a la Caja (opcional)</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Sin conectar podés escanear para <b>crear productos</b> y reponer
-              stock: quedan guardados en este teléfono. Conectate a la Caja de la
-              compu para que los productos que ya existen caigan al carrito.
-            </p>
-            <form onSubmit={entrarSala} className="mt-3 flex gap-2">
-              <Input
-                value={inputSala}
-                onChange={(e) => setInputSala(e.target.value)}
-                placeholder="K-ABC123"
-                className="h-11 flex-1 font-mono uppercase tracking-widest"
-                autoCapitalize="characters"
-                autoCorrect="off"
-              />
-              <Button type="submit" size="lg" className="h-11">
-                Conectar
-              </Button>
-            </form>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between">
+        <div className="rounded-xl border bg-card p-4">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold">Conectar a la Caja</h2>
             <span className="text-xs text-muted-foreground">
               {conectado
-                ? 'Conectado a la Caja. Escaneá productos: los que ya existen caen al carrito.'
+                ? 'Conexión activa'
                 : estado === 'error'
-                  ? 'No se pudo conectar. ¿Estás en la misma red (Wi-Fi) que la compu?'
+                  ? 'Sin conexión'
                   : 'Conectando…'}
             </span>
-            <Button variant="ghost" size="sm" onClick={salirDeSala}>
-              Cambiar sala
-            </Button>
           </div>
-        )}
+          <p className="mt-1 text-xs text-muted-foreground">
+            {sinSesion
+              ? 'Para conectar con la Caja tenés que iniciar sesión en Kahabox con la misma cuenta que la compu.'
+              : conectado
+                ? 'Escaneá productos: los que ya existen caen al carrito de la Caja.'
+                : estado === 'error'
+                  ? 'No se pudo conectar con la compu. ¿Estás en la misma red (Wi-Fi)?'
+                  : 'Intentando conectar con la compu…'}
+          </p>
+          {sinSesion && (
+            <Link
+              to="/login"
+              className="mt-3 inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 text-sm font-semibold text-primary"
+            >
+              <LogIn className="size-4" />
+              Iniciar sesión
+            </Link>
+          )}
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {([1, 2, 3] as CajaNumero[]).map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setCajaYGuardar(n)}
+                className={cn(
+                  'flex h-11 items-center justify-center rounded-lg border text-sm font-semibold transition-colors',
+                  caja === n
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'bg-background text-muted-foreground hover:text-foreground',
+                )}
+              >
+                Caja {n}
+              </button>
+            ))}
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-2 border-t pt-3">
+            <p className="text-xs text-muted-foreground">
+              ¿Estás frente a la Caja de la compu? Escaneá su QR y te conectás
+              sola.
+            </p>
+            <BarcodeScanner
+              onDetected={manejarQr}
+              trigger={
+                <Button type="button" variant="outline" size="sm">
+                  <QrCode />
+                  Escanear QR
+                </Button>
+              }
+            />
+          </div>
+        </div>
 
         {nota && (
           <p className="rounded-md border border-emerald-300/50 bg-emerald-50 p-3 text-sm text-emerald-700">
@@ -473,7 +563,7 @@ export default function EscaneadorPage() {
             <p>
               El código{' '}
               <span className="font-mono font-semibold">{codigoDesconocido}</span>{' '}
-              no está en tu stock {sala ? 'ni en la Caja' : ''}.
+              no está en tu stock ni en la Caja.
             </p>
             <div className="mt-2 flex gap-2">
               <Button
@@ -566,7 +656,7 @@ export default function EscaneadorPage() {
           />
           <Button type="submit" size="lg" className="h-11">
             <Send />
-            {sala ? 'Enviar' : 'Revisar'}
+            {conectado ? 'Enviar' : 'Revisar'}
           </Button>
         </form>
 

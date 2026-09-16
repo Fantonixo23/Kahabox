@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 import { AlertTriangle, CalendarDays, PackageX, Scale, WalletCards } from 'lucide-react'
 
+import { useAuth } from '@/components/auth/AuthContext'
 import {
   Card,
   CardContent,
@@ -11,6 +12,7 @@ import {
 } from '@/components/ui/card'
 import { UMBRAL_STOCK_BAJO, formatMoney, type Moneda } from '@/lib/format'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { vistaStock } from '@/lib/vistaStock'
 import { getMockResumen } from '@/lib/mock'
 
 type Resumen = {
@@ -22,6 +24,8 @@ type Resumen = {
 }
 
 export default function ReportesPage() {
+  const { user } = useAuth()
+  const vista = vistaStock(user)
   const [resumen, setResumen] = useState<Resumen>({
     stockBajo: null,
     agotados: null,
@@ -43,18 +47,18 @@ export default function ReportesPage() {
     async function cargar() {
       try {
         const bajos = await supabase
-          .from('stock_tienda_dueno')
+          .from(vista)
           .select('id', { count: 'exact', head: true })
           .lte('cantidad', UMBRAL_STOCK_BAJO)
           .gt('cantidad', 0)
 
         const agotados = await supabase
-          .from('stock_tienda_dueno')
+          .from(vista)
           .select('id', { count: 'exact', head: true })
           .eq('cantidad', 0)
 
         const lineasRes = await supabase
-          .from('stock_tienda_dueno')
+          .from(vista)
           .select('cantidad, precio, moneda')
           .limit(5000)
 
@@ -101,7 +105,7 @@ export default function ReportesPage() {
     return () => {
       activo = false
     }
-  }, [])
+  }, [vista])
 
   return (
     <div className="space-y-4">

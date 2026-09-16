@@ -29,7 +29,10 @@ import {
 } from 'lucide-react'
 
 import BarcodeScanner from '@/components/BarcodeScanner'
+import MoneyInput from '@/components/MoneyInput'
+import { useAuth } from '@/components/auth/AuthContext'
 import ImpresoraDialog from '@/components/ImpresoraDialog'
+import QrCode from '@/components/QrCode'
 import ResultadoImpresionDialog from '@/components/ResultadoImpresionDialog'
 import {
   ProductoFormFields,
@@ -66,14 +69,16 @@ import {
 } from '@/lib/cotizaciones'
 import {
   useSalaEscaneo,
+  salaDeCaja,
   type PayloadNuevoProducto,
   type PayloadReponer,
 } from '@/lib/escaneoRemoto'
 import { MONEDAS, formatFecha, formatMoney, type Moneda } from '@/lib/format'
-import { nombreNegocio } from '@/lib/config'
+import { monedaPrincipal, nombreNegocio, useConfig } from '@/lib/config'
 import {
   copiarTicket,
   imprimirTicket,
+  imprimirTicketPC,
   type ResultadoImpresion,
 } from '@/lib/impresion/imprimir'
 import { armarTextoPlano, type TicketVenta } from '@/lib/impresion/ticket'
@@ -85,6 +90,7 @@ import {
   reponerStockMock,
 } from '@/lib/mock'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { vistaStock } from '@/lib/vistaStock'
 import { useKeyboardScanner } from '@/lib/useKeyboardScanner'
 import { cn } from 'cn'
 
@@ -331,6 +337,8 @@ function ReponerStockCajaDialog({
 }) {
   const [codigo, setCodigo] = useState('')
   const [cantidad, setCantidad] = useState('')
+  const [tipo, setTipo] = useState<PayloadReponer['tipo']>('entrada')
+  const [motivo, setMotivo] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -338,6 +346,8 @@ function ReponerStockCajaDialog({
     if (!open) return
     setCodigo(codigoInicial)
     setCantidad('')
+    setTipo('entrada')
+    setMotivo('')
     setSubmitting(false)
     setError(null)
   }, [open, codigoInicial])
@@ -352,7 +362,12 @@ function ReponerStockCajaDialog({
     }
     setError(null)
     setSubmitting(true)
-    const ok = await onGuardar({ codigo_barras: code, cantidad: Math.floor(n) })
+    const ok = await onGuardar({
+      codigo_barras: code,
+      cantidad: Math.floor(n),
+      tipo,
+      motivo: motivo.trim() || null,
+    })
     setSubmitting(false)
     if (!ok) {
       setError(`El código ${code} no está en el stock de esta Caja.`)
@@ -398,8 +413,36 @@ function ReponerStockCajaDialog({
               />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setTipo('entrada')}
+              className={cn(
+                'h-10 rounded-lg border text-sm font-semibold transition-colors',
+                tipo === 'entrada'
+                  ? 'border-emerald-400/60 bg-emerald-50 text-emerald-700'
+                  : 'bg-background text-muted-foreground hover:text-foreground',
+              )}
+            >
+              Entrada (+)
+            </button>
+            <button
+              type="button"
+              onClick={() => setTipo('salida')}
+              className={cn(
+                'h-10 rounded-lg border text-sm font-semibold transition-colors',
+                tipo === 'salida'
+                  ? 'border-amber-400/60 bg-amber-50 text-amber-700'
+                  : 'bg-background text-muted-foreground hover:text-foreground',
+              )}
+            >
+              Salida (−)
+            </button>
+          </div>
           <div className="space-y-1.5">
-            <Label htmlFor="rep-cantidad">Unidades a sumar</Label>
+            <Label htmlFor="rep-cantidad">
+              Unidades a {tipo === 'entrada' ? 'sumar' : 'descontar'}
+            </Label>
             <Input
               id="rep-cantidad"
               type="number"
@@ -409,6 +452,15 @@ function ReponerStockCajaDialog({
               onChange={(e) => setCantidad(e.target.value)}
               placeholder="Ej. 10"
               required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="rep-motivo">Motivo (opcional)</Label>
+            <Input
+              id="rep-motivo"
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              placeholder="Ej. compra a proveedor / merma"
             />
           </div>
           {error && (
@@ -423,7 +475,7 @@ function ReponerStockCajaDialog({
             Cancelar
           </Button>
           <Button type="submit" form="reponer-stock-caja" disabled={submitting}>
-            {submitting ? 'Sumando…' : 'Sumar unidades'}
+            {submitting ? 'Aplicando…' : 'Aplicar ajuste'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -432,13 +484,24 @@ function ReponerStockCajaDialog({
 }
 
 export default function CajaPage() {
+  const config = useConfig()
+  const { user } = useAuth()
+  const vista = vistaStock(user)
+  const monedasDisponibles =
+    config.monedasActivas.length > 0
+      ? MONEDAS.filter((m) => config.monedasActivas.includes(m.codigo))
+      : MONEDAS
+  const enlaceEscaneo = useMemo(
+    () => `${location.protocol}//${location.host}/escaneo?caja=${config.cajaNumero}`,
+    [config.cajaNumero],
+  )
   const [stock, setStock] = useState<StockRow[] | null>(null)
   const [carrito, setCarrito] = useState<CarritoItem[]>([])
   const [query, setQuery] = useState('')
   const [aviso, setAviso] = useState<Aviso | null>(null)
   const [tasas, setTasas] = useState<Tasas>(tasasBase())
   const [actualizado, setActualizado] = useState<string | null>(null)
-  const [monedaCobro, setMonedaCobro] = useState<Moneda>('PYG')
+  const [monedaCobro, setMonedaCobro] = useState<Moneda>(() => monedaPrincipal())
   const [pagos, setPagos] = useState<Pago[]>([])
   const [multiples, setMultiples] = useState(false)
   const [copiado, setCopiado] = useState(false)
@@ -460,7 +523,7 @@ export default function CajaPage() {
   const [reimprimiendo, setReimprimiendo] = useState(false)
   const [concluirOpen, setConcluirOpen] = useState(false)
 
-  const remoto = useSalaEscaneo({
+  const remoto = useSalaEscaneo(salaDeCaja(config.cajaNumero), {
     onCodigo: (code) => {
       void agregarCodigo(code)
     },
@@ -491,12 +554,12 @@ export default function CajaPage() {
       return
     }
     const { data } = await supabase
-      .from('stock_tienda_dueno')
+      .from(vista)
       .select('*, producto:productos_maestro(*)')
       .order('updated_at', { ascending: false })
       .limit(500)
     setStock((data as StockRow[]) ?? [])
-  }, [])
+  }, [vista])
 
   useEffect(() => {
     let activo = true
@@ -691,7 +754,7 @@ export default function CajaPage() {
 
     if (producto.cantidad > 0 && codigoBarras) {
       const { data: linea, error: errLinea } = await supabase
-        .from('stock_tienda_dueno')
+        .from(vista)
         .select('*, producto:productos_maestro(*)')
         .eq('producto.codigo_barras', codigoBarras)
         .maybeSingle()
@@ -708,10 +771,18 @@ export default function CajaPage() {
   async function reponerProductoEnCaja(reponer: PayloadReponer) {
     const cantidad = Math.max(1, Math.floor(reponer.cantidad))
     if (!isSupabaseConfigured) {
-      const nombre = reponerStockMock(reponer.codigo_barras, cantidad)
+      const nombre = reponerStockMock(
+        reponer.codigo_barras,
+        cantidad,
+        reponer.tipo,
+        reponer.motivo,
+      )
       if (!nombre) return false
       setStock(getMockStock())
-      avisar(`Se sumaron ${cantidad} unidades de ${nombre}.`, 'ok')
+      avisar(
+        `Se ${reponer.tipo === 'entrada' ? 'sumaron' : 'descontaron'} ${cantidad} unidades de ${nombre}.`,
+        'ok',
+      )
       setReponerOpen(false)
       return true
     }
@@ -762,7 +833,12 @@ export default function CajaPage() {
 
   function recibirReponerRemoto(reponer: PayloadReponer) {
     const lista = stock ?? getMockStock()
-    const nombre = reponerStockMock(reponer.codigo_barras, reponer.cantidad)
+    const nombre = reponerStockMock(
+      reponer.codigo_barras,
+      reponer.cantidad,
+      reponer.tipo,
+      reponer.motivo,
+    )
     if (
       !nombre ||
       !buscarPorCodigo(lista, reponer.codigo_barras)
@@ -772,7 +848,7 @@ export default function CajaPage() {
     }
     setStock(getMockStock())
     avisar(
-      `Se sumaron ${reponer.cantidad} unidades de ${nombre} desde tu celular.`,
+      `Se ${reponer.tipo === 'entrada' ? 'sumaron' : 'descontaron'} ${reponer.cantidad} unidades de ${nombre} desde tu celular.`,
       'ok',
     )
   }
@@ -845,13 +921,13 @@ export default function CajaPage() {
     avisar('Cotizaciones actualizadas.', 'ok')
   }
 
-  async function copiarSala() {
+  async function copiarEnlace() {
     try {
-      await navigator.clipboard.writeText(remoto.sala)
+      await navigator.clipboard.writeText(enlaceEscaneo)
       setCopiado(true)
       window.setTimeout(() => setCopiado(false), 2000)
     } catch {
-      // Sin permisos de portapapeles: el código se ve igual en pantalla.
+      // Sin permisos de portapapeles: el enlace se ve igual en pantalla.
     }
   }
 
@@ -906,6 +982,17 @@ export default function CajaPage() {
     setReimprimiendo(true)
     try {
       const res = await imprimirTicket(ultimoTicket)
+      setResultadoImpresion(res)
+    } finally {
+      setReimprimiendo(false)
+    }
+  }
+
+  async function imprimirUltimoPC() {
+    if (!ultimoTicket) return
+    setReimprimiendo(true)
+    try {
+      const res = await imprimirTicketPC(ultimoTicket, config.anchoTicketPc)
       setResultadoImpresion(res)
     } finally {
       setReimprimiendo(false)
@@ -1244,7 +1331,7 @@ export default function CajaPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {MONEDAS.map((m) => (
+                    {monedasDisponibles.map((m) => (
                       <SelectItem key={m.codigo} value={m.codigo}>
                         {m.etiqueta}
                       </SelectItem>
@@ -1307,11 +1394,9 @@ export default function CajaPage() {
                       </Button>
                     </div>
                     <div className="mt-1.5 flex items-center gap-2">
-                      <Input
-                        type="text"
-                        inputMode="decimal"
+                      <MoneyInput
                         value={p.monto}
-                        onChange={(e) => actualizarPago(p.id, { monto: e.target.value })}
+                        onChange={(v) => actualizarPago(p.id, { monto: v })}
                         placeholder="0"
                         className="h-11 flex-1 tabular-nums"
                       />
@@ -1323,7 +1408,7 @@ export default function CajaPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {MONEDAS.map((m) => (
+                          {monedasDisponibles.map((m) => (
                             <SelectItem key={m.codigo} value={m.codigo}>
                               {m.codigo}
                             </SelectItem>
@@ -1442,28 +1527,35 @@ export default function CajaPage() {
             </p>
 
             <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border bg-background p-3">
-              <span className="font-mono text-lg font-bold tracking-wider">
-                {remoto.sala}
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => void copiarSala()}
-                aria-label="Copiar código de sala"
+              <span className="text-sm font-semibold">Caja {config.cajaNumero}</span>
+              <a
+                href="/app/configuracion"
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
               >
-                {copiado ? <Check className="text-emerald-600" /> : <Copy />}
-              </Button>
+                <Settings2 className="size-3.5" />
+                Configurar
+              </a>
             </div>
 
-            <ol className="mt-2 list-inside list-decimal space-y-0.5 text-xs text-muted-foreground">
-              <li>
-                En el celular abrí{' '}
-                <span className="font-mono">https://{location.host}/escaneo</span>
-              </li>
-              <li>Ingresá este código de sala</li>
-              <li>Escaneá de corrido: se agregan solos al carrito</li>
-            </ol>
+            <div className="mt-3 flex flex-col items-center gap-2 rounded-lg border bg-muted/30 p-3">
+              <QrCode value={enlaceEscaneo} size={180} />
+              <p className="text-center text-xs text-muted-foreground">
+                Escanealo con la cámara del celular para conectar este teléfono
+                a la Caja {config.cajaNumero}.
+              </p>
+              <button
+                type="button"
+                onClick={() => void copiarEnlace()}
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+              >
+                {copiado ? (
+                  <Check className="size-3.5 text-emerald-600" />
+                ) : (
+                  <Copy className="size-3.5" />
+                )}
+                {copiado ? 'Enlace copiado' : 'Copiar enlace'}
+              </button>
+            </div>
 
             <p className="mt-2 border-t pt-2 text-xs font-medium text-muted-foreground">
               {remoto.escaneadoresConectados > 0
@@ -1532,6 +1624,7 @@ export default function CajaPage() {
         resultado={resultadoImpresion}
         puedeImprimir={Boolean(ultimoTicket)}
         reimprimiendo={reimprimiendo}
+        onImprimirPC={() => void imprimirUltimoPC()}
         onImprimir={() => void imprimirUltimo()}
         onCopiar={() => void copiarUltimo()}
         onOpenChange={(v) => {

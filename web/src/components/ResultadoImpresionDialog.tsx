@@ -1,4 +1,4 @@
-import { AlertTriangle, Copy, Printer, RotateCw } from 'lucide-react'
+import { AlertTriangle, Copy, Printer, RotateCw, Smartphone } from 'lucide-react'
 
 import type { ResultadoImpresion } from '@/lib/impresion/imprimir'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,7 @@ export default function ResultadoImpresionDialog({
   resultado,
   puedeImprimir,
   reimprimiendo,
+  onImprimirPC,
   onImprimir,
   onCopiar,
   onOpenChange,
@@ -22,6 +23,7 @@ export default function ResultadoImpresionDialog({
   resultado: ResultadoImpresion | null
   puedeImprimir: boolean
   reimprimiendo: boolean
+  onImprimirPC: () => void
   onImprimir: () => void
   onCopiar: () => void
   onOpenChange: (v: boolean) => void
@@ -34,8 +36,8 @@ export default function ResultadoImpresionDialog({
           <DialogTitle>Tu ticket</DialogTitle>
           <DialogDescription>
             {error
-              ? 'La venta quedó guardada. Compartí el ticket para imprimirlo.'
-              : 'En el menú Compartir elegí RawBT y se imprime.'}
+              ? 'La venta quedó guardada. Elegí cómo imprimir o copiar el ticket.'
+              : 'En la PC elegís tu impresora; en el celular, del menú Compartir elegís RawBT y se imprime.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -50,26 +52,37 @@ export default function ResultadoImpresionDialog({
           {resultado?.texto}
         </pre>
 
-        <DialogFooter className="gap-2">
-          <Button type="button" variant="outline" onClick={onCopiar}>
-            <Copy />
-            Copiar
-          </Button>
-          <Button
-            type="button"
-            disabled={!puedeImprimir || reimprimiendo}
-            onClick={onImprimir}
-          >
-            {reimprimiendo ? (
-              <RotateCw className="animate-spin" />
-            ) : (
-              <Printer />
-            )}
-            Imprimir
-          </Button>
+        <DialogFooter className="gap-2 sm:justify-between">
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
             Cerrar
           </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" onClick={onCopiar}>
+              <Copy />
+              Copiar
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!puedeImprimir || reimprimiendo}
+              onClick={onImprimir}
+            >
+              {reimprimiendo ? (
+                <RotateCw className="animate-spin" />
+              ) : (
+                <Smartphone />
+              )}
+              Imprimir celular
+            </Button>
+            <Button
+              type="button"
+              disabled={!puedeImprimir || reimprimiendo}
+              onClick={onImprimirPC}
+            >
+              <Printer />
+              Imprimir PC
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

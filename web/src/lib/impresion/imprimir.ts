@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core'
 import { Share } from '@capacitor/share'
 
-import { armarTextoPlano, type TicketVenta } from './ticket'
+import { armarHtmlTicket, armarTextoPlano, type TicketVenta } from './ticket'
 
 export type ResultadoImpresion = {
   texto: string
@@ -53,5 +53,50 @@ export async function copiarTicket(texto: string): Promise<boolean> {
     return true
   } catch {
     return false
+  }
+}
+
+export async function imprimirTicketPC(
+  ticket: TicketVenta,
+  anchoMm: number,
+): Promise<ResultadoImpresion> {
+  const texto = armarTextoPlano(ticket)
+  try {
+    const iframe = document.createElement('iframe')
+    iframe.setAttribute('aria-hidden', 'true')
+    iframe.style.position = 'fixed'
+    iframe.style.right = '0'
+    iframe.style.bottom = '0'
+    iframe.style.width = '0'
+    iframe.style.height = '0'
+    iframe.style.border = '0'
+    iframe.srcdoc = armarHtmlTicket(ticket, anchoMm)
+    document.body.appendChild(iframe)
+
+    try {
+      await Promise.race([
+        new Promise<void>((resolve) => {
+          iframe.addEventListener('load', () => resolve(), { once: true })
+        }),
+        new Promise<void>((resolve) => window.setTimeout(resolve, 2000)),
+      ])
+    } catch {
+      // Continúa aunque el evento load no dispare.
+    }
+
+    iframe.contentWindow?.focus()
+    iframe.contentWindow?.print()
+    window.setTimeout(() => iframe.remove(), 60_000)
+    return { texto, nativo: false, compartido: false }
+  } catch (e) {
+    return {
+      texto,
+      nativo: false,
+      compartido: false,
+      error:
+        e instanceof Error
+          ? e.message
+          : 'No se pudo abrir el diálogo de impresión en la PC.',
+    }
   }
 }

@@ -123,3 +123,44 @@ export function armarTextoPlano(t: TicketVenta): string {
   lineas.push('')
   return lineas.join('\n')
 }
+
+const MM_A_PX = 3.77953
+
+export function armarHtmlTicket(t: TicketVenta, anchoMm: number): string {
+  const texto = armarTextoPlano(t)
+  const fontPx =
+    Math.round((((anchoMm * MM_A_PX) / ANCHO_TICKET) / 0.6) * 10) / 10
+  const escapar = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return `<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Ticket ${t.numeroVenta}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #fff; }
+  @page { size: auto; margin: 2mm; }
+  .ticket {
+    width: ${anchoMm}mm;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 2mm;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: ${fontPx}px;
+    line-height: 1.35;
+    white-space: pre;
+    color: #000;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  @media print {
+    body { background: #fff; }
+  }
+</style>
+</head>
+<body>
+<pre class="ticket">${escapar(texto)}</pre>
+</body>
+</html>`
+}

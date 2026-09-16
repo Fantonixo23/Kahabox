@@ -10,6 +10,7 @@ import {
 import { Plus, Printer, Receipt, Search } from 'lucide-react'
 
 import ResultadoImpresionDialog from '@/components/ResultadoImpresionDialog'
+import { useAuth } from '@/components/auth/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -38,12 +39,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { nombreNegocio } from '@/lib/config'
+import { nombreNegocio, useConfig } from '@/lib/config'
 import type { Database } from '@/lib/database'
 import { formatFecha, formatMoney, type Moneda } from '@/lib/format'
 import {
   copiarTicket,
   imprimirTicket,
+  imprimirTicketPC,
   type ResultadoImpresion,
 } from '@/lib/impresion/imprimir'
 import { armarTextoPlano, type TicketVenta } from '@/lib/impresion/ticket'
@@ -57,6 +59,7 @@ import {
   type VentaItemDetalle,
 } from '@/lib/mock'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { vistaStock, type VistaStock } from '@/lib/vistaStock'
 
 type VentaRow = Database['public']['Tables']['ventas']['Row']
 
@@ -105,6 +108,9 @@ function armarTicketDesdeVenta(v: VentaConItems): TicketVenta {
 }
 
 export default function VentasPage() {
+  const config = useConfig()
+  const { user } = useAuth()
+  const vista = vistaStock(user)
   const [rows, setRows] = useState<VentaConItems[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -134,14 +140,14 @@ export default function VentasPage() {
       return
     }
     const ventas = (ventasRes as VentaRow[]) ?? []
-    const porVenta = await cargarItemsPorVenta()
+    const porVenta = await cargarItemsPorVenta(vista)
     setRows(
       ventas.map((v) => ({
         ...v,
         items: porVenta.get(v.id) ?? [],
       })),
     )
-  }, [])
+  }, [vista])
 
   useEffect(() => {
     void load()
@@ -192,6 +198,17 @@ export default function VentasPage() {
     }
   }
 
+  async function imprimirActualPC() {
+    const ticket = ticketActual.current
+    if (!ticket) return
+    setReimprimiendo(true)
+    try {
+      setResultado(await imprimirTicketPC(ticket, config.anchoTicketPc))
+    } finally {
+      setReimprimiendo(false)
+    }
+  }
+
   async function copiarActual() {
     const ticket = ticketActual.current
     if (!ticket) return
@@ -207,7 +224,7 @@ export default function VentasPage() {
             {rows ? `${rows.length} ventas` : 'Cargando…'}
           </p>
         </div>
-        <NuevaVentaDialog onCreated={load} />
+        <NuevaVentaDialog onCreated={load} vista={vista} />
       </div>
 
       {error && (
@@ -304,6 +321,7 @@ export default function VentasPage() {
         resultado={resultado}
         puedeImprimir
         reimprimiendo={reimprimiendo}
+        onImprimirPC={() => void imprimirActualPC()}
         onImprimir={() => void imprimirActual()}
         onCopiar={() => void copiarActual()}
         onOpenChange={(v) => {
@@ -318,11 +336,13 @@ function busca(valor: string | null | undefined, texto: string): boolean {
   return valor?.toLowerCase().includes(texto) ?? false
 }
 
-async function cargarItemsPorVenta(): Promise<Map<string, VentaItemDetalle[]>> {
+async function cargarItemsPorVenta(
+  vista: VistaStock,
+): Promise<Map<string, VentaItemDetalle[]>> {
   const { data } = await supabase
     .from('venta_items')
     .select(
-      'venta_id, cantidad, precio_unitario, stock:stock_tienda_dueno(sku, variante, moneda, producto:productos_maestro(nombre, codigo_barras))',
+      `venta_id, cantidad, precio_unitario, stock:${vista}(sku, variante, moneda, producto:productos_maestro(nombre, codigo_barras))`,
     )
   const mapa = new Map<string, VentaItemDetalle[]>()
   for (const it of (data ?? []) as unknown as Array<{
@@ -435,7 +455,13 @@ function FiltrosVentas({
   )
 }
 
-function NuevaVentaDialog({ onCreated }: { onCreated: () => void | Promise<void> }) {
+function NuevaVentaDialog({
+  onCreated,
+  vista,
+}: {
+  onCreated: () => void | Promise<void>
+  vista: VistaStock
+}) {
   const [open, setOpen] = useState(false)
   const [lineas, setLineas] = useState<StockRow[]>([])
   const [lineaId, setLineaId] = useState('')
@@ -455,7 +481,7 @@ function NuevaVentaDialog({ onCreated }: { onCreated: () => void | Promise<void>
         return
       }
       const { data, error } = await supabase
-        .from('stock_tienda_dueno')
+        .from(vista)
         .select('*, producto:productos_maestro(*)')
         .gt('cantidad', 0)
         .order('updated_at', { ascending: false })
@@ -469,7 +495,7 @@ function NuevaVentaDialog({ onCreated }: { onCreated: () => void | Promise<void>
       if (primero) setLineaId(primero.id)
     }
     void cargar()
-  }, [open])
+  }, [open, vista])
 
   const qty = Number(cantidad)
   const total = linea

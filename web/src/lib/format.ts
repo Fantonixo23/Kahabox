@@ -25,6 +25,23 @@ export function formatMoney(saldo: number, moneda: Moneda): string {
   })}`
 }
 
+// Muestra un valor crudo ("3000" o "1234.5") con separador de miles: "3.000",
+// "1.234,5". El estado del formulario sigue guardando el valor crudo.
+export function formatearMiles(valor: string): string {
+  if (!valor) return ''
+  const [entero = '', decimal] = valor.split('.')
+  const conPuntos = entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  return decimal === undefined ? conPuntos : `${conPuntos},${decimal}`
+}
+
+// Convierte lo que el usuario ve ("3.000", "1.234,5") al valor crudo ("3000",
+// "1234.5") que espera Number().
+export function desformatearMonto(texto: string): string {
+  const limpio = texto.replace(/\./g, '').replace(/,/g, '.')
+  const match = limpio.match(/^\d*\.?\d*/)
+  return match ? match[0] : ''
+}
+
 export function formatFecha(iso: string): string {
   return new Date(iso).toLocaleString('es-PY', {
     day: '2-digit',

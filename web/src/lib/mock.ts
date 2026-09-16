@@ -27,8 +27,34 @@ export type VentaConItems = Venta & {
 }
 
 const TENANT = '11111111-1111-1111-1111-111111111111'
-const SUCURSAL = '22222222-2222-2222-2222-222222222222'
+export const SUCURSAL = '22222222-2222-2222-2222-222222222222'
+export const SUCURSAL_2 = '33333333-3333-4333-8333-333333333333'
 export const DEMO_USER_ID = '99999999-9999-4999-9999-999999999999'
+
+export type Sucursal = {
+  id: string
+  tenant_id: string
+  nombre: string
+  direccion: string | null
+  telefono: string | null
+}
+
+const sucursales: Sucursal[] = [
+  {
+    id: SUCURSAL,
+    tenant_id: TENANT,
+    nombre: 'Sucursal Principal',
+    direccion: 'Avda. España 1234',
+    telefono: null,
+  },
+  {
+    id: SUCURSAL_2,
+    tenant_id: TENANT,
+    nombre: 'Sucursal Shopping',
+    direccion: 'Paseo La Galería, Local 45',
+    telefono: '021 555 789',
+  },
+]
 
 function hace(horas: number, minutos = 0): string {
   const fecha = new Date()
@@ -184,6 +210,140 @@ let stock: StockRow[] = [
     updated_at: hace(1),
     producto: productos[5],
   },
+  {
+    id: 'bbbb0101-0000-0000-0000-000000000001',
+    tenant_id: TENANT,
+    sucursal_id: SUCURSAL_2,
+    producto_id: productos[0].id,
+    sku: 'AUR-BT-NEGRO',
+    variante: 'Negro',
+    precio: 180000,
+    costo: 120000,
+    moneda: 'PYG',
+    cantidad: 4,
+    updated_at: hace(2),
+    producto: productos[0],
+  },
+  {
+    id: 'bbbb0102-0000-0000-0000-000000000002',
+    tenant_id: TENANT,
+    sucursal_id: SUCURSAL_2,
+    producto_id: productos[5].id,
+    sku: 'PD-64GB',
+    variante: null,
+    precio: 90000,
+    costo: 60000,
+    moneda: 'PYG',
+    cantidad: 6,
+    updated_at: hace(3),
+    producto: productos[5],
+  },
+]
+
+export type TipoMovimientoStock =
+  | 'entrada'
+  | 'salida'
+  | 'transferencia_origen'
+  | 'transferencia_destino'
+
+export type MovimientoStock = {
+  id: string
+  tenant_id: string
+  sucursal_id: string
+  linea_id: string
+  producto_nombre: string
+  codigo_barras: string | null
+  sku: string | null
+  tipo: TipoMovimientoStock
+  cantidad: number
+  motivo: string | null
+  ref_sucursal_id: string | null
+  ref_sucursal_nombre: string | null
+  created_by: string | null
+  created_at: string
+}
+
+let movimientos: MovimientoStock[] = [
+  {
+    id: 'eeee0001-0000-0000-0000-000000000001',
+    tenant_id: TENANT,
+    sucursal_id: SUCURSAL_2,
+    linea_id: 'bbbb0101-0000-0000-0000-000000000001',
+    producto_nombre: 'Auriculares Bluetooth',
+    codigo_barras: '7790000000010',
+    sku: 'AUR-BT-NEGRO',
+    tipo: 'transferencia_destino',
+    cantidad: 4,
+    motivo: 'Armar inventario inicial de la sucursal',
+    ref_sucursal_id: SUCURSAL,
+    ref_sucursal_nombre: 'Sucursal Principal',
+    created_by: DEMO_USER_ID,
+    created_at: hace(26),
+  },
+  {
+    id: 'eeee0002-0000-0000-0000-000000000002',
+    tenant_id: TENANT,
+    sucursal_id: SUCURSAL,
+    linea_id: 'bbbb0001-0000-0000-0000-000000000001',
+    producto_nombre: 'Auriculares Bluetooth',
+    codigo_barras: '7790000000010',
+    sku: 'AUR-BT-NEGRO',
+    tipo: 'transferencia_origen',
+    cantidad: -4,
+    motivo: 'Armar inventario inicial de la sucursal',
+    ref_sucursal_id: SUCURSAL_2,
+    ref_sucursal_nombre: 'Sucursal Shopping',
+    created_by: DEMO_USER_ID,
+    created_at: hace(26),
+  },
+  {
+    id: 'eeee0003-0000-0000-0000-000000000003',
+    tenant_id: TENANT,
+    sucursal_id: SUCURSAL,
+    linea_id: 'bbbb0003-0000-0000-0000-000000000003',
+    producto_nombre: 'Cable USB-C 2m',
+    codigo_barras: '7790000000027',
+    sku: 'CABLE-C2M',
+    tipo: 'salida',
+    cantidad: -5,
+    motivo: 'Merma por daño en caja',
+    ref_sucursal_id: null,
+    ref_sucursal_nombre: null,
+    created_by: DEMO_USER_ID,
+    created_at: hace(48),
+  },
+  {
+    id: 'eeee0004-0000-0000-0000-000000000004',
+    tenant_id: TENANT,
+    sucursal_id: SUCURSAL,
+    linea_id: 'bbbb0002-0000-0000-0000-000000000002',
+    producto_nombre: 'Funda iPhone 14',
+    codigo_barras: '7790000000003',
+    sku: 'FUNDA-IP14',
+    tipo: 'entrada',
+    cantidad: 8,
+    motivo: 'Compra a proveedor',
+    ref_sucursal_id: null,
+    ref_sucursal_nombre: null,
+    created_by: DEMO_USER_ID,
+    created_at: hace(72),
+  },
+  {
+    id: 'eeee0005-0000-0000-0000-000000000005',
+    tenant_id: TENANT,
+    sucursal_id: SUCURSAL,
+    linea_id: 'bbbb0006-0000-0000-0000-000000000006',
+    producto_nombre: 'Pendrive 64GB',
+    codigo_barras: '7790000000041',
+    sku: 'PD-64GB',
+    tipo: 'entrada',
+    cantidad: 10,
+    motivo: 'Reposición de stock bajo',
+    ref_sucursal_id: null,
+    ref_sucursal_nombre: null,
+    created_by: DEMO_USER_ID,
+    created_at: hace(96),
+  },
 ]
 
 const ventas: Venta[] = [
@@ -311,6 +471,7 @@ export function crearProductoMock(entrada: {
   costo: number | null
   moneda: Moneda
   cantidad: number
+  sucursal_id?: string
 }) {
   let maestro = productos.find(
     (p) => entrada.codigo_barras && p.codigo_barras === entrada.codigo_barras,
@@ -334,7 +495,7 @@ export function crearProductoMock(entrada: {
   stock.unshift({
     id: crypto.randomUUID(),
     tenant_id: TENANT,
-    sucursal_id: SUCURSAL,
+    sucursal_id: entrada.sucursal_id ?? SUCURSAL,
     producto_id: maestro.id,
     sku: entrada.sku,
     variante: entrada.variante,
@@ -348,20 +509,156 @@ export function crearProductoMock(entrada: {
   guardar()
 }
 
+function registrarMovimiento(entrada: {
+  sucursal_id: string
+  linea_id: string
+  nombre: string
+  codigo: string | null
+  sku: string | null
+  tipo: TipoMovimientoStock
+  cantidad: number
+  motivo?: string | null
+  refSucursal?: { id: string; nombre: string } | null
+  createdBy?: string | null
+}) {
+  const m: MovimientoStock = {
+    id: crypto.randomUUID(),
+    tenant_id: TENANT,
+    sucursal_id: entrada.sucursal_id,
+    linea_id: entrada.linea_id,
+    producto_nombre: entrada.nombre,
+    codigo_barras: entrada.codigo,
+    sku: entrada.sku,
+    tipo: entrada.tipo,
+    cantidad: entrada.cantidad,
+    motivo: entrada.motivo ?? null,
+    ref_sucursal_id: entrada.refSucursal?.id ?? null,
+    ref_sucursal_nombre: entrada.refSucursal?.nombre ?? null,
+    created_by: entrada.createdBy ?? DEMO_USER_ID,
+    created_at: new Date().toISOString(),
+  }
+  movimientos.unshift(m)
+}
+
+export function getMockSucursales(): Sucursal[] {
+  return [...sucursales]
+}
+
+export function getSucursalNombre(id: string | null | undefined): string {
+  if (!id) return '—'
+  return sucursales.find((s) => s.id === id)?.nombre ?? '—'
+}
+
+export function getMockMovimientos(limite = 40): MovimientoStock[] {
+  return movimientos.slice(0, limite)
+}
+
 export function reponerStockMock(
   codigoBarras: string,
   cantidad: number,
+  tipo: 'entrada' | 'salida' = 'entrada',
+  motivo: string | null = null,
 ): string | null {
-  const cantidadSumar = Number.isFinite(cantidad)
-    ? Math.max(0, Math.floor(cantidad))
-    : 0
-  if (!codigoBarras || cantidadSumar <= 0) return null
+  const cantidadAbs = Number.isFinite(cantidad) ? Math.floor(cantidad) : 0
+  if (!codigoBarras || cantidadAbs <= 0) return null
   const linea = stock.find((s) => s.producto?.codigo_barras === codigoBarras)
   if (!linea) return null
-  linea.cantidad += cantidadSumar
+  const delta = tipo === 'entrada' ? cantidadAbs : -cantidadAbs
+  linea.cantidad = Math.max(0, linea.cantidad + delta)
   linea.updated_at = new Date().toISOString()
+  registrarMovimiento({
+    sucursal_id: linea.sucursal_id ?? SUCURSAL,
+    linea_id: linea.id,
+    nombre: linea.producto?.nombre ?? linea.sku ?? 'Producto',
+    codigo: linea.producto?.codigo_barras ?? null,
+    sku: linea.sku,
+    tipo,
+    cantidad: delta,
+    motivo,
+  })
   guardar()
   return linea.producto?.nombre ?? null
+}
+
+export function transferirStockMock(
+  origenSucursalId: string,
+  destinoSucursalId: string,
+  lineaId: string,
+  cantidad: number,
+  motivo: string | null = null,
+): { ok: boolean; error?: string } {
+  const cantidadAbs = Number.isFinite(cantidad) ? Math.floor(cantidad) : 0
+  if (!lineaId || cantidadAbs <= 0) {
+    return { ok: false, error: 'Indicá una cantidad válida.' }
+  }
+  if (origenSucursalId === destinoSucursalId) {
+    return { ok: false, error: 'El origen y el destino son la misma sucursal.' }
+  }
+  const origen = stock.find(
+    (s) => s.id === lineaId && s.sucursal_id === origenSucursalId,
+  )
+  if (!origen) {
+    return { ok: false, error: 'La línea no existe en la sucursal de origen.' }
+  }
+  if (cantidadAbs > origen.cantidad) {
+    return { ok: false, error: `Solo hay ${origen.cantidad} unidades en origen.` }
+  }
+  const refOrigen = getSucursalNombre(origenSucursalId)
+  const refDestino = getSucursalNombre(destinoSucursalId)
+
+  origen.cantidad -= cantidadAbs
+  origen.updated_at = new Date().toISOString()
+  registrarMovimiento({
+    sucursal_id: origen.sucursal_id ?? SUCURSAL,
+    linea_id: origen.id,
+    nombre: origen.producto?.nombre ?? origen.sku ?? 'Producto',
+    codigo: origen.producto?.codigo_barras ?? null,
+    sku: origen.sku,
+    tipo: 'transferencia_origen',
+    cantidad: -cantidadAbs,
+    motivo,
+    refSucursal: { id: destinoSucursalId, nombre: refDestino },
+  })
+
+  let destino = stock.find(
+    (s) =>
+      s.sucursal_id === destinoSucursalId &&
+      s.producto_id === origen.producto_id &&
+      (s.sku ?? '') === (origen.sku ?? '') &&
+      (s.variante ?? '') === (origen.variante ?? ''),
+  )
+  if (!destino) {
+    destino = {
+      id: crypto.randomUUID(),
+      tenant_id: TENANT,
+      sucursal_id: destinoSucursalId,
+      producto_id: origen.producto_id,
+      sku: origen.sku,
+      variante: origen.variante,
+      precio: origen.precio,
+      costo: origen.costo,
+      moneda: origen.moneda,
+      cantidad: 0,
+      updated_at: new Date().toISOString(),
+      producto: origen.producto,
+    }
+    stock.push(destino)
+  }
+  destino.cantidad += cantidadAbs
+  destino.updated_at = new Date().toISOString()
+  registrarMovimiento({
+    sucursal_id: destinoSucursalId,
+    linea_id: destino.id,
+    nombre: destino.producto?.nombre ?? destino.sku ?? 'Producto',
+    codigo: destino.producto?.codigo_barras ?? null,
+    sku: destino.sku,
+    tipo: 'transferencia_destino',
+    cantidad: cantidadAbs,
+    motivo,
+    refSucursal: { id: origenSucursalId, nombre: refOrigen },
+  })
+  guardar()
+  return { ok: true }
 }
 
 export function registrarVentaMock(stockId: string, cantidad: number): Venta {
@@ -544,6 +841,7 @@ const pagosProveedor: PagoProveedor[] = [
 type DemoSnapshot = {
   productos: Producto[]
   stock: StockRow[]
+  movimientos: MovimientoStock[]
   ventas: Venta[]
   ventasItems: Array<{ ventaId: string; items: VentaItemDetalle[] }>
   tickets: Array<{ ventaId: string; ticket: TicketVenta }>
@@ -565,6 +863,7 @@ function cargarPersistido() {
     const data = JSON.parse(raw) as Partial<DemoSnapshot>
     if (Array.isArray(data.productos)) reemplazar(productos, data.productos)
     if (Array.isArray(data.stock)) reemplazar(stock, data.stock)
+    if (Array.isArray(data.movimientos)) reemplazar(movimientos, data.movimientos)
     if (Array.isArray(data.ventas)) reemplazar(ventas, data.ventas)
     if (Array.isArray(data.ventasItems)) reemplazar(ventasItems, data.ventasItems)
     if (Array.isArray(data.tickets)) reemplazar(tickets, data.tickets)
@@ -581,6 +880,7 @@ function guardar() {
     const snapshot: DemoSnapshot = {
       productos,
       stock,
+      movimientos,
       ventas,
       ventasItems,
       tickets,
