@@ -69,19 +69,35 @@ export function formatearItem(item: ItemTicket): string[] {
   const cabecera = item.detalle
     ? `${item.nombre} · ${item.detalle}`
     : item.nombre
-  const lineas = cortarLineas(cabecera, ANCHO_TICKET - 8)
-  const cantidad = `${item.cantidad} x ${item.precio} = ${item.total}`
+  const nombre = cortarLineas(cabecera, ANCHO_TICKET - 10)
+  const cantidad = `${item.cantidad} x ${item.precio}`
 
-  const ultima = lineas[lineas.length - 1]
-  const espacio = ANCHO_TICKET - ultima.length - 1
-  if (espacio >= cantidad.length) {
-    return [
-      ...lineas.slice(0, -1).map((l) => columnaIzq(l)),
-      `${ultima} ${cantidad}`,
-    ]
+  const lineas = nombre.map((l) => columnaIzq(l))
+
+  // Nombre corto: la cantidad cabe pegada al nombre, sin espacios raros.
+  const ultima = lineas[lineas.length - 1].trimEnd()
+  const cabida = ANCHO_TICKET - ultima.length
+  if (cabida >= cantidad.length + 1) {
+    lineas[lineas.length - 1] = `${ultima} ${cantidad}`
+    return lineas
   }
 
-  return [...lineas.map((l) => columnaIzq(l)), columnaDer(cantidad)]
+  // Nombre largo: cantidad a la izquierda y subtotal a la derecha.
+  lineas.push(
+    columnaIzq(cantidad, ANCHO_TICKET - 14) + columnaDer(item.total, 14),
+  )
+  return lineas
+}
+
+export function filaEtiquetaValor(
+  etiqueta: string,
+  valor: string,
+  anchoEtiqueta = 12,
+): string {
+  return (
+    columnaIzq(etiqueta, anchoEtiqueta) +
+    columnaDer(valor, ANCHO_TICKET - anchoEtiqueta)
+  )
 }
 
 export function armarTextoPlano(t: TicketVenta): string {
@@ -95,10 +111,10 @@ export function armarTextoPlano(t: TicketVenta): string {
   lineas.push(lineaSeparador())
   if (t.esCredito) lineas.push(centrar('* CRÉDITO / FIADO *'))
   lineas.push('')
-  lineas.push(columnaDer(`TOTAL   ${t.total}`))
+  lineas.push(filaEtiquetaValor('TOTAL', t.total))
   lineas.push(`Metodo: ${t.metodosPago}`)
-  if (t.recibido) lineas.push(columnaDer(`Recibido: ${t.recibido}`))
-  if (t.cambio) lineas.push(columnaDer(`Cambio: ${t.cambio}`))
+  if (t.recibido) lineas.push(filaEtiquetaValor('Recibido', t.recibido))
+  if (t.cambio) lineas.push(filaEtiquetaValor('Cambio', t.cambio))
   lineas.push('')
   lineas.push('')
   lineas.push(centrar('Gracias por su compra!'))

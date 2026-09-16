@@ -20,7 +20,6 @@ import {
   Plus,
   Printer,
   RefreshCw,
-  RotateCw,
   ScanBarcode,
   Settings2,
   ShoppingCart,
@@ -31,6 +30,7 @@ import {
 
 import BarcodeScanner from '@/components/BarcodeScanner'
 import ImpresoraDialog from '@/components/ImpresoraDialog'
+import ResultadoImpresionDialog from '@/components/ResultadoImpresionDialog'
 import {
   ProductoFormFields,
   productoFormInicial,
@@ -70,6 +70,7 @@ import {
   type PayloadReponer,
 } from '@/lib/escaneoRemoto'
 import { MONEDAS, formatFecha, formatMoney, type Moneda } from '@/lib/format'
+import { nombreNegocio } from '@/lib/config'
 import {
   copiarTicket,
   imprimirTicket,
@@ -78,8 +79,8 @@ import {
 import { armarTextoPlano, type TicketVenta } from '@/lib/impresion/ticket'
 import {
   crearProductoMock,
-  demoUser,
   getMockStock,
+  guardarTicketVentaMock,
   registrarVentaCaja,
   reponerStockMock,
 } from '@/lib/mock'
@@ -120,6 +121,7 @@ type Aviso = { tipo: 'ok' | 'error'; texto: string }
 
 const CLAVE_ULTIMO_TICKET = 'kahabox:ultimo-ticket'
 const FRESCURA_ULTIMO_TICKET_MS = 5 * 60 * 1000
+const CLAVE_CARRITO = 'kahabox:caja:carrito'
 
 function parseMonto(valor: string): number {
   const limpio = valor.replace(/[^\d.,-]/g, '').replace(/,/g, '.')
@@ -147,9 +149,46 @@ function buscarPorQuery(lista: StockRow[], texto: string): StockRow[] {
   )
 }
 
+function leerCarritoPersistido(): { id: string; cantidad: number }[] {
+  try {
+    const raw = localStorage.getItem(CLAVE_CARRITO)
+    if (!raw) return []
+    const lista = JSON.parse(raw) as { id?: string; cantidad?: number }[]
+    if (!Array.isArray(lista)) return []
+    return lista
+      .filter(
+        (c) =>
+          typeof c.id === 'string' &&
+          typeof c.cantidad === 'number' &&
+          Number.isFinite(c.cantidad),
+      )
+      .map((c) => ({ id: c.id as string, cantidad: Math.max(1, c.cantidad as number) }))
+  } catch {
+    return []
+  }
+}
+
+function guardarCarritoPersistido(items: CarritoItem[]) {
+  try {
+    localStorage.setItem(
+      CLAVE_CARRITO,
+      JSON.stringify(items.map((c) => ({ id: c.linea.id, cantidad: c.cantidad }))),
+    )
+  } catch {
+    // Sin storage: no se conserva entre visitas.
+  }
+}
+
+function limpiarCarritoPersistido() {
+  try {
+    localStorage.removeItem(CLAVE_CARRITO)
+  } catch {
+    // Sin storage.
+  }
+}
+
 function nombreLocalPropio(): string {
-  const meta = demoUser.user_metadata as { nombre_tienda?: string } | null
-  return meta?.nombre_tienda?.trim() || 'KAHABOX'
+  return nombreNegocio()
 }
 
 function leerUltimoTicket(): TicketVenta | null {
@@ -392,71 +431,6 @@ function ReponerStockCajaDialog({
   )
 }
 
-function ResultadoImpresionDialog({
-  resultado,
-  puedeImprimir,
-  reimprimiendo,
-  onImprimir,
-  onCopiar,
-  onOpenChange,
-}: {
-  resultado: ResultadoImpresion | null
-  puedeImprimir: boolean
-  reimprimiendo: boolean
-  onImprimir: () => void
-  onCopiar: () => void
-  onOpenChange: (v: boolean) => void
-}) {
-  const error = resultado?.error
-  return (
-    <Dialog open={Boolean(resultado)} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-svh overflow-y-auto sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Tu ticket</DialogTitle>
-          <DialogDescription>
-            {error
-              ? 'La venta quedó guardada. Compartí el ticket para imprimirlo.'
-              : 'En el menú Compartir elegí RawBT y se imprime.'}
-          </DialogDescription>
-        </DialogHeader>
-
-        {error && (
-          <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        <pre className="max-h-80 overflow-y-auto rounded-md border bg-black p-3 font-mono text-[11px] leading-tight text-white">
-          {resultado?.texto}
-        </pre>
-
-        <DialogFooter className="gap-2">
-          <Button type="button" variant="outline" onClick={onCopiar}>
-            <Copy />
-            Copiar
-          </Button>
-          <Button
-            type="button"
-            disabled={!puedeImprimir || reimprimiendo}
-            onClick={onImprimir}
-          >
-            {reimprimiendo ? (
-              <RotateCw className="animate-spin" />
-            ) : (
-              <Printer />
-            )}
-            Imprimir
-          </Button>
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-            Cerrar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 export default function CajaPage() {
   const [stock, setStock] = useState<StockRow[] | null>(null)
   const [carrito, setCarrito] = useState<CarritoItem[]>([])
@@ -484,6 +458,7 @@ export default function CajaPage() {
   const [resultadoImpresion, setResultadoImpresion] =
     useState<ResultadoImpresion | null>(null)
   const [reimprimiendo, setReimprimiendo] = useState(false)
+  const [concluirOpen, setConcluirOpen] = useState(false)
 
   const remoto = useSalaEscaneo({
     onCodigo: (code) => {
@@ -540,6 +515,28 @@ export default function CajaPage() {
   useEffect(() => {
     void recargarStock()
   }, [recargarStock])
+
+  useEffect(() => {
+    guardarCarritoPersistido(carrito)
+  }, [carrito])
+
+  useEffect(() => {
+    if (stock === null || carrito.length > 0) return
+    const previo = leerCarritoPersistido()
+    if (previo.length === 0) return
+    const restaurados: CarritoItem[] = []
+    for (const p of previo) {
+      const linea = stock.find((s) => s.id === p.id)
+      if (linea && linea.cantidad > 0) {
+        restaurados.push({ linea, cantidad: Math.min(p.cantidad, linea.cantidad) })
+      }
+    }
+    if (restaurados.length > 0) {
+      setCarrito(restaurados)
+      setAviso({ tipo: 'ok', texto: 'Se restauró la venta en curso.' })
+      limpiarCarritoPersistido()
+    }
+  }, [stock, carrito])
 
   useEffect(() => {
     if (!aviso) return
@@ -924,6 +921,19 @@ export default function CajaPage() {
     )
   }
 
+  function cerrarResultado() {
+    setResultadoImpresion(null)
+    setConcluirOpen(true)
+  }
+
+  function concluirVenta() {
+    setCarrito([])
+    setPagos([])
+    setQuery('')
+    limpiarCarritoPersistido()
+    setConcluirOpen(false)
+  }
+
   async function cobrar() {
     if (!puedeCobrar) return
     const fiado = pagos.some((p) => p.metodo === 'fiado')
@@ -981,13 +991,13 @@ export default function CajaPage() {
         ventaId = venta.id
       }
 
-      setCarrito([])
       setPagos([])
       setQuery('')
       avisar(`Venta confirmada (${resumen || '…'})`, 'ok')
 
       if (ventaId) {
         const ticket = armarTicket(ventaId, resumen)
+        guardarTicketVentaMock(ventaId, ticket)
         guardarUltimoTicket(ticket)
         setUltimoTicket(ticket)
         setResultadoImpresion({
@@ -1005,7 +1015,7 @@ export default function CajaPage() {
 
   return (
     <>
-      <div className="grid gap-4 pb-28 lg:grid-cols-[minmax(0,1fr)_360px] lg:pb-0">
+      <div className="grid gap-4 pb-36 md:pb-28 lg:grid-cols-[minmax(0,1fr)_360px] lg:pb-0">
         <section className="space-y-3">
           <div>
             <h1 className="text-lg font-semibold">Caja</h1>
@@ -1019,7 +1029,6 @@ export default function CajaPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Escaneá o buscá por nombre / código…"
-              autoFocus
               className="h-12 pr-14 text-base"
             />
             <BarcodeScanner
@@ -1118,69 +1127,78 @@ export default function CajaPage() {
           ) : (
             <div className="overflow-hidden rounded-md border">
               <div className="divide-y">
-                {carrito.map((c) => (
-                  <div
-                    key={c.linea.id}
-                    className={cn(
-                      'flex items-center gap-2 p-2',
-                      flashId === c.linea.id && 'caja-flash-row',
-                    )}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {c.linea.producto?.nombre}
-                        {c.linea.variante ? ` (${c.linea.variante})` : ''}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatMoney(c.linea.precio, c.linea.moneda)} c/u
-                      </p>
-                    </div>
-
-                    <div className="flex items-center rounded-md border">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="size-11"
-                        onClick={() => setCantidad(c.linea.id, c.cantidad - 1)}
-                        aria-label="Quitar uno"
-                      >
-                        <Minus />
-                      </Button>
-                      <span className="w-8 text-center text-sm font-semibold tabular-nums">
-                        {c.cantidad}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="size-11"
-                        onClick={() => setCantidad(c.linea.id, c.cantidad + 1)}
-                        aria-label="Sumar uno"
-                      >
-                        <Plus />
-                      </Button>
-                    </div>
-
-                    <span className="w-20 text-right text-sm font-semibold tabular-nums">
-                      {formatMoney(
-                        c.linea.precio * c.cantidad,
-                        c.linea.moneda,
+                {carrito.map((c) => {
+                  const etiqueta =
+                    (c.linea.producto?.nombre ?? '') +
+                    (c.linea.variante ? ` (${c.linea.variante})` : '')
+                  return (
+                    <div
+                      key={c.linea.id}
+                      className={cn(
+                        'flex items-center gap-1.5 p-2',
+                        flashId === c.linea.id && 'caja-flash-row',
                       )}
-                    </span>
-
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      className="size-11 shrink-0 text-muted-foreground"
-                      onClick={() => remover(c.linea.id)}
-                      aria-label="Quitar del carrito"
                     >
-                      <Trash2 />
-                    </Button>
-                  </div>
-                ))}
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className={cn(
+                            'truncate font-medium',
+                            etiqueta.length > 22 ? 'text-xs' : 'text-sm',
+                          )}
+                        >
+                          {etiqueta}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatMoney(c.linea.precio, c.linea.moneda)} c/u
+                        </p>
+                      </div>
+
+                      <div className="flex shrink-0 items-center rounded-md border">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="size-11"
+                          onClick={() => setCantidad(c.linea.id, c.cantidad - 1)}
+                          aria-label="Quitar uno"
+                        >
+                          <Minus />
+                        </Button>
+                        <span className="w-8 text-center text-sm font-semibold tabular-nums">
+                          {c.cantidad}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="size-11"
+                          onClick={() => setCantidad(c.linea.id, c.cantidad + 1)}
+                          aria-label="Sumar uno"
+                        >
+                          <Plus />
+                        </Button>
+                      </div>
+
+                      <span className="shrink-0 whitespace-nowrap text-right text-sm font-semibold tabular-nums">
+                        {formatMoney(
+                          c.linea.precio * c.cantidad,
+                          c.linea.moneda,
+                        )}
+                      </span>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="size-11 shrink-0 text-muted-foreground"
+                        onClick={() => remover(c.linea.id)}
+                        aria-label="Quitar del carrito"
+                      >
+                        <Trash2 />
+                      </Button>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -1458,7 +1476,7 @@ export default function CajaPage() {
         </aside>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 p-3 pb-[calc(env(safe-area-inset-bottom)+12px)] backdrop-blur lg:hidden">
+      <div className="fixed inset-x-0 bottom-16 z-20 border-t bg-background/95 p-3 pb-[calc(env(safe-area-inset-bottom)+12px)] backdrop-blur md:bottom-0 md:pb-3 lg:hidden">
         <BarcodeScanner
           onDetected={(code) => void agregarCodigo(code)}
           trigger={
@@ -1486,6 +1504,30 @@ export default function CajaPage() {
 
       <ImpresoraDialog open={impresoraOpen} onOpenChange={setImpresoraOpen} />
 
+      <Dialog open={concluirOpen} onOpenChange={setConcluirOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Concluir venta</DialogTitle>
+            <DialogDescription>
+              ¿Terminaste esta venta? Al aceptar se vacía el carrito y podés
+              empezar la siguiente venta.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setConcluirOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button type="button" onClick={concluirVenta}>
+              Aceptar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <ResultadoImpresionDialog
         resultado={resultadoImpresion}
         puedeImprimir={Boolean(ultimoTicket)}
@@ -1493,7 +1535,7 @@ export default function CajaPage() {
         onImprimir={() => void imprimirUltimo()}
         onCopiar={() => void copiarUltimo()}
         onOpenChange={(v) => {
-          if (!v) setResultadoImpresion(null)
+          if (!v) cerrarResultado()
         }}
       />
     </>

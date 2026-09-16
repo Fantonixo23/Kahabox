@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
@@ -7,6 +8,7 @@ import {
   LogOut,
   Package,
   Receipt,
+  Settings,
   Truck,
   Users,
 } from 'lucide-react'
@@ -14,26 +16,42 @@ import {
 import { useAuth } from '@/components/auth/AuthContext'
 import { Button } from '@/components/ui/button'
 import { cn } from 'cn'
+import { MODULOS, useConfig } from '@/lib/config'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 
-const nav = [
-  { to: '/app/caja', label: 'Caja', corto: 'Caja', icon: CircleDollarSign },
-  { to: '/app/stock', label: 'Stock', corto: 'Stock', icon: Boxes },
-  { to: '/app/ventas', label: 'Ventas', corto: 'Ventas', icon: Receipt },
-  { to: '/app/proveedores', label: 'Proveedores', corto: 'Prov.', icon: Truck },
-  {
-    to: '/app/pagos-proveedores',
-    label: 'Pagos a proveedores',
-    corto: 'Pagos',
-    icon: HandCoins,
-  },
-  { to: '/app/equipo', label: 'Mi equipo', corto: 'Equipo', icon: Users },
-  { to: '/app/reportes', label: 'Reportes', corto: 'Reportes', icon: BarChart3 },
-]
+const ICONOS = {
+  '/app/caja': CircleDollarSign,
+  '/app/stock': Boxes,
+  '/app/ventas': Receipt,
+  '/app/proveedores': Truck,
+  '/app/pagos-proveedores': HandCoins,
+  '/app/equipo': Users,
+  '/app/reportes': BarChart3,
+} as const
+
+const MODULOS_CON_CONFIGURACION = (() => {
+  const lista = [...MODULOS]
+  const idx = lista.findIndex((m) => m.ruta === '/app/equipo')
+  lista.splice(idx + 1, 0, {
+    ruta: '/app/configuracion',
+    label: 'Configuración',
+    corto: 'Ajustes',
+  })
+  return lista
+})()
 
 export default function AppLayout() {
   const navigate = useNavigate()
   const { user, salirDemo } = useAuth()
+  const { modulosOcultos } = useConfig()
+
+  const nav = useMemo(
+    () =>
+      MODULOS_CON_CONFIGURACION.filter((m) => !modulosOcultos.includes(m.ruta)).map(
+        (m) => ({ to: m.ruta, label: m.label, corto: m.corto, icon: ICONOS[m.ruta as keyof typeof ICONOS] ?? Settings }),
+      ),
+    [modulosOcultos],
+  )
 
   async function handleLogout() {
     if (isSupabaseConfigured) {
@@ -113,11 +131,11 @@ export default function AppLayout() {
             </Button>
           </div>
         </header>
-        <main className="flex-1 p-4 md:p-6">
+        <main className="flex-1 p-4 pb-24 md:p-6 md:pb-6">
           <Outlet />
         </main>
-        <nav className="shrink-0 overflow-x-auto border-t bg-card md:hidden">
-          <div className="flex min-w-max">
+        <nav className="fixed inset-x-0 bottom-0 z-30 overflow-x-auto border-t bg-card md:hidden">
+          <div className="flex min-w-max pb-[env(safe-area-inset-bottom)]">
             {nav.map((item) => (
               <NavLink
                 key={item.to}

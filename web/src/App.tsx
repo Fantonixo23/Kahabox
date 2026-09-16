@@ -6,6 +6,7 @@ import AppLayout from '@/components/AppLayout'
 import { FullscreenLoader } from '@/components/FullscreenLoader'
 import { useAuth } from '@/components/auth/AuthContext'
 import CajaPage from '@/pages/CajaPage'
+import ConfiguracionPage from '@/pages/ConfiguracionPage'
 import EquipoPage from '@/pages/EquipoPage'
 import EscaneadorPage from '@/pages/EscaneadorPage'
 import LoginPage from '@/pages/LoginPage'
@@ -68,6 +69,7 @@ export default function App() {
         <Route path="proveedores" element={<ProveedoresPage />} />
         <Route path="pagos-proveedores" element={<PagosProveedoresPage />} />
         <Route path="equipo" element={<EquipoPage />} />
+        <Route path="configuracion" element={<ConfiguracionPage />} />
         <Route path="reportes" element={<ReportesPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/app" replace />} />

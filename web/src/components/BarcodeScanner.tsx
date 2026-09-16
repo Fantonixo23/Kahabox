@@ -34,17 +34,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
+// Solo códigos de barras de producto (EAN/UPC). El QR y otros formatos se
+// ignoran a propósito: evitan que se lean URLs o textos raros. Estos formatos
+// validan su dígito verificador, así que un "código" leído mal (ej. una
+// lectura parcial) directamente no se devuelve.
 const formatos = [
   BarcodeFormat.EAN_13,
   BarcodeFormat.EAN_8,
   BarcodeFormat.UPC_A,
   BarcodeFormat.UPC_E,
-  BarcodeFormat.CODE_128,
-  BarcodeFormat.CODE_39,
-  BarcodeFormat.CODE_93,
-  BarcodeFormat.ITF,
-  BarcodeFormat.CODABAR,
-  BarcodeFormat.QR_CODE,
 ]
 
 type Estado = 'arrancando' | 'leyendo' | 'error'
@@ -144,6 +142,10 @@ export default function BarcodeScanner({
   useEffect(() => {
     if (!open) return
     let activo = true
+    // Cerrar el teclado que quedó abierto por el foco del campo anterior.
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
     setManual('')
     setEstado('arrancando')
     setError('')
@@ -158,7 +160,9 @@ export default function BarcodeScanner({
 
     ;(async () => {
       try {
-        const lista = await BrowserMultiFormatReader.listVideoInputDevices()
+        const lista = (await navigator.mediaDevices.enumerateDevices()).filter(
+          (d) => d.kind === 'videoinput',
+        )
         if (!activo) return
         setDevices(lista)
         const trasera = lista.find((d) =>
@@ -219,8 +223,9 @@ export default function BarcodeScanner({
         <DialogHeader>
           <DialogTitle>Escanear código de barras</DialogTitle>
           <DialogDescription>
-            Apuntá la cámara al código. Si la cámara no arranca, podés cargarlo
-            a mano abajo.
+            Lee solo códigos de barras de producto (EAN/UPC): apuntá al código y
+            se lee solo, aunque no quede perfectamente en el rectángulo. Si la
+            cámara no arranca, podés cargarlo a mano abajo.
           </DialogDescription>
         </DialogHeader>
 
@@ -246,8 +251,8 @@ export default function BarcodeScanner({
                     <span className="font-semibold text-emerald-300">¡Leído! {exito}</span>
                   ) : (
                     <>
-                      Acercá el código a la línea hasta que se lea. Si la imagen se ve
-                      borrosa, prendé la linterna y mantené el teléfono firme.
+                      Apuntá al código: se lee solo (solo EAN/UPC, se ignora el
+                      QR y otros textos). Si está borroso, prendé la linterna.
                     </>
                   )}
                 </p>

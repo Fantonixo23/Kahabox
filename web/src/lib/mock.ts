@@ -2,6 +2,7 @@ import type { Session, User } from '@supabase/supabase-js'
 
 import type { Database } from './database'
 import { UMBRAL_STOCK_BAJO, type Moneda } from './format'
+import type { TicketVenta } from './impresion/ticket'
 
 type Producto = Database['public']['Tables']['productos_maestro']['Row']
 type Venta = Database['public']['Tables']['ventas']['Row']
@@ -9,6 +10,20 @@ type Miembro = Database['public']['Tables']['usuarios_tenant']['Row']
 
 export type StockRow = Database['public']['Views']['stock_tienda_dueno']['Row'] & {
   producto: Producto | null
+}
+
+export type VentaItemDetalle = {
+  nombre: string
+  codigo_barras: string | null
+  sku: string | null
+  variante: string | null
+  cantidad: number
+  precio: number
+  moneda: Moneda
+}
+
+export type VentaConItems = Venta & {
+  items: VentaItemDetalle[]
 }
 
 const TENANT = '11111111-1111-1111-1111-111111111111'
@@ -242,6 +257,45 @@ export function getMockVentas(): Venta[] {
   return [...ventas].sort((a, b) => b.created_at.localeCompare(a.created_at))
 }
 
+const ventasItems: Array<{ ventaId: string; items: VentaItemDetalle[] }> = []
+const tickets: Array<{ ventaId: string; ticket: TicketVenta }> = []
+
+export function getMockVentasDetalle(): VentaConItems[] {
+  return [...ventas]
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .map((v) => ({
+      ...v,
+      items: ventasItems.find((it) => it.ventaId === v.id)?.items ?? [],
+    }))
+}
+
+export function guardarTicketVentaMock(ventaId: string, ticket: TicketVenta) {
+  const idx = tickets.findIndex((t) => t.ventaId === ventaId)
+  if (idx >= 0) tickets[idx] = { ventaId, ticket }
+  else tickets.push({ ventaId, ticket })
+  guardar()
+}
+
+export function getTicketVentaMock(ventaId: string): TicketVenta | null {
+  return tickets.find((t) => t.ventaId === ventaId)?.ticket ?? null
+}
+
+function detalleDeLinea(
+  linea: StockRow,
+  cantidad: number,
+  precio: number,
+): VentaItemDetalle {
+  return {
+    nombre: linea.producto?.nombre ?? linea.sku ?? 'Producto',
+    codigo_barras: linea.producto?.codigo_barras ?? null,
+    sku: linea.sku ?? null,
+    variante: linea.variante ?? null,
+    cantidad,
+    precio,
+    moneda: linea.moneda,
+  }
+}
+
 export function getMockMiembros(): Miembro[] {
   return [...miembros].sort((a, b) => b.created_at.localeCompare(a.created_at))
 }
@@ -328,6 +382,7 @@ export function registrarVentaMock(stockId: string, cantidad: number): Venta {
     created_at: new Date().toISOString(),
   }
   ventas.unshift(venta)
+  ventasItems.push({ ventaId: venta.id, items: [detalleDeLinea(linea, cantidad, linea.precio)] })
   guardar()
   return venta
 }
@@ -346,11 +401,13 @@ export function registrarVentaCaja(params: {
 }): Venta {
   const ahora = new Date().toISOString()
 
+  const detalles: VentaItemDetalle[] = []
   params.items.forEach((item) => {
     const linea = stock.find((s) => s.id === item.stockLineaId)
     if (!linea) return
     linea.cantidad = Math.max(0, linea.cantidad - item.cantidad)
     linea.updated_at = ahora
+    detalles.push(detalleDeLinea(linea, item.cantidad, item.precioUnitario))
   })
 
   const venta: Venta = {
@@ -363,6 +420,7 @@ export function registrarVentaCaja(params: {
     created_at: ahora,
   }
   ventas.unshift(venta)
+  ventasItems.push({ ventaId: venta.id, items: detalles })
   guardar()
   return venta
 }
@@ -487,6 +545,8 @@ type DemoSnapshot = {
   productos: Producto[]
   stock: StockRow[]
   ventas: Venta[]
+  ventasItems: Array<{ ventaId: string; items: VentaItemDetalle[] }>
+  tickets: Array<{ ventaId: string; ticket: TicketVenta }>
   miembros: Miembro[]
   proveedores: Proveedor[]
   pagosProveedor: PagoProveedor[]
@@ -506,6 +566,8 @@ function cargarPersistido() {
     if (Array.isArray(data.productos)) reemplazar(productos, data.productos)
     if (Array.isArray(data.stock)) reemplazar(stock, data.stock)
     if (Array.isArray(data.ventas)) reemplazar(ventas, data.ventas)
+    if (Array.isArray(data.ventasItems)) reemplazar(ventasItems, data.ventasItems)
+    if (Array.isArray(data.tickets)) reemplazar(tickets, data.tickets)
     if (Array.isArray(data.miembros)) reemplazar(miembros, data.miembros)
     if (Array.isArray(data.proveedores)) reemplazar(proveedores, data.proveedores)
     if (Array.isArray(data.pagosProveedor)) reemplazar(pagosProveedor, data.pagosProveedor)
@@ -520,6 +582,8 @@ function guardar() {
       productos,
       stock,
       ventas,
+      ventasItems,
+      tickets,
       miembros,
       proveedores,
       pagosProveedor,
