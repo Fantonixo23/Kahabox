@@ -1567,7 +1567,7 @@ export default function CajaPage() {
         </section>
 
         <aside className="space-y-4">
-          <div className="rounded-xl border bg-card p-4 lg:sticky lg:top-6">
+          <div className="rounded-xl border bg-card p-4">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold">Cobro</h2>
               <div className="flex items-center gap-1">
