@@ -11,6 +11,7 @@ import {
   type Proveedor,
 } from '@/lib/mock'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { ejecutarEscritura } from '@/lib/ejecutar'
 
 export type EntradaProveedor = {
   nombre: string
@@ -41,19 +42,39 @@ export async function listarProveedores(): Promise<Proveedor[]> {
 
 export async function crearProveedor(entrada: EntradaProveedor): Promise<Proveedor> {
   if (!isSupabaseConfigured) return crearProveedorMock(entrada)
-  const { data, error } = await supabase
-    .from('proveedores')
-    .insert({
-      nombre: entrada.nombre,
-      ruc: entrada.ruc?.trim() || null,
-      telefono: entrada.telefono?.trim() || null,
-      email: entrada.email?.trim() || null,
-      direccion: entrada.direccion?.trim() || null,
-    })
-    .select()
-    .single()
-  if (error) throw new Error(error.message)
-  return data as Proveedor
+  const proveedorId = crypto.randomUUID()
+  const ahora = new Date().toISOString()
+  const datos = {
+    nombre: entrada.nombre,
+    ruc: entrada.ruc?.trim() || null,
+    telefono: entrada.telefono?.trim() || null,
+    email: entrada.email?.trim() || null,
+    direccion: entrada.direccion?.trim() || null,
+  }
+  const resultado = await ejecutarEscritura<Proveedor>({
+    operacion: {
+      tipo: 'proveedor',
+      accion: 'crear',
+      proveedorId,
+      datos,
+      creadoEn: ahora,
+    },
+    ejecutarRemoto: async () => {
+      const { data, error } = await supabase
+        .from('proveedores')
+        .insert({ id: proveedorId, ...datos })
+        .select()
+        .single()
+      if (error) throw error
+      return data as Proveedor
+    },
+  })
+  if (resultado.remoto) return resultado.resultado
+  return {
+    id: proveedorId,
+    ...datos,
+    created_at: ahora,
+  } as Proveedor
 }
 
 export async function actualizarProveedor(
@@ -64,17 +85,26 @@ export async function actualizarProveedor(
     actualizarProveedorMock(id, cambios)
     return
   }
-  const { error } = await supabase
-    .from('proveedores')
-    .update({
-      nombre: cambios.nombre,
-      ruc: cambios.ruc?.trim() || null,
-      telefono: cambios.telefono?.trim() || null,
-      email: cambios.email?.trim() || null,
-      direccion: cambios.direccion?.trim() || null,
-    })
-    .eq('id', id)
-  if (error) throw new Error(error.message)
+  const datos = {
+    nombre: cambios.nombre,
+    ruc: cambios.ruc?.trim() || null,
+    telefono: cambios.telefono?.trim() || null,
+    email: cambios.email?.trim() || null,
+    direccion: cambios.direccion?.trim() || null,
+  }
+  await ejecutarEscritura({
+    operacion: {
+      tipo: 'proveedor',
+      accion: 'actualizar',
+      proveedorId: id,
+      datos,
+      creadoEn: new Date().toISOString(),
+    },
+    ejecutarRemoto: async () => {
+      const { error } = await supabase.from('proveedores').update(datos).eq('id', id)
+      if (error) throw error
+    },
+  })
 }
 
 export async function eliminarProveedor(id: string): Promise<void> {
@@ -82,8 +112,19 @@ export async function eliminarProveedor(id: string): Promise<void> {
     eliminarProveedorMock(id)
     return
   }
-  const { error } = await supabase.from('proveedores').delete().eq('id', id)
-  if (error) throw new Error(error.message)
+  await ejecutarEscritura({
+    operacion: {
+      tipo: 'proveedor',
+      accion: 'eliminar',
+      proveedorId: id,
+      datos: null,
+      creadoEn: new Date().toISOString(),
+    },
+    ejecutarRemoto: async () => {
+      const { error } = await supabase.from('proveedores').delete().eq('id', id)
+      if (error) throw error
+    },
+  })
 }
 
 export async function listarPagos(): Promise<PagoProveedorConProveedor[]> {
@@ -101,15 +142,31 @@ export async function registrarPago(entrada: EntradaPago): Promise<void> {
     registrarPagoProveedorMock(entrada)
     return
   }
-  const { error } = await supabase.from('pagos_proveedores').insert({
+  const pagoId = crypto.randomUUID()
+  const datos = {
     proveedor_id: entrada.proveedor_id,
     fecha: entrada.fecha,
     concepto: entrada.concepto?.trim() || null,
     monto: entrada.monto,
     moneda: entrada.moneda,
     metodo: entrada.metodo,
+  }
+  await ejecutarEscritura({
+    operacion: {
+      tipo: 'pagoProveedor',
+      accion: 'registrar',
+      pagoId,
+      proveedorId: entrada.proveedor_id,
+      datos,
+      creadoEn: new Date().toISOString(),
+    },
+    ejecutarRemoto: async () => {
+      const { error } = await supabase
+        .from('pagos_proveedores')
+        .insert({ id: pagoId, ...datos })
+      if (error) throw error
+    },
   })
-  if (error) throw new Error(error.message)
 }
 
 export async function eliminarPago(id: string): Promise<void> {
@@ -117,6 +174,18 @@ export async function eliminarPago(id: string): Promise<void> {
     eliminarPagoProveedorMock(id)
     return
   }
-  const { error } = await supabase.from('pagos_proveedores').delete().eq('id', id)
-  if (error) throw new Error(error.message)
+  await ejecutarEscritura({
+    operacion: {
+      tipo: 'pagoProveedor',
+      accion: 'eliminar',
+      pagoId: id,
+      proveedorId: null,
+      datos: null,
+      creadoEn: new Date().toISOString(),
+    },
+    ejecutarRemoto: async () => {
+      const { error } = await supabase.from('pagos_proveedores').delete().eq('id', id)
+      if (error) throw error
+    },
+  })
 }

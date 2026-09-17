@@ -12,13 +12,16 @@ import {
   Banknote,
   Check,
   CheckCircle2,
+  Coins,
   Copy,
   CreditCard,
   HandCoins,
+  Loader2,
   Minus,
   PackagePlus,
   Plus,
   Printer,
+  QrCode as QrCodeIcon,
   RefreshCw,
   ScanBarcode,
   Settings2,
@@ -74,7 +77,20 @@ import {
   type PayloadReponer,
 } from '@/lib/escaneoRemoto'
 import { MONEDAS, formatFecha, formatMoney, type Moneda } from '@/lib/format'
+import {
+  cobrarQrPos,
+  cobrarTarjetaPos,
+  probarConexionPos,
+  type ResultadoPos,
+} from '@/lib/bancard'
+import { guardarCacheStock, leerCacheStock } from '@/lib/cache'
+import type {
+  MetodoPagoVenta,
+} from '@/lib/cola'
 import { monedaPrincipal, nombreNegocio, useConfig } from '@/lib/config'
+import {
+  ejecutarEscritura,
+} from '@/lib/ejecutar'
 import {
   copiarTicket,
   imprimirTicket,
@@ -90,6 +106,7 @@ import {
   reponerStockMock,
 } from '@/lib/mock'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { esErrorDeRed } from '@/lib/red'
 import { vistaStock } from '@/lib/vistaStock'
 import { useKeyboardScanner } from '@/lib/useKeyboardScanner'
 import { cn } from 'cn'
@@ -100,18 +117,18 @@ type StockRow = Database['public']['Views']['stock_tienda_dueno']['Row'] & {
 
 type CarritoItem = { linea: StockRow; cantidad: number }
 
-type MetodoPago = 'efectivo' | 'tarjeta' | 'transferencia' | 'fiado'
+type MetodoPago = 'efectivo' | 'pos' | 'transferencia' | 'fiado'
 
 const METODOS: Record<MetodoPago, { nombre: string; Icono: LucideIcon }> = {
   efectivo: { nombre: 'Efectivo', Icono: Banknote },
-  tarjeta: { nombre: 'Tarjeta', Icono: CreditCard },
+  pos: { nombre: 'POS Bancard', Icono: CreditCard },
   transferencia: { nombre: 'Transferencia', Icono: HandCoins },
   fiado: { nombre: 'Crédito / Fiado', Icono: Wallet },
 }
 
 const METODOS_ACTIVOS: MetodoPago[] = [
   'efectivo',
-  'tarjeta',
+  'pos',
   'transferencia',
   'fiado',
 ]
@@ -121,7 +138,13 @@ type Pago = {
   metodo: MetodoPago
   monto: string
   moneda: Moneda
+  detalle?: string
+  fijo?: boolean
 }
+
+type EstadoCobroPos = 'idle' | 'eco' | 'esperando' | 'ok' | 'error'
+
+type MedioPosCaja = 'qr' | 'debito' | 'contado'
 
 type Aviso = { tipo: 'ok' | 'error'; texto: string }
 
@@ -153,6 +176,37 @@ function buscarPorQuery(lista: StockRow[], texto: string): StockRow[] {
       s.sku,
     ].some((f) => f?.toLowerCase().includes(t)),
   )
+}
+
+function lineaLocalDesdeProducto(
+  producto: PayloadNuevoProducto,
+  maestroId: string,
+  lineaId: string,
+): StockRow {
+  const ahora = new Date().toISOString()
+  return {
+    id: lineaId,
+    tenant_id: '',
+    sucursal_id: null,
+    producto_id: maestroId,
+    sku: producto.sku ?? null,
+    variante: producto.variante ?? null,
+    precio: producto.precio,
+    costo: producto.costo,
+    moneda: producto.moneda,
+    cantidad: producto.cantidad,
+    updated_at: ahora,
+    producto: {
+      id: maestroId,
+      codigo_barras: producto.codigo_barras?.trim() || null,
+      nombre: producto.nombre,
+      marca: producto.marca ?? null,
+      categoria: producto.categoria ?? null,
+      foto_url: null,
+      creado_por_tenant_id: null,
+      created_at: ahora,
+    },
+  }
 }
 
 function leerCarritoPersistido(): { id: string; cantidad: number }[] {
@@ -506,6 +560,14 @@ export default function CajaPage() {
   const [multiples, setMultiples] = useState(false)
   const [copiado, setCopiado] = useState(false)
 
+  const [posAbierto, setPosAbierto] = useState(false)
+  const [posEstado, setPosEstado] = useState<EstadoCobroPos>('idle')
+  const [posCargando, setPosCargando] = useState(false)
+  const [posMensaje, setPosMensaje] = useState('')
+  const [posResultado, setPosResultado] = useState<ResultadoPos | null>(null)
+  const [posMedio, setPosMedio] = useState<MedioPosCaja | null>(null)
+  const [posMontoGs, setPosMontoGs] = useState(0)
+
   const [nuevoOpen, setNuevoOpen] = useState(false)
   const [nuevoCodigo, setNuevoCodigo] = useState('')
   const [reponerOpen, setReponerOpen] = useState(false)
@@ -553,12 +615,23 @@ export default function CajaPage() {
       setStock(getMockStock())
       return
     }
-    const { data } = await supabase
-      .from(vista)
-      .select('*, producto:productos_maestro(*)')
-      .order('updated_at', { ascending: false })
-      .limit(500)
-    setStock((data as StockRow[]) ?? [])
+    try {
+      const { data, error } = await supabase
+        .from(vista)
+        .select('*, producto:productos_maestro(*)')
+        .order('updated_at', { ascending: false })
+        .limit(500)
+      if (error) throw error
+      const filas = (data as StockRow[] | null) ?? []
+      setStock(filas)
+      guardarCacheStock(vista, filas)
+    } catch (e) {
+      if (!esErrorDeRed(e)) throw e
+      // Sin conexión: no pisamos la lista en memoria y usamos la última
+      // carga exitosa si no hay nada aún (el SyncBar avisa el estado).
+      const cache = leerCacheStock<StockRow>(vista)
+      setStock((prev) => (prev !== null ? prev : (cache ?? [])))
+    }
   }, [vista])
 
   useEffect(() => {
@@ -687,6 +760,19 @@ export default function CajaPage() {
     setCarrito((prev) => prev.filter((c) => c.linea.id !== id))
   }
 
+  function aplicarAjusteStockLocal(lineaId: string, delta: number) {
+    setStock((prev) => {
+      if (!prev) return prev
+      const lista = prev.map((s) =>
+        s.id === lineaId
+          ? { ...s, cantidad: Math.max(0, s.cantidad + delta) }
+          : s,
+      )
+      guardarCacheStock(vista, lista)
+      return lista
+    })
+  }
+
   async function agregarCodigo(code: string) {
     const lista = stock ?? []
     const linea = buscarPorCodigo(lista, code)
@@ -713,58 +799,74 @@ export default function CajaPage() {
     }
 
     const codigoBarras = producto.codigo_barras?.trim() || null
-    let productoId: string | null = null
+    const ahora = new Date().toISOString()
+    const maestroId = crypto.randomUUID()
+    const lineaId = crypto.randomUUID()
 
-    if (codigoBarras) {
-      const { data: existente } = await supabase
-        .from('productos_maestro')
-        .select('id')
-        .eq('codigo_barras', codigoBarras)
-        .maybeSingle()
-      if (existente) productoId = existente.id
-    }
-
-    if (!productoId) {
-      const { data: creado, error: errMaestro } = await supabase
-        .from('productos_maestro')
-        .insert({
-          nombre: producto.nombre,
-          codigo_barras: codigoBarras,
-          marca: producto.marca,
-          categoria: producto.categoria,
+    const resultado = await ejecutarEscritura<{ lineaId: string }>({
+      operacion: {
+        tipo: 'producto',
+        maestroId,
+        lineaId,
+        codigo: codigoBarras,
+        nombre: producto.nombre,
+        marca: producto.marca,
+        categoria: producto.categoria,
+        sucursalId: null,
+        sku: producto.sku,
+        variante: producto.variante,
+        precio: producto.precio,
+        costo: producto.costo,
+        moneda: producto.moneda,
+        cantidad: producto.cantidad,
+        creadoEn: ahora,
+      },
+      ejecutarRemoto: async () => {
+        const { data, error } = await supabase.rpc('registrar_producto', {
+          p_maestro_id: maestroId,
+          p_codigo: codigoBarras,
+          p_nombre: producto.nombre,
+          p_marca: producto.marca,
+          p_categoria: producto.categoria,
+          p_linea_id: lineaId,
+          p_sucursal_id: null,
+          p_sku: producto.sku,
+          p_variante: producto.variante,
+          p_precio: producto.precio,
+          p_costo: producto.costo,
+          p_moneda: producto.moneda,
+          p_cantidad: producto.cantidad,
+          p_created_at: ahora,
         })
-        .select('id')
-        .single()
-      if (errMaestro) throw errMaestro
-      productoId = creado.id
-    }
-
-    const { error: errStock } = await supabase.from('stock_tienda').insert({
-      producto_id: productoId,
-      variante: producto.variante,
-      sku: producto.sku,
-      precio: producto.precio,
-      costo: producto.costo,
-      moneda: producto.moneda,
-      cantidad: producto.cantidad,
+        if (error) throw error
+        if (!data) throw new Error('No se pudo registrar el producto')
+        return { lineaId: data }
+      },
     })
-    if (errStock) throw errStock
 
-    await recargarStock()
+    const lineaIdEfectiva = resultado.remoto
+      ? resultado.resultado.lineaId
+      : lineaId
+    const existente = stock?.find((s) => s.id === lineaIdEfectiva)
 
-    if (producto.cantidad > 0 && codigoBarras) {
-      const { data: linea, error: errLinea } = await supabase
-        .from(vista)
-        .select('*, producto:productos_maestro(*)')
-        .eq('producto.codigo_barras', codigoBarras)
-        .maybeSingle()
-      if (!errLinea && linea) {
-        const fila = linea as StockRow
-        if (fila.cantidad > 0) agregarCarrito(fila)
-      }
+    if (existente) {
+      if (existente.cantidad > 0) agregarCarrito(existente)
+    } else {
+      const fila = lineaLocalDesdeProducto(producto, maestroId, lineaIdEfectiva)
+      setStock((prev) => {
+        const lista = prev
+          ? [fila, ...prev.filter((s) => s.id !== fila.id)]
+          : [fila]
+        guardarCacheStock(vista, lista)
+        return lista
+      })
+      if (fila.cantidad > 0) agregarCarrito(fila)
     }
 
-    avisar(`Producto cargado a la Caja: ${producto.nombre}.`, 'ok')
+    avisar(
+      `Producto cargado a la Caja${resultado.remoto ? '' : ' (sin conexión: quedó pendiente de sincronizar)'}: ${producto.nombre}.`,
+      'ok',
+    )
     setNuevoOpen(false)
   }
 
@@ -787,30 +889,59 @@ export default function CajaPage() {
       return true
     }
 
-    const { data: maestro, error: errMaestro } = await supabase
-      .from('productos_maestro')
-      .select('id')
-      .eq('codigo_barras', reponer.codigo_barras.trim())
-      .maybeSingle()
-    if (errMaestro || !maestro) return false
+    const lista = stock ?? []
+    const linea = buscarPorCodigo(lista, reponer.codigo_barras.trim())
+    if (!linea) {
+      avisar(`El código ${reponer.codigo_barras} no está en el stock de esta Caja.`)
+      setReponerOpen(false)
+      return false
+    }
 
-    const { data: linea, error: errLinea } = await supabase
-      .from('stock_tienda')
-      .select('id, cantidad')
-      .eq('producto_id', maestro.id)
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    if (errLinea || !linea) return false
+    const movimientoId = crypto.randomUUID()
+    const ahora = new Date().toISOString()
 
-    const { error } = await supabase
-      .from('stock_tienda')
-      .update({ cantidad: linea.cantidad + cantidad })
-      .eq('id', linea.id)
-    if (error) throw error
+    const resultado = await ejecutarEscritura<{ movimientoId: string }>({
+      operacion: {
+        tipo: 'ajuste',
+        movimientoId,
+        lineaId: linea.id,
+        sucursalId: linea.sucursal_id,
+        sentido: reponer.tipo,
+        cantidad,
+        motivo: reponer.motivo?.trim() || null,
+        productoNombre: linea.producto?.nombre ?? 'Producto',
+        codigoBarras: linea.producto?.codigo_barras ?? null,
+        sku: linea.sku,
+        creadoEn: ahora,
+      },
+      ejecutarRemoto: async () => {
+        const { error } = await supabase.rpc('registrar_ajuste', {
+          p_movimiento_id: movimientoId,
+          p_linea_id: linea.id,
+          p_sucursal_id: linea.sucursal_id,
+          p_tipo: reponer.tipo,
+          p_cantidad: cantidad,
+          p_motivo: reponer.motivo?.trim() || null,
+          p_producto_nombre: linea.producto?.nombre ?? 'Producto',
+          p_codigo_barras: linea.producto?.codigo_barras ?? null,
+          p_sku: linea.sku,
+          p_created_at: ahora,
+        })
+        if (error) throw error
+        return { movimientoId }
+      },
+      aplicarLocal: () =>
+        aplicarAjusteStockLocal(
+          linea.id,
+          reponer.tipo === 'entrada' ? cantidad : -cantidad,
+        ),
+    })
 
-    await recargarStock()
-    avisar(`Se sumaron ${cantidad} unidades a la Caja.`, 'ok')
+    if (resultado.remoto) await recargarStock()
+    avisar(
+      `Se ${reponer.tipo === 'entrada' ? 'sumaron' : 'descontaron'} ${cantidad} unidades de ${linea.producto?.nombre ?? 'el producto'}${resultado.remoto ? '' : ' (sin conexión: quedó pendiente de sincronizar)'}.`,
+      'ok',
+    )
     setReponerOpen(false)
     return true
   }
@@ -882,6 +1013,10 @@ export default function CajaPage() {
       setPagos((prev) => prev.filter((p) => p.metodo !== metodo))
       return
     }
+    if (metodo === 'pos') {
+      abrirCobroPos()
+      return
+    }
 
     const pendienteGs = Math.max(0, totalGs - pagoTotalGs)
     const monto = desdectar(pendienteGs)
@@ -898,6 +1033,91 @@ export default function CajaPage() {
     } else {
       setPagos([nuevo])
     }
+  }
+
+  function abrirCobroPos() {
+    if (!config.bancardActivo) {
+      avisar('Activá POS Bancard en Configuración antes de cobrar.')
+      return
+    }
+    if (!config.bancardIp.trim()) {
+      avisar('Configurá la IP del POS Bancard en Configuración.')
+      return
+    }
+    const pendiente = Math.max(0, totalGs - pagoTotalGs)
+    if (pendiente < 1) {
+      avisar('El total ya está cubierto.')
+      return
+    }
+    setPosMontoGs(Math.max(1, Math.round(pendiente)))
+    setPosMedio(null)
+    setPosResultado(null)
+    setPosEstado('idle')
+    setPosCargando(false)
+    setPosMensaje('')
+    setPosAbierto(true)
+  }
+
+  async function iniciarCobroPos(medio: MedioPosCaja) {
+    if (posCargando) return
+    setPosMedio(medio)
+    setPosCargando(true)
+    setPosEstado('eco')
+    setPosMensaje('Verificando conexión con el POS Bancard…')
+    try {
+      await probarConexionPos(config.bancardIp, config.bancardPuerto)
+      setPosEstado('esperando')
+      setPosMensaje(
+        'Esperando el pago… completá la operación en el terminal (tarjeta o QR).',
+      )
+      const factura = Date.now()
+      const resultado =
+        medio === 'qr'
+          ? await cobrarQrPos(
+              config.bancardIp,
+              config.bancardPuerto,
+              posMontoGs,
+              factura,
+              0,
+            )
+          : await cobrarTarjetaPos(
+              config.bancardIp,
+              config.bancardPuerto,
+              medio === 'debito' ? 'debito' : 'contado',
+              posMontoGs,
+              factura,
+            )
+      setPosResultado(resultado)
+      setPosCargando(false)
+      setPosEstado('ok')
+      setPagos((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          metodo: 'pos',
+          monto: cantidadString(desdectar(posMontoGs)),
+          moneda: monedaCobro,
+          detalle: detalleDeResultadoPos(resultado),
+          fijo: true,
+        },
+      ])
+    } catch (e) {
+      setPosCargando(false)
+      setPosEstado('error')
+      setPosMensaje(
+        `El POS rechazó el pago: ${
+          e instanceof Error ? e.message : 'intentá nuevamente'
+        }. No se registró el pago ni se cierra la venta.`,
+      )
+    }
+  }
+
+  function detalleDeResultadoPos(res: ResultadoPos): string {
+    const partes: string[] = []
+    if (res.nombreTarjeta) partes.push(res.nombreTarjeta)
+    if (res.nroBoleta) partes.push(`N° ${res.nroBoleta}`)
+    if (res.codigoAutorizacion) partes.push(`Auth ${res.codigoAutorizacion}`)
+    return partes.join(' · ')
   }
 
   function actualizarPago(id: string, cambios: Partial<Omit<Pago, 'id'>>) {
@@ -1028,10 +1248,14 @@ export default function CajaPage() {
 
     const resumen = pagos
       .filter((p) => pagoGs(p) > 0)
-      .map((p) => METODOS[p.metodo].nombre)
+      .map((p) => {
+        const base = METODOS[p.metodo].nombre
+        return p.metodo === 'pos' && p.detalle ? `${base} (${p.detalle})` : base
+      })
       .join(' + ')
 
     let ventaId: string | null = null
+    let sinConexion = false
 
     try {
       if (!isSupabaseConfigured) {
@@ -1048,39 +1272,84 @@ export default function CajaPage() {
         ventaId = venta.id
         setStock(getMockStock())
       } else {
-        for (const c of carrito) {
-          await supabase
-            .from('stock_tienda')
-            .update({ cantidad: c.linea.cantidad - c.cantidad })
-            .eq('id', c.linea.id)
-        }
-        const { data: venta, error } = await supabase
-          .from('ventas')
-          .insert({
+        const ahora = new Date().toISOString()
+        const ventaIdUUID = crypto.randomUUID()
+        const resultado = await ejecutarEscritura<{ ventaId: string }>({
+          operacion: {
+            tipo: 'venta',
+            ventaId: ventaIdUUID,
+            sucursalId: carrito[0].linea.sucursal_id,
             total: Math.round(totalGs),
             estado,
-            sucursal_id: carrito[0].linea.sucursal_id,
-          })
-          .select('id')
-          .single()
-        if (error) throw error
-        for (const c of carrito) {
-          const { error: errItem } = await supabase
-            .from('venta_items')
-            .insert({
-              venta_id: venta.id,
-              stock_tienda_id: c.linea.id,
+            creadoEn: ahora,
+            items: carrito.map((c) => ({
+              id: crypto.randomUUID(),
+              stockId: c.linea.id,
               cantidad: c.cantidad,
-              precio_unitario: c.linea.precio,
+              precioUnitario: c.linea.precio,
+            })),
+            pagos: pagos
+              .filter((p) => pagoGs(p) > 0)
+              .map((p) => ({
+                id: p.id,
+                metodo: p.metodo as MetodoPagoVenta,
+                moneda: p.moneda,
+                monto: Math.round(parseMonto(p.monto) * 100) / 100,
+                detalle: p.detalle ?? undefined,
+              })),
+          },
+          ejecutarRemoto: async () => {
+            const { error } = await supabase.rpc('registrar_venta', {
+              p_venta_id: ventaIdUUID,
+              p_sucursal_id: carrito[0].linea.sucursal_id,
+              p_total: Math.round(totalGs),
+              p_items: carrito.map((c) => ({
+                id: crypto.randomUUID(),
+                stock_id: c.linea.id,
+                cantidad: c.cantidad,
+                precio_unitario: c.linea.precio,
+              })),
+              p_pagos: pagos
+                .filter((p) => pagoGs(p) > 0)
+                .map((p) => ({
+                  id: p.id,
+                  metodo: p.metodo,
+                  moneda: p.moneda,
+                  monto: Math.round(parseMonto(p.monto) * 100) / 100,
+                  detalle: p.detalle ?? null,
+                })),
+              p_estado: estado,
+              p_created_at: ahora,
             })
-          if (errItem) throw errItem
-        }
-        ventaId = venta.id
+            if (error) throw error
+            return { ventaId: ventaIdUUID }
+          },
+          aplicarLocal: () => {
+            setStock((prev) => {
+              if (!prev) return prev
+              const lista = prev.map((s) => {
+                const item = carrito.find((c) => c.linea.id === s.id)
+                return item
+                  ? { ...s, cantidad: Math.max(0, s.cantidad - item.cantidad) }
+                  : s
+              })
+              guardarCacheStock(vista, lista)
+              return lista
+            })
+          },
+        })
+        ventaId = resultado.remoto
+          ? resultado.resultado.ventaId
+          : ventaIdUUID
+        sinConexion = !resultado.remoto
       }
 
       setPagos([])
       setQuery('')
-      avisar(`Venta confirmada (${resumen || '…'})`, 'ok')
+      avisar(
+        `Venta ${sinConexion ? 'guardada sin conexión, se sincronizará' : 'confirmada'} (${resumen || '…'})`,
+        'ok',
+      )
 
       if (ventaId) {
         const ticket = armarTicket(ventaId, resumen)
@@ -1359,7 +1628,13 @@ export default function CajaPage() {
                     type="button"
                     variant={activo ? 'default' : 'outline'}
                     className="h-13 justify-start gap-2"
-                    onClick={() => toggleMetodo(metodo)}
+                    onClick={() =>
+                      metodo === 'pos'
+                        ? activo
+                          ? toggleMetodo('pos')
+                          : abrirCobroPos()
+                        : toggleMetodo(metodo)
+                    }
                   >
                     <meta.Icono className="size-5 shrink-0" />
                     {meta.nombre}
@@ -1393,29 +1668,42 @@ export default function CajaPage() {
                         <Trash2 />
                       </Button>
                     </div>
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <MoneyInput
-                        value={p.monto}
-                        onChange={(v) => actualizarPago(p.id, { monto: v })}
-                        placeholder="0"
-                        className="h-11 flex-1 tabular-nums"
-                      />
-                      <Select
-                        value={p.moneda}
-                        onValueChange={(m) => actualizarPago(p.id, { moneda: m as Moneda })}
-                      >
-                        <SelectTrigger className="h-11 w-24">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {monedasDisponibles.map((m) => (
-                            <SelectItem key={m.codigo} value={m.codigo}>
-                              {m.codigo}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {p.metodo === 'pos' && p.fijo ? (
+                      <div className="mt-1.5 space-y-1">
+                        <div className="flex h-11 items-center rounded-md border bg-muted/40 px-3 text-sm font-semibold tabular-nums">
+                          {formatMoney(parseMonto(p.monto), p.moneda)}
+                        </div>
+                        {p.detalle && (
+                          <p className="text-xs font-medium text-muted-foreground">
+                            {p.detalle}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <MoneyInput
+                          value={p.monto}
+                          onChange={(v) => actualizarPago(p.id, { monto: v })}
+                          placeholder="0"
+                          className="h-11 flex-1 tabular-nums"
+                        />
+                        <Select
+                          value={p.moneda}
+                          onValueChange={(m) => actualizarPago(p.id, { moneda: m as Moneda })}
+                        >
+                          <SelectTrigger className="h-11 w-24">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {monedasDisponibles.map((m) => (
+                              <SelectItem key={m.codigo} value={m.codigo}>
+                                {m.codigo}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1616,6 +1904,136 @@ export default function CajaPage() {
             <Button type="button" onClick={concluirVenta}>
               Aceptar
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={posAbierto}
+        onOpenChange={(v) => {
+          if (!v && !posCargando) setPosAbierto(false)
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pagar con POS Bancard</DialogTitle>
+            <DialogDescription>
+              Monto a cobrar:{' '}
+              <span className="font-semibold text-foreground">
+                {formatMoney(posMontoGs, 'PYG')}
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {(posEstado === 'idle' || posEstado === 'error') && (
+              <div className="space-y-3">
+                {posEstado === 'error' && (
+                  <p className="rounded-md border border-red-300/60 bg-red-50 p-2 text-xs font-medium text-red-700">
+                    {posMensaje}
+                  </p>
+                )}
+                <p className="text-sm text-muted-foreground">
+                  Elegí el medio de pago: el terminal recibe el monto y se
+                  completa la operación físicamente en el POS.
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    type="button"
+                    variant={posMedio === 'qr' ? 'default' : 'outline'}
+                    className="h-20 flex-col gap-1"
+                    disabled={posCargando}
+                    onClick={() => void iniciarCobroPos('qr')}
+                  >
+                    <QrCodeIcon className="size-6" />
+                    QR
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={posMedio === 'debito' ? 'default' : 'outline'}
+                    className="h-20 flex-col gap-1"
+                    disabled={posCargando}
+                    onClick={() => void iniciarCobroPos('debito')}
+                  >
+                    <CreditCard className="size-6" />
+                    Débito
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={posMedio === 'contado' ? 'default' : 'outline'}
+                    className="h-20 flex-col gap-1"
+                    disabled={posCargando}
+                    onClick={() => void iniciarCobroPos('contado')}
+                  >
+                    <Coins className="size-6" />
+                    Contado
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {(posEstado === 'eco' || posEstado === 'esperando') && (
+              <div className="flex flex-col items-center gap-2 py-4 text-center">
+                <Loader2 className="size-6 animate-spin text-primary" />
+                <p className="text-sm">{posMensaje}</p>
+              </div>
+            )}
+
+            {posEstado === 'ok' && posResultado && (
+              <div className="space-y-2 rounded-md border border-emerald-300/60 bg-emerald-50 p-3">
+                <p className="flex items-center gap-1.5 text-sm font-semibold text-emerald-700">
+                  <CheckCircle2 className="size-4" />
+                  Pago aprobado en el POS
+                </p>
+                <dl className="space-y-1 text-sm">
+                  {posResultado.nombreTarjeta && (
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-muted-foreground">Tarjeta</dt>
+                      <dd className="text-right font-medium">
+                        {posResultado.nombreTarjeta}
+                      </dd>
+                    </div>
+                  )}
+                  {posResultado.nroBoleta && (
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-muted-foreground">Boleta</dt>
+                      <dd className="text-right font-medium tabular-nums">
+                        {posResultado.nroBoleta}
+                      </dd>
+                    </div>
+                  )}
+                  {posResultado.codigoAutorizacion && (
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-muted-foreground">Autorización</dt>
+                      <dd className="text-right font-medium tabular-nums">
+                        {posResultado.codigoAutorizacion}
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+                <p className="text-xs text-emerald-700/80">
+                  El importe ya quedó cargado en el cobro. Ahora pulsá «Cobrar»
+                  para cerrar la venta e imprimir el ticket.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            {posEstado === 'ok' ? (
+              <Button type="button" onClick={() => setPosAbierto(false)}>
+                Listo
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={posCargando}
+                onClick={() => setPosAbierto(false)}
+              >
+                Cancelar
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

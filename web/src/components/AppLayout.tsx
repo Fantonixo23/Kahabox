@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 
 import { useAuth } from '@/components/auth/AuthContext'
+import SyncBar from '@/components/SyncBar'
 import { Button } from '@/components/ui/button'
 import { cn } from 'cn'
 import { MODULOS, useConfig } from '@/lib/config'
@@ -131,6 +132,7 @@ export default function AppLayout() {
             </Button>
           </div>
         </header>
+        <SyncBar />
         <main className="flex-1 p-4 pb-24 md:p-6 md:pb-6">
           <Outlet />
         </main>

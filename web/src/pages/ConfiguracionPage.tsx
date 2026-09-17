@@ -2,9 +2,11 @@ import { useState } from 'react'
 
 import {
   Coins,
+  CreditCard,
   EyeOff,
   FileKey2,
   Info,
+  Loader2,
   MonitorSmartphone,
   Printer,
   ShieldCheck,
@@ -30,6 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from 'cn'
+import { probarConexionPos } from '@/lib/bancard'
 import { MONEDAS, type Moneda } from '@/lib/format'
 import {
   MODULOS,
@@ -45,6 +48,27 @@ export default function ConfiguracionPage() {
   const config = useConfig()
   const [nombre, setNombre] = useState(config.nombreNegocio)
   const [mensaje, setMensaje] = useState<string | null>(null)
+  const [probandoPos, setProbandoPos] = useState(false)
+  const [resultadoPos, setResultadoPos] = useState<
+    'ok' | 'error' | null
+  >(null)
+  const [mensajePos, setMensajePos] = useState('')
+
+  async function probarPos() {
+    setProbandoPos(true)
+    setResultadoPos(null)
+    setMensajePos('')
+    try {
+      await probarConexionPos(config.bancardIp, config.bancardPuerto)
+      setResultadoPos('ok')
+      setMensajePos('El POS Bancard respondió correctamente.')
+    } catch (e) {
+      setResultadoPos('error')
+      setMensajePos(e instanceof Error ? e.message : 'No se pudo conectar al POS.')
+    } finally {
+      setProbandoPos(false)
+    }
+  }
 
   function guardarNombre() {
     actualizarConfig({ nombreNegocio: nombre.trim() })
@@ -240,6 +264,113 @@ export default function ConfiguracionPage() {
             onCambiar={actualizarCertificado}
             onQuitar={() => actualizarConfig({ certificado: null })}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="size-4" />
+            POS Bancard
+          </CardTitle>
+          <CardDescription>
+            Cobrás con el terminal físico Bancard (SmartPOS / CajaPOS Android)
+            desde la Caja: QR, débito y contado. El terminal recibe el monto
+            automáticamente por la red local.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">Habilitar POS Bancard</p>
+              <p className="text-xs text-muted-foreground">
+                Aparece el botón "POS Bancard" en la Caja.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={config.bancardActivo}
+              onClick={() =>
+                actualizarConfig({ bancardActivo: !config.bancardActivo })
+              }
+              className={cn(
+                'flex h-6 w-11 shrink-0 items-center rounded-full border px-0.5 transition-colors',
+                config.bancardActivo
+                  ? 'justify-end border-primary bg-primary'
+                  : 'justify-start border-input bg-muted',
+              )}
+            >
+              <span
+                className={cn(
+                  'size-5 rounded-full transition-colors',
+                  config.bancardActivo
+                    ? 'bg-primary-foreground'
+                    : 'bg-background',
+                )}
+              />
+            </button>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="cfg-pos-ip">IP del terminal</Label>
+              <Input
+                id="cfg-pos-ip"
+                value={config.bancardIp}
+                onChange={(e) =>
+                  actualizarConfig({ bancardIp: e.target.value.trim() })
+                }
+                placeholder="192.168.0.50"
+                inputMode="decimal"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="cfg-pos-puerto">Puerto</Label>
+              <Input
+                id="cfg-pos-puerto"
+                value={config.bancardPuerto}
+                onChange={(e) =>
+                  actualizarConfig({
+                    bancardPuerto: e.target.value.replace(/\D/g, ''),
+                  })
+                }
+                placeholder="9000"
+                inputMode="numeric"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={probandoPos || !config.bancardActivo}
+              onClick={() => void probarPos()}
+            >
+              {probandoPos && <Loader2 className="size-4 animate-spin" />}
+              Probar conexión
+            </Button>
+            {resultadoPos && (
+              <span
+                className={cn(
+                  'text-xs font-medium',
+                  resultadoPos === 'ok'
+                    ? 'text-emerald-600'
+                    : 'text-red-600',
+                )}
+              >
+                {mensajePos}
+              </span>
+            )}
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            En la app Android funciona directo. En el navegador de la PC, el
+            terminal real exige una extensión CORS (p. ej. «Allow CORS») o el
+            proxy local <span className="font-mono">tools/pos-proxy.mjs</span>{' '}
+            porque el terminal no envía cabeceras CORS.
+          </p>
         </CardContent>
       </Card>
 

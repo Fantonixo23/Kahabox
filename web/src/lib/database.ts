@@ -111,6 +111,54 @@ export type Database = {
           },
         ]
       }
+      venta_pagos: {
+        Row: {
+          id: string
+          tenant_id: string
+          venta_id: string
+          metodo: 'efectivo' | 'pos' | 'transferencia' | 'fiado'
+          moneda: 'PYG' | 'USD' | 'ARS' | 'BRL'
+          monto: number
+          detalle: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id?: string
+          venta_id: string
+          metodo: 'efectivo' | 'pos' | 'transferencia' | 'fiado'
+          moneda?: 'PYG' | 'USD' | 'ARS' | 'BRL'
+          monto: number
+          detalle?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          venta_id?: string
+          metodo?: 'efectivo' | 'pos' | 'transferencia' | 'fiado'
+          moneda?: 'PYG' | 'USD' | 'ARS' | 'BRL'
+          monto?: number
+          detalle?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'venta_pagos_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'tenants'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'venta_pagos_venta_id_fkey'
+            columns: ['venta_id']
+            isOneToOne: false
+            referencedRelation: 'ventas'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       productos_maestro: {
         Row: {
           id: string
@@ -470,7 +518,54 @@ Relationships: [
         ]
       }
     }
-    Functions: {}
+    Functions: {
+      registrar_venta: {
+        Args: {
+          p_venta_id: string
+          p_sucursal_id: string | null
+          p_total: number
+          p_items: Record<string, unknown>[]
+          p_pagos?: Record<string, unknown>[]
+          p_estado?: 'pendiente_sync' | 'confirmada' | 'anulada'
+          p_created_at?: string | null
+        }
+        Returns: Record<string, unknown>
+      }
+      registrar_producto: {
+        Args: {
+          p_maestro_id: string
+          p_codigo: string | null
+          p_nombre: string
+          p_marca: string | null
+          p_categoria: string | null
+          p_linea_id: string
+          p_sucursal_id: string | null
+          p_sku: string | null
+          p_variante: string | null
+          p_precio: number
+          p_costo: number | null
+          p_moneda: 'PYG' | 'USD'
+          p_cantidad: number
+          p_created_at?: string | null
+        }
+        Returns: string
+      }
+      registrar_ajuste: {
+        Args: {
+          p_movimiento_id: string
+          p_linea_id: string
+          p_sucursal_id: string | null
+          p_tipo: 'entrada' | 'salida'
+          p_cantidad: number
+          p_motivo: string | null
+          p_producto_nombre: string
+          p_codigo_barras: string | null
+          p_sku: string | null
+          p_created_at?: string | null
+        }
+        Returns: Record<string, unknown>
+      }
+    }
     Enums: {}
     CompositeTypes: {}
   }

@@ -18,6 +18,9 @@ export type ConfigApp = {
   sifenActivo: boolean
   sifenRuc: string
   certificado: CertificadoSifen | null
+  bancardActivo: boolean
+  bancardIp: string
+  bancardPuerto: string
   anchoTicketPc: AnchoTicketPc
   cajaNumero: CajaNumero
   modulosOcultos: string[]
@@ -53,6 +56,9 @@ function configInicial(): ConfigApp {
     sifenActivo: false,
     sifenRuc: '',
     certificado: null,
+    bancardActivo: false,
+    bancardIp: '',
+    bancardPuerto: '9000',
     anchoTicketPc: 88,
     cajaNumero: 1,
     modulosOcultos: leerModulosOcultos(),
@@ -103,6 +109,9 @@ function guardar() {
         sifenActivo: config.sifenActivo,
         sifenRuc: config.sifenRuc,
         certificado: config.certificado,
+        bancardActivo: config.bancardActivo,
+        bancardIp: config.bancardIp,
+        bancardPuerto: config.bancardPuerto,
         anchoTicketPc: config.anchoTicketPc,
         cajaNumero: config.cajaNumero,
         monedasActivas: config.monedasActivas,

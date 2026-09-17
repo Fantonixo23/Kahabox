@@ -33,13 +33,16 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { Database } from '@/lib/database'
+import { guardarCacheStock, leerCacheStock } from '@/lib/cache'
 import {
   estadoStock,
   formatFecha,
   formatMoney,
 } from '@/lib/format'
+import { ejecutarEscritura } from '@/lib/ejecutar'
+import { esErrorDeRed } from '@/lib/red'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
-import { esDueno, vistaStock, type VistaStock } from '@/lib/vistaStock'
+import { esDueno, vistaStock } from '@/lib/vistaStock'
 import { useKeyboardScanner } from '@/lib/useKeyboardScanner'
 import {
   SUCURSAL,
@@ -63,6 +66,49 @@ import { cn } from 'cn'
 
 type StockRow = Database['public']['Views']['stock_tienda_dueno']['Row'] & {
   producto: Database['public']['Tables']['productos_maestro']['Row'] | null
+}
+
+type EntradaProductoStock = {
+  nombre: string
+  codigo: string | null
+  marca: string | null
+  categoria: string | null
+  variante: string | null
+  sku: string | null
+  precio: number
+  costo: number | null
+  moneda: 'PYG' | 'USD'
+  cantidad: number
+  sucursalId: string | null
+  maestroId: string
+  lineaId: string
+}
+
+function lineaStockLocal(entrada: EntradaProductoStock): StockRow {
+  const ahora = new Date().toISOString()
+  return {
+    id: entrada.lineaId,
+    tenant_id: '',
+    sucursal_id: entrada.sucursalId,
+    producto_id: entrada.maestroId,
+    sku: entrada.sku,
+    variante: entrada.variante,
+    precio: entrada.precio,
+    costo: entrada.costo,
+    moneda: entrada.moneda,
+    cantidad: entrada.cantidad,
+    updated_at: ahora,
+    producto: {
+      id: entrada.maestroId,
+      codigo_barras: entrada.codigo,
+      nombre: entrada.nombre,
+      marca: entrada.marca,
+      categoria: entrada.categoria,
+      foto_url: null,
+      creado_por_tenant_id: null,
+      created_at: ahora,
+    },
+  }
 }
 
 const estadoBadge = {
@@ -127,6 +173,38 @@ export default function StockPage() {
     [sucursales],
   )
 
+  const cacheKey = `${vista}:${sucursalId}`
+
+  const aplicarAjusteLocal = useCallback(
+    (lineaId: string, tipo: 'entrada' | 'salida', n: number) => {
+      const delta = tipo === 'salida' ? -n : n
+      setRows((prev) => {
+        if (!prev) return prev
+        const lista = prev.map((r) =>
+          r.id === lineaId
+            ? { ...r, cantidad: Math.max(0, r.cantidad + delta) }
+            : r,
+        )
+        guardarCacheStock(cacheKey, lista)
+        return lista
+      })
+    },
+    [cacheKey],
+  )
+
+  const aplicarLineaNueva = useCallback(
+    (fila: StockRow) => {
+      setRows((prev) => {
+        const lista = prev
+          ? [fila, ...prev.filter((r) => r.id !== fila.id)]
+          : [fila]
+        guardarCacheStock(cacheKey, lista)
+        return lista
+      })
+    },
+    [cacheKey],
+  )
+
   const load = useCallback(async () => {
     setError(null)
     if (!isSupabaseConfigured) {
@@ -142,20 +220,29 @@ export default function StockPage() {
       .limit(500)
 
     if (error) {
-      setError(error.message)
-      setRows(null)
+      if (esErrorDeRed(error)) {
+        const cache = leerCacheStock<StockRow>(`${vista}:${sucursalId}`)
+        setRows((prev) => prev ?? cache ?? [])
+      } else {
+        setError(error.message)
+        setRows(null)
+      }
     } else {
-      setRows((data as StockRow[]) ?? [])
+      const filas = (data as StockRow[] | null) ?? []
+      setRows(filas)
+      guardarCacheStock(`${vista}:${sucursalId}`, filas)
     }
 
-    const { data: movs, error: errMov } = await supabase
-      .from('stock_movimientos')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(100)
-    setMovimientos(
-      errMov || !movs ? [] : (movs as unknown as MovimientoStock[]),
-    )
+    if (!esErrorDeRed(error)) {
+      const { data: movs, error: errMov } = await supabase
+        .from('stock_movimientos')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100)
+      setMovimientos(
+        errMov || !movs ? [] : (movs as unknown as MovimientoStock[]),
+      )
+    }
   }, [sucursalId, vista])
 
   useEffect(() => {
@@ -204,7 +291,11 @@ export default function StockPage() {
             <ArrowRightLeft />
             Mover
           </Button>
-          <NuevoProductoDialog onCreated={load} sucursalId={sucursalId} />
+          <NuevoProductoDialog
+            onCreated={load}
+            sucursalId={sucursalId}
+            onLineaNueva={aplicarLineaNueva}
+          />
         </div>
       </div>
 
@@ -390,7 +481,8 @@ export default function StockPage() {
         open={reponerOpen}
         onOpenChange={setReponerOpen}
         sucursalId={sucursalId}
-        vista={vista}
+        lineas={rows ?? []}
+        aplicarAjusteLocal={aplicarAjusteLocal}
         onDone={load}
       />
       <TransferirStockDialog
@@ -427,13 +519,15 @@ function ReponerStockDialog({
   open,
   onOpenChange,
   sucursalId,
-  vista,
+  lineas,
+  aplicarAjusteLocal,
   onDone,
 }: {
   open: boolean
   onOpenChange: (next: boolean) => void
   sucursalId: string
-  vista: VistaStock
+  lineas: StockRow[]
+  aplicarAjusteLocal: (lineaId: string, tipo: 'entrada' | 'salida', n: number) => void
   onDone: () => void | Promise<void>
 }) {
   const [codigo, setCodigo] = useState('')
@@ -474,38 +568,45 @@ function ReponerStockDialog({
           throw new Error('Ese código no está en el stock de esta sucursal.')
         }
       } else {
-        const { data: linea, error: errL } = await supabase
-          .from(vista)
-          .select('*, producto:productos_maestro(*)')
-          .eq('sucursal_id', sucursalId)
-          .eq('producto.codigo_barras', codigo.trim())
-          .maybeSingle()
-        if (errL) throw errL
-        if (!linea) {
+        const fila = lineas.find(
+          (l) => l.producto?.codigo_barras === codigo.trim(),
+        )
+        if (!fila) {
           throw new Error('Ese código no está en el stock de esta sucursal.')
         }
-        const nueva = Math.max(
-          0,
-          linea.cantidad + (tipo === 'entrada' ? n : -n),
-        )
-        const { error: errUpd } = await supabase
-          .from('stock_tienda')
-          .update({ cantidad: nueva })
-          .eq('id', linea.id)
-        if (errUpd) throw errUpd
-        const { error: errMov } = await supabase
-          .from('stock_movimientos')
-          .insert({
-            sucursal_id: sucursalId,
-            linea_id: linea.id,
-            producto_nombre: linea.producto?.nombre ?? 'Producto',
-            codigo_barras: linea.producto?.codigo_barras ?? null,
-            sku: linea.sku,
-            tipo,
-            cantidad: tipo === 'entrada' ? n : -n,
+        const movimientoId = crypto.randomUUID()
+        const ahora = new Date().toISOString()
+        await ejecutarEscritura({
+          operacion: {
+            tipo: 'ajuste',
+            movimientoId,
+            lineaId: fila.id,
+            sucursalId,
+            sentido: tipo,
+            cantidad: n,
             motivo: motivo.trim() || null,
-          })
-        if (errMov) throw errMov
+            productoNombre: fila.producto?.nombre ?? 'Producto',
+            codigoBarras: fila.producto?.codigo_barras ?? null,
+            sku: fila.sku,
+            creadoEn: ahora,
+          },
+          ejecutarRemoto: async () => {
+            const { error } = await supabase.rpc('registrar_ajuste', {
+              p_movimiento_id: movimientoId,
+              p_linea_id: fila.id,
+              p_sucursal_id: sucursalId,
+              p_tipo: tipo,
+              p_cantidad: n,
+              p_motivo: motivo.trim() || null,
+              p_producto_nombre: fila.producto?.nombre ?? 'Producto',
+              p_codigo_barras: fila.producto?.codigo_barras ?? null,
+              p_sku: fila.sku,
+              p_created_at: ahora,
+            })
+            if (error) throw error
+          },
+          aplicarLocal: () => aplicarAjusteLocal(fila.id, tipo, n),
+        })
       }
       await onDone()
       onOpenChange(false)
@@ -873,9 +974,11 @@ const formInicial: ProductoFormValues = productoFormInicial
 function NuevoProductoDialog({
   onCreated,
   sucursalId,
+  onLineaNueva,
 }: {
   onCreated: () => void | Promise<void>
   sucursalId: string
+  onLineaNueva: (fila: StockRow) => void
 }) {
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState<ProductoFormValues>(formInicial)
@@ -956,45 +1059,73 @@ function NuevoProductoDialog({
         return
       }
 
-      let productoId: string | null = null
       const codigoBarras = form.codigo_barras.trim() || null
+      const moneda = form.moneda === 'USD' ? 'USD' : 'PYG'
+      const cantidadNum = Number.isFinite(cantidad)
+        ? Math.max(0, Math.floor(cantidad))
+        : 0
+      const maestroId = crypto.randomUUID()
+      const lineaId = crypto.randomUUID()
+      const ahora = new Date().toISOString()
 
-      if (codigoBarras) {
-        const { data: existente } = await supabase
-          .from('productos_maestro')
-          .select('id')
-          .eq('codigo_barras', codigoBarras)
-          .maybeSingle()
-        if (existente) productoId = existente.id
-      }
-
-      if (!productoId) {
-        const { data: creado, error: errMaestro } = await supabase
-          .from('productos_maestro')
-          .insert({
-            nombre,
-            codigo_barras: codigoBarras,
-            marca: form.marca.trim() || null,
-            categoria: form.categoria.trim() || null,
+      await ejecutarEscritura<{ lineaId: string }>({
+        operacion: {
+          tipo: 'producto',
+          maestroId,
+          lineaId,
+          codigo: codigoBarras,
+          nombre,
+          marca: form.marca.trim() || null,
+          categoria: form.categoria.trim() || null,
+          sucursalId,
+          sku: form.sku.trim() || null,
+          variante: form.variante.trim() || null,
+          precio,
+          costo: form.costo ? Number(form.costo) : null,
+          moneda,
+          cantidad: cantidadNum,
+          creadoEn: ahora,
+        },
+        ejecutarRemoto: async () => {
+          const { data, error } = await supabase.rpc('registrar_producto', {
+            p_maestro_id: maestroId,
+            p_codigo: codigoBarras,
+            p_nombre: nombre,
+            p_marca: form.marca.trim() || null,
+            p_categoria: form.categoria.trim() || null,
+            p_linea_id: lineaId,
+            p_sucursal_id: sucursalId,
+            p_sku: form.sku.trim() || null,
+            p_variante: form.variante.trim() || null,
+            p_precio: precio,
+            p_costo: form.costo ? Number(form.costo) : null,
+            p_moneda: moneda,
+            p_cantidad: cantidadNum,
+            p_created_at: ahora,
           })
-          .select('id')
-          .single()
-        if (errMaestro) throw errMaestro
-        productoId = creado.id
-      }
-
-      const { error: errStock } = await supabase.from('stock_tienda').insert({
-        producto_id: productoId,
-        sucursal_id: sucursalId,
-        variante: form.variante.trim() || null,
-        sku: form.sku.trim() || null,
-        precio,
-        costo: form.costo ? Number(form.costo) : null,
-        moneda: form.moneda === 'USD' ? 'USD' : 'PYG',
-        cantidad: Number.isFinite(cantidad) ? Math.max(0, Math.floor(cantidad)) : 0,
+          if (error) throw error
+          return { lineaId: data as string }
+        },
+        aplicarLocal: () => {
+          onLineaNueva(
+            lineaStockLocal({
+              nombre,
+              codigo: codigoBarras,
+              marca: form.marca.trim() || null,
+              categoria: form.categoria.trim() || null,
+              variante: form.variante.trim() || null,
+              sku: form.sku.trim() || null,
+              precio,
+              costo: form.costo ? Number(form.costo) : null,
+              moneda,
+              cantidad: cantidadNum,
+              sucursalId,
+              maestroId,
+              lineaId,
+            }),
+          )
+        },
       })
-
-      if (errStock) throw errStock
 
       reset()
       setOpen(false)
