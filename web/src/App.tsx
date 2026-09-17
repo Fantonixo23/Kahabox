@@ -4,7 +4,9 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 
 import AppLayout from '@/components/AppLayout'
 import { FullscreenLoader } from '@/components/FullscreenLoader'
+import TenantGate from '@/components/TenantGate'
 import { useAuth } from '@/components/auth/AuthContext'
+import AdminPage from '@/pages/AdminPage'
 import CajaPage from '@/pages/CajaPage'
 import ConfiguracionPage from '@/pages/ConfiguracionPage'
 import EquipoPage from '@/pages/EquipoPage'
@@ -58,12 +60,15 @@ export default function App() {
         path="/app"
         element={
           <RequireAuth>
-            <AppLayout />
+            <TenantGate>
+              <AppLayout />
+            </TenantGate>
           </RequireAuth>
         }
       >
         <Route index element={<Navigate to="stock" replace />} />
         <Route path="caja" element={<CajaPage />} />
+        <Route path="admin" element={<AdminPage />} />
         <Route path="stock" element={<StockPage />} />
         <Route path="ventas" element={<VentasPage />} />
         <Route path="proveedores" element={<ProveedoresPage />} />

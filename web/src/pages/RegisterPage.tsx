@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 
 import { Link } from 'react-router-dom'
 
-import { CheckCircle2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 
 import { AuthShell } from '@/components/auth/AuthShell'
 import { Button } from '@/components/ui/button'
@@ -16,6 +16,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [creada, setCreada] = useState(false)
+  const [emailEnUso, setEmailEnUso] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   async function handleSubmit(event: FormEvent) {
@@ -23,7 +24,7 @@ export default function RegisterPage() {
     setError(null)
     setSubmitting(true)
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -33,7 +34,24 @@ export default function RegisterPage() {
 
     setSubmitting(false)
     if (error) {
+      // Con confirmación por email deshabilitada, Supabase sí devuelve el error.
+      if (/already\s+registered|already\s+exists|user\s+already/i.test(error.message)) {
+        setEmailEnUso(email)
+        return
+      }
       setError(error.message)
+      return
+    }
+
+    // Con confirmación por email habilitada, Supabase oculta el caso "email ya
+    // existe" para no filtrar qué correos están registrados: devuelve un usuario
+    // con la lista de identidades vacía en vez de un error.
+    if (
+      data.user &&
+      Array.isArray(data.user.identities) &&
+      data.user.identities.length === 0
+    ) {
+      setEmailEnUso(email)
       return
     }
 
@@ -42,17 +60,55 @@ export default function RegisterPage() {
     setCreada(true)
   }
 
+  if (emailEnUso) {
+    return (
+      <AuthShell subtitle="Ese email ya tiene una cuenta">
+        <div className="flex flex-col items-center gap-3 py-4 text-center">
+          <AlertTriangle className="size-10 text-amber-600" />
+          <p className="text-sm font-medium">
+            El email{' '}
+            <span className="font-medium text-foreground">{emailEnUso}</span> ya
+            está en uso.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Iniciá sesión con tu contraseña. Si no la recordás, podés
+            restablecerla.
+          </p>
+          <Button className="mt-2 w-full" asChild>
+            <Link to="/login">Iniciar sesión</Link>
+          </Button>
+          <Button variant="outline" className="w-full" asChild>
+            <Link to="/recuperar-contrasena">Olvidé mi contraseña</Link>
+          </Button>
+          <button
+            type="button"
+            onClick={() => {
+              setEmailEnUso(null)
+              setPassword('')
+            }}
+            className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+          >
+            Probar con otro email
+          </button>
+        </div>
+      </AuthShell>
+    )
+  }
+
   if (creada) {
     return (
-      <AuthShell subtitle="Un último paso te separa de tu tienda">
+      <AuthShell subtitle="Tu cuenta quedó pendiente de aprobación">
         <div className="flex flex-col items-center gap-3 py-4 text-center">
           <CheckCircle2 className="size-10 text-emerald-600" />
           <p className="text-sm font-medium">¡Casi listo!</p>
           <p className="text-sm text-muted-foreground">
             Te enviamos un link de verificación a{' '}
             <span className="font-medium text-foreground">{email}</span>. Entrá
-            al link para activar tu cuenta y después iniciá sesión. Revisá
-            también la carpeta de spam.
+            al link para activar tu cuenta y después iniciá sesión.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Tu cuenta quedó <span className="font-medium text-foreground">pendiente de aprobación</span>:
+            te avisamos cuando la habilitemos. Revisá también la carpeta de spam.
           </p>
           <Button variant="outline" className="mt-2 w-full" asChild>
             <Link to="/login">Volver al inicio de sesión</Link>
