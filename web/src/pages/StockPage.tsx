@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 
 import {
   ArrowRightLeft,
@@ -10,6 +10,8 @@ import {
 } from 'lucide-react'
 
 import BarcodeScanner from '@/components/BarcodeScanner'
+import AdministrarProductoDialog from '@/components/AdministrarProductoDialog'
+import EscanerSelector from '@/components/EscanerSelector'
 import { useAuth } from '@/components/auth/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -20,7 +22,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -61,7 +62,11 @@ import {
   productoFormInicial,
   type ProductoFormValues,
 } from '@/components/ProductoFormFields'
-import type { PayloadReponer } from '@/lib/escaneoRemoto'
+import {
+  salaDeStock,
+  useSalaEscaneo,
+  type PayloadReponer,
+} from '@/lib/escaneoRemoto'
 import { cn } from 'cn'
 
 type StockRow = Database['public']['Views']['stock_tienda_dueno']['Row'] & {
@@ -142,8 +147,26 @@ export default function StockPage() {
   const [reponerOpen, setReponerOpen] = useState(false)
   const [moverOpen, setMoverOpen] = useState(false)
   const [histOpen, setHistOpen] = useState(false)
+  const [adminOpen, setAdminOpen] = useState(false)
+  const [adminLinea, setAdminLinea] = useState<StockRow | null>(null)
+  const [nuevoOpen, setNuevoOpen] = useState(false)
+  const [nuevoCodigo, setNuevoCodigo] = useState('')
 
-  useKeyboardScanner((code) => setQ(code))
+  function manejarCodigoEscaneado(code: string) {
+    const c = code.trim()
+    if (!c) return
+    const linea =
+      (rows ?? []).find((r) => r.producto?.codigo_barras === c) ?? null
+    if (linea) {
+      setAdminLinea(linea)
+      setAdminOpen(true)
+      return
+    }
+    setNuevoCodigo(c)
+    setNuevoOpen(true)
+  }
+
+  useKeyboardScanner((code) => manejarCodigoEscaneado(code))
 
   const loadSucursales = useCallback(async () => {
     if (!isSupabaseConfigured) {
@@ -249,6 +272,17 @@ export default function StockPage() {
     void load()
   }, [load])
 
+  const remoto = useSalaEscaneo(salaDeStock(), {
+    onCodigo: (code) => manejarCodigoEscaneado(code),
+    onProducto: () => void load(),
+    onReponer: () => void load(),
+  })
+
+  const enlaceEscaneo = useMemo(() => {
+    const params = new URLSearchParams({ modo: 'stock', sucursal: sucursalId })
+    return `${location.protocol}//${location.host}/escaneo?${params.toString()}`
+  }, [sucursalId])
+
   const term = q.trim().toLowerCase()
   const filtered = rows?.filter((row) => {
     if (!term) return true
@@ -275,7 +309,7 @@ export default function StockPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <BarcodeScanner
-            onDetected={(code) => setQ(code)}
+            onDetected={(code) => manejarCodigoEscaneado(code)}
             trigger={
               <Button variant="outline">
                 <ScanBarcode />
@@ -291,13 +325,24 @@ export default function StockPage() {
             <ArrowRightLeft />
             Mover
           </Button>
-          <NuevoProductoDialog
-            onCreated={load}
-            sucursalId={sucursalId}
-            onLineaNueva={aplicarLineaNueva}
-          />
+          <Button
+            onClick={() => {
+              setNuevoCodigo('')
+              setNuevoOpen(true)
+            }}
+          >
+            <Plus />
+            Nuevo producto
+          </Button>
         </div>
       </div>
+
+      <EscanerSelector
+        enlace={enlaceEscaneo}
+        estado={remoto.estado}
+        escaneadoresConectados={remoto.escaneadoresConectados}
+        destino="tu Stock"
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         {sucursales.map((s) => (
@@ -492,6 +537,20 @@ export default function StockPage() {
         sucursales={sucursales}
         lineasOrigen={rows ?? []}
         onDone={load}
+      />
+      <AdministrarProductoDialog
+        open={adminOpen}
+        onOpenChange={setAdminOpen}
+        linea={adminLinea}
+        onDone={load}
+      />
+      <NuevoProductoDialog
+        open={nuevoOpen}
+        onOpenChange={setNuevoOpen}
+        codigoInicial={nuevoCodigo}
+        onCreated={load}
+        sucursalId={sucursalId}
+        onLineaNueva={aplicarLineaNueva}
       />
     </div>
   )
@@ -988,18 +1047,30 @@ function TransferirStockDialog({
 const formInicial: ProductoFormValues = productoFormInicial
 
 function NuevoProductoDialog({
+  open,
+  onOpenChange,
+  codigoInicial,
   onCreated,
   sucursalId,
   onLineaNueva,
 }: {
+  open: boolean
+  onOpenChange: (next: boolean) => void
+  codigoInicial: string
   onCreated: () => void | Promise<void>
   sucursalId: string
   onLineaNueva: (fila: StockRow) => void
 }) {
-  const [open, setOpen] = useState(false)
   const [form, setForm] = useState<ProductoFormValues>(formInicial)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    setForm({ ...formInicial, codigo_barras: codigoInicial })
+    setError(null)
+    setSubmitting(false)
+  }, [open, codigoInicial])
 
   function set<K extends keyof ProductoFormValues>(key: K, value: ProductoFormValues[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -1070,7 +1141,7 @@ function NuevoProductoDialog({
           sucursal_id: sucursalId,
         })
         reset()
-        setOpen(false)
+        onOpenChange(false)
         await onCreated()
         return
       }
@@ -1144,7 +1215,7 @@ function NuevoProductoDialog({
       })
 
       reset()
-      setOpen(false)
+      onOpenChange(false)
       await onCreated()
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Ocurrió un error al cargar el producto.'
@@ -1160,16 +1231,10 @@ function NuevoProductoDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        setOpen(next)
+        onOpenChange(next)
         if (!next) reset()
       }}
     >
-      <DialogTrigger asChild>
-        <Button>
-          <Plus />
-          Nuevo producto
-        </Button>
-      </DialogTrigger>
       <DialogContent className="max-h-svh overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Nuevo producto</DialogTitle>
@@ -1195,7 +1260,7 @@ function NuevoProductoDialog({
         <DialogFooter>
           <Button
             variant="outline"
-            onClick={() => setOpen(false)}
+            onClick={() => onOpenChange(false)}
             disabled={submitting}
           >
             Cancelar

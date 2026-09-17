@@ -580,6 +580,44 @@ export function reponerStockMock(
   return linea.producto?.nombre ?? null
 }
 
+export function actualizarProductoMock(
+  lineaId: string,
+  datos: {
+    nombre: string
+    marca: string | null
+    categoria: string | null
+    sku: string | null
+    variante: string | null
+    precio: number
+    costo: number | null
+    moneda: Moneda
+  },
+): boolean {
+  const linea = stock.find((s) => s.id === lineaId)
+  if (!linea) return false
+
+  linea.sku = datos.sku
+  linea.variante = datos.variante
+  linea.precio = datos.precio
+  linea.costo = datos.costo
+  linea.moneda = datos.moneda === 'USD' ? 'USD' : 'PYG'
+  linea.updated_at = new Date().toISOString()
+
+  const maestro = productos.find((p) => p.id === linea.producto_id)
+  if (
+    maestro &&
+    (maestro.creado_por_tenant_id === null ||
+      maestro.creado_por_tenant_id === TENANT)
+  ) {
+    maestro.nombre = datos.nombre
+    maestro.marca = datos.marca
+    maestro.categoria = datos.categoria
+  }
+
+  guardar()
+  return true
+}
+
 export function transferirStockMock(
   origenSucursalId: string,
   destinoSucursalId: string,

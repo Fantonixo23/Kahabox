@@ -30,14 +30,42 @@ export type PayloadReponer = {
 
 const CLAVE_CAJA_ESCANEADOR = 'kahabox:caja-escaneador'
 
+export type ModoEscaneo = 'caja' | 'stock'
+
 export function salaDeCaja(caja: CajaNumero): string {
   return `demo:caja-${caja}`
+}
+
+/**
+ * Sala del escáner en modo Stock: la PC de app/stock muestra el QR y el
+ * celular se une a esta sala para ir cargando productos.
+ */
+export function salaDeStock(): string {
+  return 'demo:stock'
 }
 
 export function cajaDeUrl(): CajaNumero | null {
   try {
     const n = Number(new URLSearchParams(location.search).get('caja'))
     return n === 1 || n === 2 || n === 3 ? (n as CajaNumero) : null
+  } catch {
+    return null
+  }
+}
+
+export function modoDeUrl(): ModoEscaneo | null {
+  try {
+    const m = new URLSearchParams(location.search).get('modo')
+    return m === 'stock' || m === 'caja' ? m : null
+  } catch {
+    return null
+  }
+}
+
+export function sucursalDeUrl(): string | null {
+  try {
+    const s = new URLSearchParams(location.search).get('sucursal')
+    return s && s.trim() ? s.trim() : null
   } catch {
     return null
   }

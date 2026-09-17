@@ -7,7 +7,6 @@ import {
   LogIn,
   Package,
   PackagePlus,
-  Plus,
   QrCode,
   ScanBarcode,
   Send,
@@ -15,13 +14,14 @@ import {
   WifiOff,
 } from 'lucide-react'
 
+import AdministrarProductoDialog from '@/components/AdministrarProductoDialog'
 import BarcodeScanner from '@/components/BarcodeScanner'
-import { useAuth } from '@/components/auth/AuthContext'
 import {
   ProductoFormFields,
   productoFormInicial,
   type ProductoFormValues,
 } from '@/components/ProductoFormFields'
+import { useAuth } from '@/components/auth/AuthContext'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -38,7 +38,10 @@ import {
   cajaDeUrl,
   guardarCajaEscaneador,
   leerCajaEscaneador,
+  modoDeUrl,
   salaDeCaja,
+  salaDeStock,
+  sucursalDeUrl,
   useEscaneadorSala,
   type CajaNumero,
   type PayloadNuevoProducto,
@@ -59,95 +62,6 @@ import { cn } from 'cn'
 type EnvioRegistro =
   | { codigo: string; hora: string; tipo: 'codigo' }
   | { codigo: string; hora: string; tipo: 'producto' | 'reponer' }
-
-function NuevoProductoRemotoDialog({
-  open,
-  onOpenChange,
-  codigoInicial,
-  onGuardar,
-}: {
-  open: boolean
-  onOpenChange: (next: boolean) => void
-  codigoInicial: string
-  onGuardar: (producto: PayloadNuevoProducto) => void
-}) {
-  const [form, setForm] = useState<ProductoFormValues>(productoFormInicial)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!open) return
-    setForm({ ...productoFormInicial, codigo_barras: codigoInicial })
-    setError(null)
-  }, [open, codigoInicial])
-
-  function set<K extends keyof ProductoFormValues>(
-    key: K,
-    value: ProductoFormValues[K],
-  ) {
-    setForm((prev) => ({ ...prev, [key]: value }))
-  }
-
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault()
-    const nombre = form.nombre.trim()
-    const precio = Number(form.precio)
-    const cantidad = Number(form.cantidad)
-
-    if (!nombre || !Number.isFinite(precio) || precio < 0) {
-      setError('Falta el nombre o el precio no es válido.')
-      return
-    }
-
-    onGuardar({
-      nombre,
-      codigo_barras: form.codigo_barras.trim() || null,
-      marca: form.marca.trim() || null,
-      categoria: form.categoria.trim() || null,
-      variante: form.variante.trim() || null,
-      sku: form.sku.trim() || null,
-      precio,
-      costo: form.costo ? Number(form.costo) : null,
-      moneda: form.moneda === 'USD' ? 'USD' : 'PYG',
-      cantidad: Number.isFinite(cantidad) ? Math.max(0, Math.floor(cantidad)) : 0,
-    })
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-svh overflow-y-auto sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Agregar producto</DialogTitle>
-          <DialogDescription>
-            Escaneá el código o tipealo, completá los datos y quedará en tu stock.
-            Si estás conectado a una Caja, además se lo envía.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form id="nuevo-producto-remoto" onSubmit={handleSubmit}>
-          <ProductoFormFields
-            form={form}
-            set={set}
-            onCodigoEscaneado={(code) => set('codigo_barras', code.trim())}
-          />
-          {error && (
-            <p className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
-              {error}
-            </p>
-          )}
-        </form>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button type="submit" form="nuevo-producto-remoto">
-            Guardar producto
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
 
 function ReponerStockRemotoDialog({
   open,
@@ -290,22 +204,198 @@ function ReponerStockRemotoDialog({
   )
 }
 
+function NuevoProductoRemotoDialog({
+  open,
+  onOpenChange,
+  codigoInicial,
+  sucursalId,
+  onGuardado,
+}: {
+  open: boolean
+  onOpenChange: (next: boolean) => void
+  codigoInicial: string
+  sucursalId: string | null
+  onGuardado: (producto: PayloadNuevoProducto) => void | Promise<void>
+}) {
+  const [form, setForm] = useState<ProductoFormValues>(productoFormInicial)
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    setForm({ ...productoFormInicial, codigo_barras: codigoInicial })
+    setError(null)
+    setSubmitting(false)
+  }, [open, codigoInicial])
+
+  function set<K extends keyof ProductoFormValues>(
+    key: K,
+    value: ProductoFormValues[K],
+  ) {
+    setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    setError(null)
+
+    const nombre = form.nombre.trim()
+    const precio = Number(form.precio)
+    if (!nombre || !Number.isFinite(precio) || precio < 0) {
+      setError('Falta el nombre o el precio no es válido.')
+      return
+    }
+
+    const codigoBarras = form.codigo_barras.trim() || null
+    const moneda = form.moneda === 'USD' ? 'USD' : 'PYG'
+    const cantidad = Number.isFinite(Number(form.cantidad))
+      ? Math.max(0, Math.floor(Number(form.cantidad)))
+      : 0
+    const producto: PayloadNuevoProducto = {
+      nombre,
+      codigo_barras: codigoBarras,
+      marca: form.marca.trim() || null,
+      categoria: form.categoria.trim() || null,
+      variante: form.variante.trim() || null,
+      sku: form.sku.trim() || null,
+      precio,
+      costo: form.costo ? Number(form.costo) : null,
+      moneda,
+      cantidad,
+    }
+
+    setSubmitting(true)
+    try {
+      if (!isSupabaseConfigured) {
+        crearProductoMock(producto)
+        await onGuardado(producto)
+        onOpenChange(false)
+        return
+      }
+
+      if (!sucursalId) {
+        throw new Error('El enlace no indica la sucursal de destino.')
+      }
+
+      const maestroId = crypto.randomUUID()
+      const lineaId = crypto.randomUUID()
+      const ahora = new Date().toISOString()
+
+      await ejecutarEscritura<{ lineaId: string }>({
+        operacion: {
+          tipo: 'producto',
+          maestroId,
+          lineaId,
+          codigo: codigoBarras,
+          nombre,
+          marca: producto.marca,
+          categoria: producto.categoria,
+          sucursalId,
+          sku: producto.sku,
+          variante: producto.variante,
+          precio,
+          costo: producto.costo,
+          moneda,
+          cantidad,
+          creadoEn: ahora,
+        },
+        ejecutarRemoto: async () => {
+          const { data, error: err } = await supabase.rpc('registrar_producto', {
+            p_maestro_id: maestroId,
+            p_codigo: codigoBarras,
+            p_nombre: nombre,
+            p_marca: producto.marca,
+            p_categoria: producto.categoria,
+            p_linea_id: lineaId,
+            p_sucursal_id: sucursalId,
+            p_sku: producto.sku,
+            p_variante: producto.variante,
+            p_precio: precio,
+            p_costo: producto.costo,
+            p_moneda: moneda,
+            p_cantidad: cantidad,
+            p_created_at: ahora,
+          })
+          if (err) throw err
+          return { lineaId: data as string }
+        },
+      })
+
+      await onGuardado(producto)
+      onOpenChange(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo guardar el producto.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-svh overflow-y-auto sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Nuevo producto</DialogTitle>
+          <DialogDescription>
+            El código no está en tu stock: cargalo para empezar a venderlo.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form id="nuevo-producto-remoto" onSubmit={handleSubmit}>
+          <ProductoFormFields
+            form={form}
+            set={set}
+            onCodigoEscaneado={(c) => set('codigo_barras', c)}
+          />
+
+          {error && (
+            <p className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
+              {error}
+            </p>
+          )}
+        </form>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={submitting}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            form="nuevo-producto-remoto"
+            disabled={submitting}
+          >
+            {submitting ? 'Guardando…' : 'Guardar producto'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export default function EscaneadorPage() {
   const { user } = useAuth()
   const vista = vistaStock(user)
+  const modo = modoDeUrl() ?? 'caja'
+  const modoStock = modo === 'stock'
+  const sucursal = sucursalDeUrl()
   const [stockRemoto, setStockRemoto] = useState<StockRemotoRow[] | null>(null)
   const [caja, setCaja] = useState<CajaNumero>(() => leerCajaEscaneador())
   const [manual, setManual] = useState('')
   const [aviso, setAviso] = useState<string | null>(null)
   const [nota, setNota] = useState<string | null>(null)
   const [enviados, setEnviados] = useState<EnvioRegistro[]>([])
-  const [agregarOpen, setAgregarOpen] = useState(false)
   const [reponerOpen, setReponerOpen] = useState(false)
-  const [codigoNuevo, setCodigoNuevo] = useState('')
   const [codigoConocido, setCodigoConocido] = useState('')
   const [codigoDesconocido, setCodigoDesconocido] = useState<string | null>(null)
+  const [adminOpen, setAdminOpen] = useState(false)
+  const [adminLinea, setAdminLinea] = useState<StockRemotoRow | null>(null)
+  const [nuevoOpen, setNuevoOpen] = useState(false)
+  const [nuevoCodigo, setNuevoCodigo] = useState('')
 
-  const sala = salaDeCaja(caja)
+  const sala = modoStock ? salaDeStock() : salaDeCaja(caja)
 
   const recargarStockRemoto = useCallback(async () => {
     if (!isSupabaseConfigured) return
@@ -457,10 +547,20 @@ export default function EscaneadorPage() {
   function manejarCodigo(code: string) {
     const c = code.trim()
     if (!c) return
-    const conocido = lineasConocidas().some(
-      (r) => r.producto?.codigo_barras === c,
-    )
-    if (conocido) {
+    const linea = buscarLineaPorCodigo(lineasConocidas(), c)
+
+    if (modoStock) {
+      if (linea) {
+        setAdminLinea(linea)
+        setAdminOpen(true)
+        return
+      }
+      setNuevoCodigo(c)
+      setNuevoOpen(true)
+      return
+    }
+
+    if (linea) {
       setCodigoConocido(c)
       marcar(c)
       return
@@ -475,87 +575,39 @@ export default function EscaneadorPage() {
     setCodigoDesconocido(c)
   }
 
-  async function guardarProducto(producto: PayloadNuevoProducto) {
-    const etiqueta = producto.nombre || producto.codigo_barras || 'Producto'
-
-    if (!isSupabaseConfigured) {
-      crearProductoMock(producto)
-      pushEnviado(etiqueta, 'producto')
-      if (enviarProducto(producto)) {
-        setNota(`${etiqueta} fue creado y enviado a la Caja.`)
-      } else {
-        setAviso('Quedó guardado en tu stock, pero la Caja no estaba conectada.')
-      }
-      setAgregarOpen(false)
+  function avisarProductoStock(producto: PayloadNuevoProducto) {
+    if (!enviarProducto(producto)) {
+      setAviso('Quedó cargado, pero la compu no estaba conectada.')
       return
     }
+    setAviso(null)
+  }
 
-    const codigoBarras = producto.codigo_barras?.trim() || null
-    const ahora = new Date().toISOString()
-    const maestroId = crypto.randomUUID()
-    const lineaId = crypto.randomUUID()
-    const sucursalId =
-      typeof user?.app_metadata?.sucursal_id === 'string'
-        ? user.app_metadata.sucursal_id
-        : null
+  async function guardarProductoStock(producto: PayloadNuevoProducto) {
+    const etiqueta = producto.codigo_barras ?? producto.nombre
+    pushEnviado(etiqueta, 'producto')
+    await recargarStockRemoto()
+    avisarProductoStock(producto)
+    setNota(`Producto cargado a Stock: ${producto.nombre}.`)
+  }
 
-    try {
-      const resultado = await ejecutarEscritura<{ lineaId: string }>({
-        operacion: {
-          tipo: 'producto',
-          maestroId,
-          lineaId,
-          codigo: codigoBarras,
-          nombre: producto.nombre,
-          marca: producto.marca,
-          categoria: producto.categoria,
-          sucursalId,
-          sku: producto.sku,
-          variante: producto.variante,
-          precio: producto.precio,
-          costo: producto.costo,
-          moneda: producto.moneda,
-          cantidad: producto.cantidad,
-          creadoEn: ahora,
-        },
-        ejecutarRemoto: async () => {
-          const { data, error } = await supabase.rpc('registrar_producto', {
-            p_maestro_id: maestroId,
-            p_codigo: codigoBarras,
-            p_nombre: producto.nombre,
-            p_marca: producto.marca,
-            p_categoria: producto.categoria,
-            p_linea_id: lineaId,
-            p_sucursal_id: sucursalId,
-            p_sku: producto.sku,
-            p_variante: producto.variante,
-            p_precio: producto.precio,
-            p_costo: producto.costo,
-            p_moneda: producto.moneda,
-            p_cantidad: producto.cantidad,
-            p_created_at: ahora,
-          })
-          if (error) throw error
-          if (!data) throw new Error('No se pudo registrar el producto')
-          return { lineaId: data as string }
-        },
+  function administrarHecho() {
+    const linea = adminLinea
+    if (linea) {
+      enviarProducto({
+        nombre: linea.producto?.nombre || linea.sku || 'Producto',
+        codigo_barras: linea.producto?.codigo_barras ?? null,
+        marca: linea.producto?.marca ?? null,
+        categoria: linea.producto?.categoria ?? null,
+        variante: linea.variante,
+        sku: linea.sku,
+        precio: linea.precio,
+        costo: linea.costo,
+        moneda: linea.moneda === 'USD' ? 'USD' : 'PYG',
+        cantidad: linea.cantidad,
       })
-
-      await recargarStockRemoto()
-      pushEnviado(etiqueta, 'producto')
-      enviarProducto(producto)
-      setCodigoDesconocido(null)
-      setNota(
-        resultado.remoto
-          ? `${etiqueta} se guardó en Stock y se avisó a la Caja.`
-          : `${etiqueta} se guardó y quedará sincronizado (sin conexión).`,
-      )
-      setAgregarOpen(false)
-    } catch (e) {
-      setAviso(
-        e instanceof Error ? e.message : 'No se pudo guardar el producto.',
-      )
     }
+    return recargarStockRemoto()
   }
 
   async function guardarReponer(reponer: PayloadReponer) {
@@ -569,7 +621,7 @@ export default function EscaneadorPage() {
         reponer.motivo,
       )
       if (!nombre) {
-        setAviso('Ese código no está en tu stock todavía: primero dale de alta como producto nuevo.')
+        setAviso('Ese código no está en tu stock todavía. Cargalo desde Stock.')
         setReponerOpen(false)
         return
       }
@@ -588,7 +640,7 @@ export default function EscaneadorPage() {
 
     const linea = buscarLineaPorCodigo(lineasConocidas(), reponer.codigo_barras)
     if (!linea) {
-      setAviso('Ese código no está en tu stock todavía: primero dalo de alta como producto nuevo.')
+      setAviso('Ese código no está en tu stock todavía. Cargalo desde Stock.')
       setReponerOpen(false)
       return
     }
@@ -656,7 +708,7 @@ export default function EscaneadorPage() {
           variant="outline"
           className="ml-auto font-mono text-xs tabular-nums"
         >
-          Caja {caja}
+          {modoStock ? 'Stock' : `Caja ${caja}`}
         </Badge>
         {conectado ? (
           <Wifi className="size-4 text-emerald-600" />
@@ -668,7 +720,9 @@ export default function EscaneadorPage() {
       <main className="flex-1 space-y-4 p-4">
         <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold">Conectar a la Caja</h2>
+            <h2 className="text-sm font-semibold">
+              {modoStock ? 'Conectar a Stock' : 'Conectar a la Caja'}
+            </h2>
             <span className="text-xs text-muted-foreground">
               {conectado
                 ? 'Conexión activa'
@@ -679,9 +733,11 @@ export default function EscaneadorPage() {
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             {sinSesion
-              ? 'Para conectar con la Caja tenés que iniciar sesión en Kahabox con la misma cuenta que la compu.'
+              ? `Para conectar con ${modoStock ? 'Stock' : 'la Caja'} tenés que iniciar sesión en Kahabox con la misma cuenta que la compu.`
               : conectado
-                ? 'Escaneá productos: los que ya existen caen al carrito de la Caja.'
+                ? modoStock
+                  ? 'Escaneá productos: los que ya existen se administran y los nuevos se cargan.'
+                  : 'Escaneá productos: los que ya existen caen al carrito de la Caja.'
                 : estado === 'error'
                   ? 'No se pudo conectar con la compu. ¿Estás en la misma red (Wi-Fi)?'
                   : 'Intentando conectar con la compu…'}
@@ -695,38 +751,42 @@ export default function EscaneadorPage() {
               Iniciar sesión
             </Link>
           )}
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            {([1, 2, 3] as CajaNumero[]).map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setCajaYGuardar(n)}
-                className={cn(
-                  'flex h-11 items-center justify-center rounded-lg border text-sm font-semibold transition-colors',
-                  caja === n
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'bg-background text-muted-foreground hover:text-foreground',
-                )}
-              >
-                Caja {n}
-              </button>
-            ))}
-          </div>
-          <div className="mt-3 flex items-center justify-between gap-2 border-t pt-3">
-            <p className="text-xs text-muted-foreground">
-              ¿Estás frente a la Caja de la compu? Escaneá su QR y te conectás
-              sola.
-            </p>
-            <BarcodeScanner
-              onDetected={manejarQr}
-              trigger={
-                <Button type="button" variant="outline" size="sm">
-                  <QrCode />
-                  Escanear QR
-                </Button>
-              }
-            />
-          </div>
+          {!modoStock && (
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {([1, 2, 3] as CajaNumero[]).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setCajaYGuardar(n)}
+                  className={cn(
+                    'flex h-11 items-center justify-center rounded-lg border text-sm font-semibold transition-colors',
+                    caja === n
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'bg-background text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  Caja {n}
+                </button>
+              ))}
+            </div>
+          )}
+          {!modoStock && (
+            <div className="mt-3 flex items-center justify-between gap-2 border-t pt-3">
+              <p className="text-xs text-muted-foreground">
+                ¿Estás frente a la Caja de la compu? Escaneá su QR y te conectás
+                sola.
+              </p>
+              <BarcodeScanner
+                onDetected={manejarQr}
+                trigger={
+                  <Button type="button" variant="outline" size="sm">
+                    <QrCode />
+                    Escanear QR
+                  </Button>
+                }
+              />
+            </div>
+          )}
         </div>
 
         {nota && (
@@ -740,60 +800,35 @@ export default function EscaneadorPage() {
           </p>
         )}
 
-        {codigoDesconocido && (
-          <div className="rounded-md border border-amber-300/50 bg-amber-50 p-3 text-sm text-amber-700">
-            <p>
+        {!modoStock && codigoDesconocido && (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            <p className="font-semibold">Producto inexistente.</p>
+            <p className="mt-0.5">
               El código{' '}
               <span className="font-mono font-semibold">{codigoDesconocido}</span>{' '}
-              no está en tu stock ni en la Caja.
+              no está en tu stock. Cargalo desde Stock.
             </p>
-            <div className="mt-2 flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => {
-                  setCodigoNuevo(codigoDesconocido)
-                  setCodigoDesconocido(null)
-                  setAgregarOpen(true)
-                }}
-              >
-                Crear este producto
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => setCodigoDesconocido(null)}
-              >
-                Descartar
-              </Button>
-            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="mt-2 text-destructive"
+              onClick={() => setCodigoDesconocido(null)}
+            >
+              Cerrar
+            </Button>
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="flex h-auto flex-col gap-1 py-3"
-            onClick={() => {
-              setCodigoNuevo('')
-              setAgregarOpen(true)
-            }}
-          >
-            <Plus />
-            Agregar producto
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="flex h-auto flex-col gap-1 py-3"
-            onClick={() => setReponerOpen(true)}
-          >
-            <PackagePlus />
-            Reponer stock
-          </Button>
-        </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="flex h-auto w-full flex-col gap-1 py-3"
+          onClick={() => setReponerOpen(true)}
+        >
+          <PackagePlus />
+          Reponer stock
+        </Button>
 
         <BarcodeScanner
           onDetected={(code) => manejarCodigo(code)}
@@ -811,8 +846,10 @@ export default function EscaneadorPage() {
               <span className="text-base font-semibold">Escanear con la cámara</span>
               <span className="text-sm">
                 {conectado
-                  ? 'Solo productos existentes caen al carrito'
-                  : 'Creá productos escaneando (sin Caja) o conectate'}
+                  ? modoStock
+                    ? 'Existentes: administrar · Nuevos: cargar'
+                    : 'Solo productos existentes caen al carrito'
+                  : `Conectate a ${modoStock ? 'Stock' : 'la Caja'} para escanear`}
               </span>
             </button>
           }
@@ -870,17 +907,26 @@ export default function EscaneadorPage() {
         )}
       </main>
 
-      <NuevoProductoRemotoDialog
-        open={agregarOpen}
-        onOpenChange={setAgregarOpen}
-        codigoInicial={codigoNuevo}
-        onGuardar={guardarProducto}
-      />
       <ReponerStockRemotoDialog
         open={reponerOpen}
         onOpenChange={setReponerOpen}
         codigoInicial={codigoConocido}
         onGuardar={guardarReponer}
+      />
+
+      <AdministrarProductoDialog
+        open={adminOpen}
+        onOpenChange={setAdminOpen}
+        linea={adminLinea}
+        onDone={administrarHecho}
+      />
+
+      <NuevoProductoRemotoDialog
+        open={nuevoOpen}
+        onOpenChange={setNuevoOpen}
+        codigoInicial={nuevoCodigo}
+        sucursalId={sucursal}
+        onGuardado={guardarProductoStock}
       />
     </div>
   )

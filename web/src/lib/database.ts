@@ -574,6 +574,20 @@ Relationships: [
         }
         Returns: Record<string, unknown>
       }
+      actualizar_producto: {
+        Args: {
+          p_linea_id: string
+          p_nombre: string
+          p_marca: string | null
+          p_categoria: string | null
+          p_sku: string | null
+          p_variante: string | null
+          p_precio: number
+          p_costo: number | null
+          p_moneda: 'PYG' | 'USD'
+        }
+        Returns: Record<string, unknown>
+      }
     }
     Enums: {}
     CompositeTypes: {}

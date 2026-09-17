@@ -10,10 +10,8 @@ import {
 import {
   AlertTriangle,
   Banknote,
-  Check,
   CheckCircle2,
   Coins,
-  Copy,
   CreditCard,
   HandCoins,
   Loader2,
@@ -32,10 +30,10 @@ import {
 } from 'lucide-react'
 
 import BarcodeScanner from '@/components/BarcodeScanner'
+import EscanerSelector from '@/components/EscanerSelector'
 import MoneyInput from '@/components/MoneyInput'
 import { useAuth } from '@/components/auth/AuthContext'
 import ImpresoraDialog from '@/components/ImpresoraDialog'
-import QrCode from '@/components/QrCode'
 import ResultadoImpresionDialog from '@/components/ResultadoImpresionDialog'
 import {
   ProductoFormFields,
@@ -558,7 +556,6 @@ export default function CajaPage() {
   const [monedaCobro, setMonedaCobro] = useState<Moneda>(() => monedaPrincipal())
   const [pagos, setPagos] = useState<Pago[]>([])
   const [multiples, setMultiples] = useState(false)
-  const [copiado, setCopiado] = useState(false)
 
   const [posAbierto, setPosAbierto] = useState(false)
   const [posEstado, setPosEstado] = useState<EstadoCobroPos>('idle')
@@ -774,11 +771,11 @@ export default function CajaPage() {
   }
 
   async function agregarCodigo(code: string) {
+    const limpio = code.trim()
     const lista = stock ?? []
-    const linea = buscarPorCodigo(lista, code)
+    const linea = buscarPorCodigo(lista, limpio)
     if (!linea) {
-      setNuevoCodigo(code.trim())
-      setNuevoOpen(true)
+      avisar(`El producto con código ${limpio} no existe en stock.`, 'error')
       return
     }
     agregarCarrito(linea)
@@ -1156,16 +1153,6 @@ export default function CajaPage() {
     setTasas(cotiz)
     setActualizado(cotiz.actualizado_a)
     avisar('Cotizaciones actualizadas.', 'ok')
-  }
-
-  async function copiarEnlace() {
-    try {
-      await navigator.clipboard.writeText(enlaceEscaneo)
-      setCopiado(true)
-      window.setTimeout(() => setCopiado(false), 2000)
-    } catch {
-      // Sin permisos de portapapeles: el enlace se ve igual en pantalla.
-    }
   }
 
   function armarTicket(ventaId: string, resumen: string): TicketVenta {
@@ -1814,31 +1801,11 @@ export default function CajaPage() {
             </div>
           </div>
 
-          <div className="hidden rounded-xl border bg-card p-4 lg:block">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold">Escáner remoto</h2>
-              <span
-                className={cn(
-                  'h-2.5 w-2.5 rounded-full',
-                  remoto.estado === 'conectado'
-                    ? 'bg-emerald-500'
-                    : remoto.estado === 'error'
-                      ? 'bg-destructive'
-                      : 'animate-pulse bg-amber-500',
-                )}
-                aria-hidden
-              />
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {remoto.estado === 'conectado'
-                ? 'Escaneá desde tu celular y cada lectura cae acá al carrito.'
-                : remoto.estado === 'error'
-                  ? 'Sin conexión: compu y celular tienen que estar en la misma red.'
-                  : 'Conectando…'}
-            </p>
-
-            <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border bg-background p-3">
-              <span className="text-sm font-semibold">Caja {config.cajaNumero}</span>
+          <div className="hidden space-y-3 lg:block">
+            <div className="flex items-center justify-between gap-2 rounded-xl border bg-card p-3">
+              <span className="text-sm font-semibold">
+                Caja {config.cajaNumero}
+              </span>
               <a
                 href="/app/configuracion"
                 className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
@@ -1847,34 +1814,12 @@ export default function CajaPage() {
                 Configurar
               </a>
             </div>
-
-            <div className="mt-3 flex flex-col items-center gap-2 rounded-lg border bg-muted/30 p-3">
-              <QrCode value={enlaceEscaneo} size={180} />
-              <p className="text-center text-xs text-muted-foreground">
-                Escanealo con la cámara del celular para conectar este teléfono
-                a la Caja {config.cajaNumero}.
-              </p>
-              <button
-                type="button"
-                onClick={() => void copiarEnlace()}
-                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
-              >
-                {copiado ? (
-                  <Check className="size-3.5 text-emerald-600" />
-                ) : (
-                  <Copy className="size-3.5" />
-                )}
-                {copiado ? 'Enlace copiado' : 'Copiar enlace'}
-              </button>
-            </div>
-
-            <p className="mt-2 border-t pt-2 text-xs font-medium text-muted-foreground">
-              {remoto.escaneadoresConectados > 0
-                ? `${remoto.escaneadoresConectados} celular${
-                    remoto.escaneadoresConectados === 1 ? '' : 'es'
-                  } conectado${remoto.escaneadoresConectados === 1 ? '' : 's'}`
-                : 'Ningún celular conectado todavía'}
-            </p>
+            <EscanerSelector
+              enlace={enlaceEscaneo}
+              estado={remoto.estado}
+              escaneadoresConectados={remoto.escaneadoresConectados}
+              destino={`la Caja ${config.cajaNumero}`}
+            />
           </div>
         </aside>
       </div>
