@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from 'react'
+import { useMemo } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
@@ -9,7 +9,6 @@ import {
   Package,
   Receipt,
   Settings,
-  ShieldCheck,
   Truck,
   Users,
 } from 'lucide-react'
@@ -29,7 +28,6 @@ const ICONOS = {
   '/app/pagos-proveedores': HandCoins,
   '/app/equipo': Users,
   '/app/reportes': BarChart3,
-  '/app/admin': ShieldCheck,
 } as const
 
 const MODULOS_CON_CONFIGURACION = (() => {
@@ -47,33 +45,14 @@ export default function AppLayout() {
   const navigate = useNavigate()
   const { user, salirDemo } = useAuth()
   const { modulosOcultos } = useConfig()
-  const [esAdmin, setEsAdmin] = useState(false)
 
-  useEffect(() => {
-    if (!isSupabaseConfigured) return
-    let activo = true
-    supabase.rpc('es_superadmin').then(({ data }) => {
-      if (activo && data === true) setEsAdmin(true)
-    })
-    return () => {
-      activo = false
-    }
-  }, [])
-
-  const nav = useMemo(() => {
-    const items = MODULOS_CON_CONFIGURACION.filter(
-      (m) => !modulosOcultos.includes(m.ruta),
-    ).map((m) => ({
-      to: m.ruta,
-      label: m.label,
-      corto: m.corto,
-      icon: ICONOS[m.ruta as keyof typeof ICONOS] ?? Settings,
-    }))
-    if (esAdmin) {
-      items.push({ to: '/app/admin', label: 'Admin', corto: 'Admin', icon: ShieldCheck })
-    }
-    return items
-  }, [modulosOcultos, esAdmin])
+  const nav = useMemo(
+    () =>
+      MODULOS_CON_CONFIGURACION.filter((m) => !modulosOcultos.includes(m.ruta)).map(
+        (m) => ({ to: m.ruta, label: m.label, corto: m.corto, icon: ICONOS[m.ruta as keyof typeof ICONOS] ?? Settings }),
+      ),
+    [modulosOcultos],
+  )
 
   async function handleLogout() {
     if (isSupabaseConfigured) {

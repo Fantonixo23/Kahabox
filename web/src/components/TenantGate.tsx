@@ -23,23 +23,15 @@ export default function TenantGate({ children }: { children: ReactNode }) {
     }
 
     try {
-      const [tenantRes, adminRes] = await Promise.all([
-        supabase
-          .from('tenants')
-          .select('estado')
-          .eq('id', tenantId)
-          .maybeSingle(),
-        supabase.rpc('es_superadmin'),
-      ])
+      const { data: fila, error } = await supabase
+        .from('tenants')
+        .select('estado')
+        .eq('id', tenantId)
+        .maybeSingle()
 
-      const esAdmin = adminRes.data === true && !adminRes.error
-      const tenantEstado = tenantRes.data?.estado
+      if (error) throw error
 
-      // Los superadmins siempre entran (necesitan llegar a la consola de admin).
-      if (esAdmin) {
-        setEstado('ok')
-        return
-      }
+      const tenantEstado = fila?.estado
 
       if (tenantEstado === 'pendiente' || tenantEstado === 'rechazado') {
         setEstado(tenantEstado)

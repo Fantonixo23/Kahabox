@@ -1,16 +1,21 @@
 // Kahabox — notificar-registro
 // Recibe el Database Webhook de public.tenants (INSERT) y avisa por Discord
-// para que el superadmin apruebe el alta desde la consola /app/admin.
+// con links firmados para aprobar/rechazar el alta del tenant.
 //
 // Secrets:
 //   DISCORD_WEBHOOK_URL  (obligatorio) URL del webhook de Discord.
-//   APP_BASE_URL         (opcional) URL del frontend, ej. https://kahabox.netlify.app
+//   APPROVAL_SECRET      (obligatorio) secreto para firmar los links.
 //   WEBHOOK_SECRET       (opcional) si se configura, la función exige que el
 //                        webhook mande el header `x-kahabox-webhook-secret`.
+//   APPROVAL_FUNCTION_URL (opcional) base pública de aprobar-registro; si no
+//                        se setea, se deriva de la URL de la propia request.
 
 const DISCORD_WEBHOOK_URL = Deno.env.get('DISCORD_WEBHOOK_URL')
-const APP_BASE_URL = (Deno.env.get('APP_BASE_URL') ?? '').replace(/\/$/, '')
+const APPROVAL_SECRET = Deno.env.get('APPROVAL_SECRET')
 const WEBHOOK_SECRET = Deno.env.get('WEBHOOK_SECRET')
+const APPROVAL_FUNCTION_URL = Deno.env.get('APPROVAL_FUNCTION_URL')
+
+const EXPIRACION_SEG = 7 * 24 * 60 * 60 // 7 días
 
 function json(data: BodyInit, init?: ResponseInit) {
   return new Response(data, { status: 200, ...init })
@@ -26,6 +31,25 @@ function fechaLegible(iso: string | null | undefined) {
   })
 }
 
+// HMAC-SHA256 en hex de un mensaje con un secreto (Web Crypto de Deno).
+async function firmar(secreto: string, mensaje: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secreto),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const firma = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    new TextEncoder().encode(mensaje),
+  )
+  return Array.from(new Uint8Array(firma))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return json('Método no soportado', { status: 405 })
@@ -37,6 +61,9 @@ Deno.serve(async (req) => {
 
   if (!DISCORD_WEBHOOK_URL) {
     return json('Falta DISCORD_WEBHOOK_URL', { status: 500 })
+  }
+  if (!APPROVAL_SECRET) {
+    return json('Falta APPROVAL_SECRET', { status: 500 })
   }
 
   let body: unknown
@@ -58,13 +85,29 @@ Deno.serve(async (req) => {
   }
 
   const nombre = String(record.nombre_comercial ?? 'Mi tienda')
-  const email = String(record.email_contacto ?? record.created_at ?? '')
+  const email = String(record.email_contacto ?? '')
   const creada = fechaLegible(String(record.created_at ?? ''))
+  const tenantId = String(record.id ?? '')
 
-  const adminUrl = APP_BASE_URL ? `${APP_BASE_URL}/app/admin` : '/app/admin'
-  const extraUrl = APP_BASE_URL
-    ? ''
-    : '\n(Configurá APP_BASE_URL para el link directo)'
+  // Base pública de aprobar-registro (mismo proyecto que esta función).
+  let base: string
+  try {
+    const u = new URL(req.url)
+    base = APPROVAL_FUNCTION_URL
+      ? APPROVAL_FUNCTION_URL.replace(/\/$/, '')
+      : `${u.origin}/functions/v1/aprobar-registro`
+  } catch {
+    base = APPROVAL_FUNCTION_URL ?? ''
+  }
+
+  const exp = Math.floor(Date.now() / 1000) + EXPIRACION_SEG
+
+  const linkAprobar = tenantId
+    ? `${base}?tenant=${encodeURIComponent(tenantId)}&accion=aprobar&exp=${exp}&firma=${await firmar(APPROVAL_SECRET, `${tenantId}:aprobar:${exp}`)}`
+    : ''
+  const linkRechazar = tenantId
+    ? `${base}?tenant=${encodeURIComponent(tenantId)}&accion=rechazar&exp=${exp}&firma=${await firmar(APPROVAL_SECRET, `${tenantId}:rechazar:${exp}`)}`
+    : ''
 
   const discord = {
     username: 'Kahabox',
@@ -73,7 +116,9 @@ Deno.serve(async (req) => {
       `**Nombre:** ${nombre}`,
       email ? `**Email:** ${email}` : '',
       `**Registro:** ${creada}`,
-      `→ Revisar: ${adminUrl}${extraUrl}`,
+      '',
+      linkAprobar ? `✅ **Aprobar:** ${linkAprobar}` : '',
+      linkRechazar ? `❌ **Rechazar:** ${linkRechazar}` : '',
     ]
       .filter(Boolean)
       .join('\n'),

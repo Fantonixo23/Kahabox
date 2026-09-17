@@ -1,12 +1,11 @@
 import type { ReactNode } from 'react'
 
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 
 import AppLayout from '@/components/AppLayout'
 import { FullscreenLoader } from '@/components/FullscreenLoader'
 import TenantGate from '@/components/TenantGate'
 import { useAuth } from '@/components/auth/AuthContext'
-import AdminPage from '@/pages/AdminPage'
 import CajaPage from '@/pages/CajaPage'
 import ConfiguracionPage from '@/pages/ConfiguracionPage'
 import EquipoPage from '@/pages/EquipoPage'
@@ -22,31 +21,15 @@ import VentasPage from '@/pages/VentasPage'
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth()
-  const location = useLocation()
   if (loading) return <FullscreenLoader />
-  if (!session)
-    return (
-      <Navigate
-        to="/login"
-        replace
-        state={{ from: location.pathname + location.search }}
-      />
-    )
+  if (!session) return <Navigate to="/login" replace />
   return children
 }
 
 function PublicOnly({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth()
-  const location = useLocation()
   if (loading) return <FullscreenLoader />
-  if (session) {
-    // Vuelve a la página que se quiso visitar (ej. /app/admin desde un link de
-    // Discord); si no había destino previo, va al stock como siempre.
-    const from = (location.state as { from?: unknown } | null)?.from
-    const destino =
-      typeof from === 'string' && from.startsWith('/') ? from : '/app/stock'
-    return <Navigate to={destino} replace />
-  }
+  if (session) return <Navigate to="/app/stock" replace />
   return children
 }
 
@@ -84,7 +67,6 @@ export default function App() {
       >
         <Route index element={<Navigate to="stock" replace />} />
         <Route path="caja" element={<CajaPage />} />
-        <Route path="admin" element={<AdminPage />} />
         <Route path="stock" element={<StockPage />} />
         <Route path="ventas" element={<VentasPage />} />
         <Route path="proveedores" element={<ProveedoresPage />} />

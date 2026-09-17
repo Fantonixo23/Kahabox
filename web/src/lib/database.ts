@@ -28,29 +28,6 @@ export type Database = {
         }
         Relationships: []
       }
-      superadmins: {
-        Row: {
-          user_id: string
-          created_at: string
-        }
-        Insert: {
-          user_id: string
-          created_at?: string
-        }
-        Update: {
-          user_id?: string
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'superadmins_user_id_fkey'
-            columns: ['user_id']
-            isOneToOne: true
-            referencedRelation: 'users'
-            referencedColumns: ['id']
-          },
-        ]
-      }
       usuarios_tenant: {
         Row: {
           id: string
@@ -545,10 +522,6 @@ Relationships: [
       }
     }
     Functions: {
-      es_superadmin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
       registrar_venta: {
         Args: {
           p_venta_id: string
