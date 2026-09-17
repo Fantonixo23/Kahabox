@@ -1,0 +1,21 @@
+# Kahabox — configuración de build para Netlify.
+# OJO: este archivo se lee DESDE el base directory = web/ (configurado en Netlify),
+# por eso los paths son relativos a web/. El `npm install` sí corre en la raíz del
+# repo (workspaces) y usa el package-lock.json de la raíz.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Fallback SPA: todas las rutas del cliente (login, /app/*, /escaneo y los futuros
+# links de aprobación) sirven index.html con status 200.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Headers de seguridad básicos.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
