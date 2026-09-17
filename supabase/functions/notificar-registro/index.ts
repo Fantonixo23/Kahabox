@@ -1,14 +1,14 @@
 // Kahabox — notificar-registro
-// Recibe el Database Webhook de public.tenants (INSERT) y avisa por Discord
-// con links firmados para aprobar/rechazar el alta del tenant.
+// Recibe el trigger (INSERT en public.tenants) y avisa por Discord con links
+// firmados para aprobar/rechazar el alta. Usa embeds: un resumen de la tienda
+// y dos bloques tipo boton: Aceptar (azul) y Rechazar (rojo).
 //
 // Secrets:
 //   DISCORD_WEBHOOK_URL  (obligatorio) URL del webhook de Discord.
 //   APPROVAL_SECRET      (obligatorio) secreto para firmar los links.
-//   WEBHOOK_SECRET       (opcional) si se configura, la función exige que el
-//                        webhook mande el header `x-kahabox-webhook-secret`.
-//   APPROVAL_FUNCTION_URL (opcional) base pública de aprobar-registro; si no
-//                        se setea, se deriva de la URL de la propia request.
+//   WEBHOOK_SECRET       (opcional) header x-kahabox-webhook-secret exigido.
+//   APPROVAL_FUNCTION_URL (opcional) base publica de aprobar-registro; si no,
+//                        se deriva de la URL de la propia request.
 
 const DISCORD_WEBHOOK_URL = Deno.env.get('DISCORD_WEBHOOK_URL')
 const APPROVAL_SECRET = Deno.env.get('APPROVAL_SECRET')
@@ -31,7 +31,7 @@ function fechaLegible(iso: string | null | undefined) {
   })
 }
 
-// HMAC-SHA256 en hex de un mensaje con un secreto (Web Crypto de Deno).
+// HMAC-SHA256 en hex (Web Crypto de Deno).
 async function firmar(secreto: string, mensaje: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     'raw',
@@ -109,25 +109,33 @@ Deno.serve(async (req) => {
     ? `${base}?tenant=${encodeURIComponent(tenantId)}&accion=rechazar&exp=${exp}&firma=${await firmar(APPROVAL_SECRET, `${tenantId}:rechazar:${exp}`)}`
     : ''
 
-  const discord = {
-    username: 'Kahabox',
-    content: [
-      '**🆕 Nueva tienda solicitando acceso**',
-      `**Nombre:** ${nombre}`,
-      email ? `**Email:** ${email}` : '',
-      `**Registro:** ${creada}`,
-      '',
-      linkAprobar ? `✅ **Aprobar:** ${linkAprobar}` : '',
-      linkRechazar ? `❌ **Rechazar:** ${linkRechazar}` : '',
-    ]
-      .filter(Boolean)
-      .join('\n'),
-  }
+  const embeds = [
+    {
+      color: 0x0ea5e9,
+      title: 'Nueva tienda solicitando acceso',
+      fields: [
+        { name: 'Tienda', value: nombre, inline: true },
+        { name: 'Email', value: email || '—', inline: true },
+        { name: 'Registro', value: creada, inline: true },
+      ],
+      timestamp: new Date().toISOString(),
+    },
+    {
+      color: 0x2563eb,
+      title: 'Aprobar',
+      description: linkAprobar ? `[**Aceptar**](${linkAprobar})` : 'Sin link',
+    },
+    {
+      color: 0xdc2626,
+      title: 'Rechazar',
+      description: linkRechazar ? `[**Rechazar**](${linkRechazar})` : 'Sin link',
+    },
+  ]
 
   const res = await fetch(DISCORD_WEBHOOK_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(discord),
+    body: JSON.stringify({ username: 'Kahabox', embeds }),
   })
 
   if (!res.ok) {

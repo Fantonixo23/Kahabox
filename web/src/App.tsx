@@ -7,6 +7,7 @@ import { FullscreenLoader } from '@/components/FullscreenLoader'
 import TenantGate from '@/components/TenantGate'
 import { useAuth } from '@/components/auth/AuthContext'
 import CajaPage from '@/pages/CajaPage'
+import AprobacionPage from '@/pages/AprobacionPage'
 import ConfiguracionPage from '@/pages/ConfiguracionPage'
 import EquipoPage from '@/pages/EquipoPage'
 import EscaneadorPage from '@/pages/EscaneadorPage'
@@ -53,6 +54,7 @@ export default function App() {
         }
       />
       <Route path="/recuperar-contrasena" element={<RecoveryPage />} />
+      <Route path="/aprobado" element={<AprobacionPage />} />
       <Route path="/escaneo" element={<EscaneadorPage />} />
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route
