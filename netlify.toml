@@ -1,0 +1,22 @@
+# Kahabox — configuración de build para Netlify (raíz del repo).
+# Este archivo aplica cuando el "base directory" de Netlify queda vacío.
+# Monorepo npm con workspaces: `npm run build` desde la raíz compila `web` con
+# el script "build": "npm run build -w web" y deja la salida en web/dist.
+# (Si en Netlify configurás base directory = web, se usa web/netlify.toml.)
+[build]
+  command = "npm run build"
+  publish = "web/dist"
+
+# Fallback SPA: todas las rutas del cliente (login, /app/*, /escaneo y los futuros
+# links de aprobación) sirven index.html con status 200.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Headers de seguridad básicos.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
