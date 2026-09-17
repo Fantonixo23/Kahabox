@@ -7,7 +7,7 @@ import {
   type FormEvent,
 } from 'react'
 
-import { Plus, Printer, Receipt, Search } from 'lucide-react'
+import { Ban, Plus, Printer, Receipt, Search } from 'lucide-react'
 
 import ResultadoImpresionDialog from '@/components/ResultadoImpresionDialog'
 import { useAuth } from '@/components/auth/AuthContext'
@@ -113,6 +113,7 @@ export default function VentasPage() {
   const vista = vistaStock(user)
   const [rows, setRows] = useState<VentaConItems[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [fiadas, setFiadas] = useState<ReadonlySet<string>>(new Set())
 
   const [texto, setTexto] = useState('')
   const [desde, setDesde] = useState('')
@@ -122,6 +123,27 @@ export default function VentasPage() {
   const [resultado, setResultado] = useState<ResultadoImpresion | null>(null)
   const [reimprimiendo, setReimprimiendo] = useState(false)
   const ticketActual = useRef<TicketVenta | null>(null)
+
+  const [aAnular, setAAnular] = useState<VentaConItems | null>(null)
+  const [anulando, setAnulando] = useState(false)
+  const [anularError, setAnularError] = useState<string | null>(null)
+
+  async function anular(venta: VentaConItems) {
+    setAnulando(true)
+    setAnularError(null)
+    try {
+      const { error } = await supabase.rpc('anular_venta', { p_venta_id: venta.id })
+      if (error) throw new Error(error.message)
+      setAAnular(null)
+      await load()
+    } catch (e) {
+      setAnularError(
+        e instanceof Error ? e.message : 'No se pudo anular la venta.',
+      )
+    } finally {
+      setAnulando(false)
+    }
+  }
 
   const load = useCallback(async () => {
     setError(null)
@@ -147,6 +169,17 @@ export default function VentasPage() {
         items: porVenta.get(v.id) ?? [],
       })),
     )
+    const ids = ventas.map((v) => v.id)
+    let fiadas = new Set<string>()
+    if (ids.length > 0) {
+      const { data: pagosRes } = await supabase
+        .from('venta_pagos')
+        .select('venta_id')
+        .eq('metodo', 'fiado')
+        .in('venta_id', ids)
+      fiadas = new Set((pagosRes ?? []).map((p) => p.venta_id))
+    }
+    setFiadas(fiadas)
   }, [vista])
 
   useEffect(() => {
@@ -265,6 +298,7 @@ export default function VentasPage() {
                 <TableHead>Ítems</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Estado</TableHead>
+                <TableHead>Cobro</TableHead>
                 <TableHead className="text-right">Reimprimir</TableHead>
               </TableRow>
             </TableHeader>
@@ -298,7 +332,31 @@ export default function VentasPage() {
                       {formatMoney(venta.total, 'PYG')}
                     </TableCell>
                     <TableCell>{estadoBadge[venta.estado]}</TableCell>
+                    <TableCell>
+                      {fiadas.has(venta.id) ? (
+                        <Badge className="border border-sky-400/40 bg-sky-50 text-sky-700">
+                          Crédito / Fiado
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
+                      {venta.estado !== 'anulada' && isSupabaseConfigured && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => {
+                            setAnularError(null)
+                            setAAnular(venta)
+                          }}
+                        >
+                          <Ban />
+                          Anular
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         variant="outline"
@@ -316,6 +374,56 @@ export default function VentasPage() {
           </Table>
         </div>
       )}
+
+      <Dialog
+        open={aAnular !== null}
+        onOpenChange={(v) => {
+          if (!v) setAAnular(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Anular venta</DialogTitle>
+            <DialogDescription>
+              {aAnular ? (
+                <>
+                  Vas a anular la venta{' '}
+                  <span className="font-mono">{numeroVenta(aAnular.id)}</span> de{' '}
+                  {formatMoney(aAnular.total, 'PYG')}. Se devolverá el stock de
+                  todos sus ítems y la venta quedará marcada como anulada.
+                </>
+              ) : (
+                'Cargando…'
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {anularError && (
+            <p className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              {anularError}
+            </p>
+          )}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAAnular(null)}
+              disabled={anulando}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={anulando || !aAnular}
+              onClick={() => aAnular && void anular(aAnular)}
+            >
+              {anulando ? 'Anulando…' : 'Anular venta'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ResultadoImpresionDialog
         resultado={resultado}

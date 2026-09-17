@@ -64,7 +64,13 @@ async function ejecutarOperacion(item: ItemCola): Promise<void> {
         p_venta_id: op.ventaId,
         p_sucursal_id: op.sucursalId,
         p_total: op.total,
-        p_items: op.items as unknown as Record<string, unknown>[],
+        p_items: op.items.map((i) => ({
+          id: i.id,
+          stock_id: i.stockId,
+          cantidad: i.cantidad,
+          precio_unitario: i.precioUnitario,
+          precio_unitario_gs: i.precioUnitarioGs,
+        })),
         p_pagos: op.pagos as unknown as Record<string, unknown>[],
         p_estado: op.estado,
         p_created_at: op.creadoEn,
@@ -191,8 +197,15 @@ export function useSincronizando(): boolean {
  * aborta y deja el resto para el próximo disparador (online / botón manual).
  * Los errores de negocio (p. ej. stock insuficiente) marcan la operación como
  * "fallo" con su motivo, sin detener el resto.
+ *
+ * Por defecto NO reintenta operaciones en estado "fallo": eso evita que un
+ * error de negocio (que va a seguir fallando) se reintente solo ante cada
+ * cambio de conectividad. Solo el botón manual "Reintentar" / "Sincronizar
+ * todo ahora" las vuelve a intentar (incluirFallos: true).
  */
-export async function sincronizar(): Promise<{ ok: number; fallos: number }> {
+export async function sincronizar(opciones?: {
+  incluirFallos?: boolean
+}): Promise<{ ok: number; fallos: number }> {
   if (!isSupabaseConfigured || sincronizando || !navegadorEnLinea()) {
     return { ok: 0, fallos: 0 }
   }
@@ -202,7 +215,10 @@ export async function sincronizar(): Promise<{ ok: number; fallos: number }> {
   try {
     let ok = 0
     let fallos = 0
-    const pendientes = leerCola().filter((i) => i.estado !== 'sync')
+    const pendientes = leerCola().filter(
+      (i) =>
+        i.estado === 'pendiente' || (opciones?.incluirFallos && i.estado === 'fallo'),
+    )
     for (const item of pendientes) {
       try {
         await ejecutarOperacion(item)

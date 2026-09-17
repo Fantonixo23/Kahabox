@@ -30,7 +30,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { aGs, tasasBase } from '@/lib/cotizaciones'
+import {
+  aGs,
+  obtenerCotizaciones,
+  tasasBase,
+  type Tasas,
+} from '@/lib/cotizaciones'
 import { MONEDAS, formatMoney, type Moneda } from '@/lib/format'
 import { monedaPrincipal, useConfig } from '@/lib/config'
 import type { PagoProveedorConProveedor, Proveedor } from '@/lib/mock'
@@ -79,6 +84,7 @@ export default function PagosProveedoresPage() {
   const [error, setError] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
+  const [tasas, setTasas] = useState<Tasas>(() => tasasBase())
 
   const recargar = useCallback(async () => {
     try {
@@ -96,6 +102,16 @@ export default function PagosProveedoresPage() {
   useEffect(() => {
     void recargar()
   }, [recargar])
+
+  useEffect(() => {
+    let activo = true
+    void obtenerCotizaciones().then((c) => {
+      if (activo) setTasas(c)
+    })
+    return () => {
+      activo = false
+    }
+  }, [])
 
   function abrirDialogo() {
     setError(null)
@@ -148,7 +164,7 @@ export default function PagosProveedoresPage() {
   )
 
   const totalGs = visibles.reduce(
-    (acc, p) => acc + aGs(p.monto, p.moneda, tasasBase()),
+    (acc, p) => acc + aGs(p.monto, p.moneda, tasas),
     0,
   )
 

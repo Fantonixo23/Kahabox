@@ -14,7 +14,12 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { aGs, tasasBase } from '@/lib/cotizaciones'
+import {
+  aGs,
+  obtenerCotizaciones,
+  tasasBase,
+  type Tasas,
+} from '@/lib/cotizaciones'
 import { formatMoney } from '@/lib/format'
 import type { PagoProveedorConProveedor, Proveedor } from '@/lib/mock'
 import {
@@ -41,8 +46,8 @@ type Form = {
 function totalPagado(
   proveedorId: string,
   pagos: PagoProveedorConProveedor[],
+  tasas: Tasas,
 ): number {
-  const tasas = tasasBase()
   return pagos
     .filter((p) => p.proveedor_id === proveedorId)
     .reduce((acc, p) => acc + aGs(p.monto, p.moneda, tasas), 0)
@@ -61,6 +66,7 @@ function formDesde(p: Proveedor): Form {
 export default function ProveedoresPage() {
   const [proveedores, setProveedores] = useState<Proveedor[] | null>(null)
   const [pagos, setPagos] = useState<PagoProveedorConProveedor[]>([])
+  const [tasas, setTasas] = useState<Tasas>(() => tasasBase())
   const [dialog, setDialog] = useState<EstadoDialog>(null)
   const [aEliminar, setAEliminar] = useState<Proveedor | null>(null)
   const [form, setForm] = useState<Form>({
@@ -90,6 +96,16 @@ export default function ProveedoresPage() {
   useEffect(() => {
     void recargar()
   }, [recargar])
+
+  useEffect(() => {
+    let activo = true
+    void obtenerCotizaciones().then((c) => {
+      if (activo) setTasas(c)
+    })
+    return () => {
+      activo = false
+    }
+  }, [])
 
   function abrirCrear() {
     setError(null)
@@ -258,7 +274,7 @@ export default function ProveedoresPage() {
                   Pagado (Gs)
                 </span>
                 <span className="text-sm font-semibold tabular-nums">
-                  {formatMoney(totalPagado(p.id, pagos), 'PYG')}
+                  {formatMoney(totalPagado(p.id, pagos, tasas), 'PYG')}
                 </span>
               </div>
             </div>

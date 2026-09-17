@@ -19,6 +19,8 @@ export type ItemVentaCola = {
     stockId: string
     cantidad: number
     precioUnitario: number
+    /** Precio unitario ya convertido a guaraníes (para validar el total en el RPC). */
+    precioUnitarioGs: number
   }[]
   pagos: {
     id: string

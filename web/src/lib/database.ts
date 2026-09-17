@@ -531,6 +531,12 @@ Relationships: [
         }
         Returns: Record<string, unknown>
       }
+      anular_venta: {
+        Args: {
+          p_venta_id: string
+        }
+        Returns: Record<string, unknown>
+      }
       registrar_producto: {
         Args: {
           p_maestro_id: string

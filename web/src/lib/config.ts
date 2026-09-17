@@ -73,6 +73,11 @@ function leerConfigGuardada(): Partial<ConfigApp> {
     const raw = localStorage.getItem(CLAVE)
     if (!raw) return {}
     const datos = JSON.parse(raw) as Partial<ConfigApp>
+    // El certificado SIFEN (.p12/.pfx) NO se persiste: es la clave privada de
+    // la firma digital del comercio y no debe quedar en texto plano en el
+    // storage del navegador. Solo vive en memoria durante la sesión (y se
+    // vuelve a cargar cada vez que haga falta firmar en el futuro).
+    delete datos.certificado
     if (Array.isArray(datos.monedasActivas)) {
       datos.monedasActivas = datos.monedasActivas.filter((m): m is Moneda =>
         MONEDAS_DEFAULT.includes(m as Moneda),
@@ -108,7 +113,6 @@ function guardar() {
         nombreNegocio: config.nombreNegocio,
         sifenActivo: config.sifenActivo,
         sifenRuc: config.sifenRuc,
-        certificado: config.certificado,
         bancardActivo: config.bancardActivo,
         bancardIp: config.bancardIp,
         bancardPuerto: config.bancardPuerto,

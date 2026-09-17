@@ -1243,8 +1243,12 @@ export default function CajaPage() {
 
   async function cobrar() {
     if (!puedeCobrar) return
-    const fiado = pagos.some((p) => p.metodo === 'fiado')
-    const estado = fiado ? 'pendiente_sync' : 'confirmada'
+
+    // estado solo significa sincronización/confirmación del servidor. El
+    // crédito (venta fiado) NO pisa este campo: se identifica exclusivamente
+    // por un venta_pagos con metodo = 'fiado', y así suma a los reportes de
+    // ventas del día.
+    const estado: 'pendiente_sync' | 'confirmada' = 'confirmada'
 
     const resumen = pagos
       .filter((p) => pagoGs(p) > 0)
@@ -1287,6 +1291,7 @@ export default function CajaPage() {
               stockId: c.linea.id,
               cantidad: c.cantidad,
               precioUnitario: c.linea.precio,
+              precioUnitarioGs: convertir(c.linea.precio, c.linea.moneda, 'PYG', tasas),
             })),
             pagos: pagos
               .filter((p) => pagoGs(p) > 0)
@@ -1308,6 +1313,7 @@ export default function CajaPage() {
                 stock_id: c.linea.id,
                 cantidad: c.cantidad,
                 precio_unitario: c.linea.precio,
+                precio_unitario_gs: convertir(c.linea.precio, c.linea.moneda, 'PYG', tasas),
               })),
               p_pagos: pagos
                 .filter((p) => pagoGs(p) > 0)

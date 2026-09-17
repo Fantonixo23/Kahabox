@@ -42,7 +42,7 @@ import {
 import { ejecutarEscritura } from '@/lib/ejecutar'
 import { esErrorDeRed } from '@/lib/red'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
-import { esDueno, vistaStock } from '@/lib/vistaStock'
+import { esDueno, vistaStock, type VistaStock } from '@/lib/vistaStock'
 import { useKeyboardScanner } from '@/lib/useKeyboardScanner'
 import {
   SUCURSAL,
@@ -481,7 +481,7 @@ export default function StockPage() {
         open={reponerOpen}
         onOpenChange={setReponerOpen}
         sucursalId={sucursalId}
-        lineas={rows ?? []}
+        vista={vista}
         aplicarAjusteLocal={aplicarAjusteLocal}
         onDone={load}
       />
@@ -519,14 +519,14 @@ function ReponerStockDialog({
   open,
   onOpenChange,
   sucursalId,
-  lineas,
+  vista,
   aplicarAjusteLocal,
   onDone,
 }: {
   open: boolean
   onOpenChange: (next: boolean) => void
   sucursalId: string
-  lineas: StockRow[]
+  vista: VistaStock
   aplicarAjusteLocal: (lineaId: string, tipo: 'entrada' | 'salida', n: number) => void
   onDone: () => void | Promise<void>
 }) {
@@ -568,9 +568,25 @@ function ReponerStockDialog({
           throw new Error('Ese código no está en el stock de esta sucursal.')
         }
       } else {
-        const fila = lineas.find(
-          (l) => l.producto?.codigo_barras === codigo.trim(),
-        )
+        // Se busca el código contra el servidor (no contra la caché de 500
+        // filas ya cargadas) para que funciones haya o no más de 500 líneas.
+        const { data: maestros, error: errMaestros } = await supabase
+          .from('productos_maestro')
+          .select('id')
+          .eq('codigo_barras', codigo.trim())
+          .limit(1)
+        if (errMaestros) throw errMaestros
+        if (!maestros?.[0]) {
+          throw new Error('Ese código no está en el stock de esta sucursal.')
+        }
+        const { data: filas, error: errLineas } = await supabase
+          .from(vista)
+          .select('*, producto:productos_maestro(*)')
+          .eq('sucursal_id', sucursalId)
+          .eq('producto_id', maestros[0].id)
+          .limit(1)
+        if (errLineas) throw errLineas
+        const fila = (filas as StockRow[] | null)?.[0]
         if (!fila) {
           throw new Error('Ese código no está en el stock de esta sucursal.')
         }

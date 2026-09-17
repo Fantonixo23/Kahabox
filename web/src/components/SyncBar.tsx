@@ -33,7 +33,13 @@ import { formatFecha } from '@/lib/format'
 import { useEnLinea } from '@/lib/red'
 import { cn } from 'cn'
 
-function FilaItem({ item }: { item: ItemCola }) {
+function FilaItem({
+  item,
+  onQuitar,
+}: {
+  item: ItemCola
+  onQuitar: (item: ItemCola) => void
+}) {
   const op = item.operacion
   return (
     <div className="rounded-lg border p-3">
@@ -72,7 +78,7 @@ function FilaItem({ item }: { item: ItemCola }) {
           type="button"
           size="xs"
           variant="ghost"
-          onClick={() => eliminarItem(item.id)}
+          onClick={() => onQuitar(item)}
         >
           <Trash2 />
           Quitar
@@ -87,6 +93,7 @@ export default function SyncBar() {
   const cola = useCola()
   const sincronizando = useSincronizando()
   const [abierto, setAbierto] = useState(false)
+  const [aEliminar, setAEliminar] = useState<ItemCola | null>(null)
 
   const pendientes = cola.filter((i) => i.estado !== 'sync')
   const fallos = pendientes.filter((i) => i.estado === 'fallo').length
@@ -144,7 +151,9 @@ export default function SyncBar() {
                 No hay operaciones pendientes.
               </p>
             ) : (
-              pendientes.map((item) => <FilaItem key={item.id} item={item} />)
+              pendientes.map((item) => (
+                <FilaItem key={item.id} item={item} onQuitar={setAEliminar} />
+              ))
             )}
           </div>
 
@@ -153,7 +162,7 @@ export default function SyncBar() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => void sincronizar()}
+                onClick={() => void sincronizar({ incluirFallos: true })}
                 disabled={haySincronizacion()}
               >
                 {sincronizando && <Loader2 className="size-4 animate-spin" />}
@@ -165,6 +174,54 @@ export default function SyncBar() {
                 Cerrar
               </Button>
             </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={aEliminar !== null}
+        onOpenChange={(v) => {
+          if (!v) setAEliminar(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>¿Quitar esta operación?</DialogTitle>
+            <DialogDescription>
+              {aEliminar?.operacion.tipo === 'venta' ? (
+                <>
+                  Es una <span className="font-medium">venta</span> que todavía
+                  no se subió al servidor. Si la quitás, se pierde para siempre y
+                  no quedará registro en ningún lado.
+                </>
+              ) : (
+                <>
+                  Se va a eliminar la operación pendiente:{' '}
+                  <span className="font-medium">
+                    {aEliminar ? etiquetaOperacion(aEliminar.operacion) : ''}
+                  </span>
+                  . Esta acción no se puede deshacer.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancelar
+              </Button>
+            </DialogClose>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                if (aEliminar) eliminarItem(aEliminar.id)
+                setAEliminar(null)
+              }}
+            >
+              <Trash2 />
+              Quitar de todos modos
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
