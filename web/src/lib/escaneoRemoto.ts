@@ -68,7 +68,9 @@ export function guardarCajaEscaneador(caja: CajaNumero) {
  * - Modo producción (Supabase configurado): Supabase Realtime con broadcast +
  *   presence. El canal se arma por tenant (`app_metadata.tenant_id`) + sala, así
  *   dos tenants distintos del mismo proyecto jamás se ven entre sí. Por eso el
- *   celular tiene que estar logueado con la MISMA cuenta que la Caja.
+ *   celular tiene que estar logueado con la MISMA cuenta que la Caja. Si el JWT
+ *   trae `app_metadata.sucursal_id`, se incluye en el canal para que cada
+ *   sucursal tenga sus propias cajas aisladas entre sí.
  *
  * Ambos exponen la misma API hacia las páginas; el salto se hace solo.
  */
@@ -96,18 +98,36 @@ function urlRelay(): string {
   return `${proto}//${location.host}/relay`
 }
 
-async function tenantIdDeSesion(): Promise<string | null> {
+async function contextoDeSesion(): Promise<{
+  tenantId: string | null
+  sucursalId: string | null
+}> {
   try {
     const { data } = await supabase.auth.getSession()
-    const tid = data.session?.user?.app_metadata?.tenant_id
-    return typeof tid === 'string' && tid.trim() ? tid : null
+    const metadata = data.session?.user?.app_metadata
+    const tid =
+      typeof metadata?.tenant_id === 'string' && metadata.tenant_id.trim()
+        ? metadata.tenant_id
+        : null
+    const sid =
+      typeof metadata?.sucursal_id === 'string' && metadata.sucursal_id.trim()
+        ? metadata.sucursal_id
+        : null
+    return { tenantId: tid, sucursalId: sid }
   } catch {
-    return null
+    return { tenantId: null, sucursalId: null }
   }
 }
 
-function canalRealtime(sala: string, tenantId: string): string {
-  return `kahabox:${tenantId}:${sala.trim() || 'caja'}`
+function canalRealtime(
+  sala: string,
+  tenantId: string,
+  sucursalId?: string | null,
+): string {
+  const base = sala.trim() || 'caja'
+  return sucursalId
+    ? `kahabox:${tenantId}:${sucursalId}:${base}`
+    : `kahabox:${tenantId}:${base}`
 }
 
 function contarEscaneadores(
@@ -177,9 +197,9 @@ export function useSalaEscaneo(
     }
 
     async function conectarRealtime() {
-      const tenant = await tenantIdDeSesion()
+      const { tenantId, sucursalId } = await contextoDeSesion()
       if (!activo) return
-      if (!tenant) {
+      if (!tenantId) {
         setSinSesion(true)
         setEstado('conectando')
         retrySesion = window.setTimeout(
@@ -190,7 +210,7 @@ export function useSalaEscaneo(
       }
       setSinSesion(false)
 
-      const tema = canalRealtime(refs.current.sala, tenant)
+      const tema = canalRealtime(refs.current.sala, tenantId, sucursalId)
       canal = supabase.channel(tema)
       canal
         .on('broadcast', { event: 'codigo' }, (msg) => {
@@ -363,9 +383,9 @@ export function useEscaneadorSala(
     let intento = 0
 
     async function conectarRealtime() {
-      const tenant = await tenantIdDeSesion()
+      const { tenantId, sucursalId } = await contextoDeSesion()
       if (!activo) return
-      if (!tenant) {
+      if (!tenantId) {
         setSinSesion(true)
         setEstado('conectando')
         retrySesion = window.setTimeout(
@@ -376,7 +396,7 @@ export function useEscaneadorSala(
       }
       setSinSesion(false)
 
-      const tema = canalRealtime(refs.current.sala, tenant)
+      const tema = canalRealtime(refs.current.sala, tenantId, sucursalId)
       canal = supabase.channel(tema)
       canalRef.current = canal
       canal
