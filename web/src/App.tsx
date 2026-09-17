@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 
 import AppLayout from '@/components/AppLayout'
 import { FullscreenLoader } from '@/components/FullscreenLoader'
@@ -22,15 +22,31 @@ import VentasPage from '@/pages/VentasPage'
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth()
+  const location = useLocation()
   if (loading) return <FullscreenLoader />
-  if (!session) return <Navigate to="/login" replace />
+  if (!session)
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: location.pathname + location.search }}
+      />
+    )
   return children
 }
 
 function PublicOnly({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth()
+  const location = useLocation()
   if (loading) return <FullscreenLoader />
-  if (session) return <Navigate to="/app/stock" replace />
+  if (session) {
+    // Vuelve a la página que se quiso visitar (ej. /app/admin desde un link de
+    // Discord); si no había destino previo, va al stock como siempre.
+    const from = (location.state as { from?: unknown } | null)?.from
+    const destino =
+      typeof from === 'string' && from.startsWith('/') ? from : '/app/stock'
+    return <Navigate to={destino} replace />
+  }
   return children
 }
 
