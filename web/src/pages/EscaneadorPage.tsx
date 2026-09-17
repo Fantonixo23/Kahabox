@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 
 import { Link } from 'react-router-dom'
 
@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 
 import BarcodeScanner from '@/components/BarcodeScanner'
+import { useAuth } from '@/components/auth/AuthContext'
 import {
   ProductoFormFields,
   productoFormInicial,
@@ -43,8 +44,16 @@ import {
   type PayloadNuevoProducto,
   type PayloadReponer,
 } from '@/lib/escaneoRemoto'
+import { ejecutarEscritura } from '@/lib/ejecutar'
 import { crearProductoMock, getMockStock, reponerStockMock } from '@/lib/mock'
+import {
+  buscarLineaPorCodigo,
+  cargarStockRemoto,
+  type StockRemotoRow,
+} from '@/lib/stockRemoto'
+import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { useKeyboardScanner } from '@/lib/useKeyboardScanner'
+import { vistaStock } from '@/lib/vistaStock'
 import { cn } from 'cn'
 
 type EnvioRegistro =
@@ -282,6 +291,9 @@ function ReponerStockRemotoDialog({
 }
 
 export default function EscaneadorPage() {
+  const { user } = useAuth()
+  const vista = vistaStock(user)
+  const [stockRemoto, setStockRemoto] = useState<StockRemotoRow[] | null>(null)
   const [caja, setCaja] = useState<CajaNumero>(() => leerCajaEscaneador())
   const [manual, setManual] = useState('')
   const [aviso, setAviso] = useState<string | null>(null)
@@ -294,6 +306,23 @@ export default function EscaneadorPage() {
   const [codigoDesconocido, setCodigoDesconocido] = useState<string | null>(null)
 
   const sala = salaDeCaja(caja)
+
+  const recargarStockRemoto = useCallback(async () => {
+    if (!isSupabaseConfigured) return
+    try {
+      setStockRemoto(await cargarStockRemoto(vista))
+    } catch {
+      // Sin conexión: se conserva la última lista cargada.
+    }
+  }, [vista])
+
+  function lineasConocidas(): StockRemotoRow[] {
+    return isSupabaseConfigured ? (stockRemoto ?? []) : getMockStock()
+  }
+
+  useEffect(() => {
+    void recargarStockRemoto()
+  }, [recargarStockRemoto])
 
   useEffect(() => {
     const cajaDelQr = cajaDeUrl()
@@ -310,7 +339,15 @@ export default function EscaneadorPage() {
       onSnapshot: recibirSnapshot,
     })
 
+  useEffect(() => {
+    if (estado === 'conectado') void recargarStockRemoto()
+  }, [estado, recargarStockRemoto])
+
   function recibirProductoRemoto(producto: PayloadNuevoProducto) {
+    if (isSupabaseConfigured) {
+      void recargarStockRemoto()
+      return
+    }
     if (
       producto.codigo_barras &&
       getMockStock().some((r) => r.producto?.codigo_barras === producto.codigo_barras)
@@ -321,6 +358,10 @@ export default function EscaneadorPage() {
   }
 
   function recibirSnapshot(items: PayloadNuevoProducto[]) {
+    if (isSupabaseConfigured) {
+      void recargarStockRemoto()
+      return
+    }
     const codigosLocales = new Set(
       getMockStock()
         .map((l) => l.producto?.codigo_barras)
@@ -416,49 +457,190 @@ export default function EscaneadorPage() {
   function manejarCodigo(code: string) {
     const c = code.trim()
     if (!c) return
-    const conocido = getMockStock().some((r) => r.producto?.codigo_barras === c)
+    const conocido = lineasConocidas().some(
+      (r) => r.producto?.codigo_barras === c,
+    )
     if (conocido) {
       setCodigoConocido(c)
       marcar(c)
-    } else {
-      setCodigoDesconocido(c)
+      return
     }
+    // En producción, si el stock real todavía no cargó, se lo pasamos igual a la
+    // Caja (que es la fuente de verdad) en vez de decir que no existe.
+    if (isSupabaseConfigured && stockRemoto === null) {
+      setCodigoConocido(c)
+      marcar(c)
+      return
+    }
+    setCodigoDesconocido(c)
   }
 
-  function guardarProducto(producto: PayloadNuevoProducto) {
-    crearProductoMock(producto)
+  async function guardarProducto(producto: PayloadNuevoProducto) {
     const etiqueta = producto.nombre || producto.codigo_barras || 'Producto'
-    pushEnviado(etiqueta, 'producto')
-    if (enviarProducto(producto)) {
-      setNota(`${etiqueta} fue creado y enviado a la Caja.`)
-    } else {
-      setAviso('Quedó guardado en tu stock, pero la Caja no estaba conectada.')
+
+    if (!isSupabaseConfigured) {
+      crearProductoMock(producto)
+      pushEnviado(etiqueta, 'producto')
+      if (enviarProducto(producto)) {
+        setNota(`${etiqueta} fue creado y enviado a la Caja.`)
+      } else {
+        setAviso('Quedó guardado en tu stock, pero la Caja no estaba conectada.')
+      }
+      setAgregarOpen(false)
+      return
     }
-    setAgregarOpen(false)
+
+    const codigoBarras = producto.codigo_barras?.trim() || null
+    const ahora = new Date().toISOString()
+    const maestroId = crypto.randomUUID()
+    const lineaId = crypto.randomUUID()
+    const sucursalId =
+      typeof user?.app_metadata?.sucursal_id === 'string'
+        ? user.app_metadata.sucursal_id
+        : null
+
+    try {
+      const resultado = await ejecutarEscritura<{ lineaId: string }>({
+        operacion: {
+          tipo: 'producto',
+          maestroId,
+          lineaId,
+          codigo: codigoBarras,
+          nombre: producto.nombre,
+          marca: producto.marca,
+          categoria: producto.categoria,
+          sucursalId,
+          sku: producto.sku,
+          variante: producto.variante,
+          precio: producto.precio,
+          costo: producto.costo,
+          moneda: producto.moneda,
+          cantidad: producto.cantidad,
+          creadoEn: ahora,
+        },
+        ejecutarRemoto: async () => {
+          const { data, error } = await supabase.rpc('registrar_producto', {
+            p_maestro_id: maestroId,
+            p_codigo: codigoBarras,
+            p_nombre: producto.nombre,
+            p_marca: producto.marca,
+            p_categoria: producto.categoria,
+            p_linea_id: lineaId,
+            p_sucursal_id: sucursalId,
+            p_sku: producto.sku,
+            p_variante: producto.variante,
+            p_precio: producto.precio,
+            p_costo: producto.costo,
+            p_moneda: producto.moneda,
+            p_cantidad: producto.cantidad,
+            p_created_at: ahora,
+          })
+          if (error) throw error
+          if (!data) throw new Error('No se pudo registrar el producto')
+          return { lineaId: data as string }
+        },
+      })
+
+      await recargarStockRemoto()
+      pushEnviado(etiqueta, 'producto')
+      enviarProducto(producto)
+      setCodigoDesconocido(null)
+      setNota(
+        resultado.remoto
+          ? `${etiqueta} se guardó en Stock y se avisó a la Caja.`
+          : `${etiqueta} se guardó y quedará sincronizado (sin conexión).`,
+      )
+      setAgregarOpen(false)
+    } catch (e) {
+      setAviso(
+        e instanceof Error ? e.message : 'No se pudo guardar el producto.',
+      )
+    }
   }
 
-  function guardarReponer(reponer: PayloadReponer) {
-    const nombre = reponerStockMock(
-      reponer.codigo_barras,
-      reponer.cantidad,
-      reponer.tipo,
-      reponer.motivo,
-    )
-    if (!nombre) {
-      setAviso('Ese código no está en tu stock todavía: primero dale de alta como producto nuevo.')
+  async function guardarReponer(reponer: PayloadReponer) {
+    const cantidad = Math.max(1, Math.floor(reponer.cantidad))
+
+    if (!isSupabaseConfigured) {
+      const nombre = reponerStockMock(
+        reponer.codigo_barras,
+        cantidad,
+        reponer.tipo,
+        reponer.motivo,
+      )
+      if (!nombre) {
+        setAviso('Ese código no está en tu stock todavía: primero dale de alta como producto nuevo.')
+        setReponerOpen(false)
+        return
+      }
+      const etiqueta = `${nombre} ${reponer.tipo === 'entrada' ? '+' : '−'}${cantidad}`
+      pushEnviado(etiqueta, 'reponer')
+      if (reponerStock(reponer)) {
+        setNota(
+          `Se ${reponer.tipo === 'entrada' ? 'sumaron' : 'descontaron'} ${cantidad} unidades de ${nombre} (enviado a la Caja).`,
+        )
+      } else {
+        setAviso('Quedó en tu stock, pero la Caja no estaba conectada.')
+      }
       setReponerOpen(false)
       return
     }
-    const etiqueta = `${nombre} ${reponer.tipo === 'entrada' ? '+' : '−'}${reponer.cantidad}`
-    pushEnviado(etiqueta, 'reponer')
-    if (reponerStock(reponer)) {
-      setNota(
-        `Se ${reponer.tipo === 'entrada' ? 'sumaron' : 'descontaron'} ${reponer.cantidad} unidades de ${nombre} (enviado a la Caja).`,
-      )
-    } else {
-      setAviso('Quedó en tu stock, pero la Caja no estaba conectada.')
+
+    const linea = buscarLineaPorCodigo(lineasConocidas(), reponer.codigo_barras)
+    if (!linea) {
+      setAviso('Ese código no está en tu stock todavía: primero dalo de alta como producto nuevo.')
+      setReponerOpen(false)
+      return
     }
-    setReponerOpen(false)
+
+    const movimientoId = crypto.randomUUID()
+    const ahora = new Date().toISOString()
+    const productoNombre = linea.producto?.nombre ?? 'Producto'
+
+    try {
+      const resultado = await ejecutarEscritura<{ movimientoId: string }>({
+        operacion: {
+          tipo: 'ajuste',
+          movimientoId,
+          lineaId: linea.id,
+          sucursalId: linea.sucursal_id,
+          sentido: reponer.tipo,
+          cantidad,
+          motivo: reponer.motivo?.trim() || null,
+          productoNombre,
+          codigoBarras: linea.producto?.codigo_barras ?? null,
+          sku: linea.sku,
+          creadoEn: ahora,
+        },
+        ejecutarRemoto: async () => {
+          const { error } = await supabase.rpc('registrar_ajuste', {
+            p_movimiento_id: movimientoId,
+            p_linea_id: linea.id,
+            p_sucursal_id: linea.sucursal_id,
+            p_tipo: reponer.tipo,
+            p_cantidad: cantidad,
+            p_motivo: reponer.motivo?.trim() || null,
+            p_producto_nombre: productoNombre,
+            p_codigo_barras: linea.producto?.codigo_barras ?? null,
+            p_sku: linea.sku,
+            p_created_at: ahora,
+          })
+          if (error) throw error
+          return { movimientoId }
+        },
+      })
+
+      await recargarStockRemoto()
+      const etiqueta = `${productoNombre} ${reponer.tipo === 'entrada' ? '+' : '−'}${cantidad}`
+      pushEnviado(etiqueta, 'reponer')
+      reponerStock(reponer)
+      setNota(
+        `Se ${reponer.tipo === 'entrada' ? 'sumaron' : 'descontaron'} ${cantidad} unidades de ${productoNombre}${resultado.remoto ? ' en Stock y se avisó a la Caja.' : ' (quedará sincronizado).'}`,
+      )
+      setReponerOpen(false)
+    } catch (e) {
+      setAviso(e instanceof Error ? e.message : 'No se pudo aplicar el ajuste.')
+    }
   }
 
   useKeyboardScanner((code) => manejarCodigo(code))

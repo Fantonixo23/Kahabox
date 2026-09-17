@@ -947,6 +947,12 @@ export default function CajaPage() {
   }
 
   function recibirProductoRemoto(producto: PayloadNuevoProducto) {
+    if (isSupabaseConfigured) {
+      // El celular ya lo registró en Stock vía RPC; acá solo refrescamos.
+      void recargarStock()
+      avisar(`Nuevo producto recibido desde tu celular: ${producto.nombre}.`, 'ok')
+      return
+    }
     const lista = stock ?? getMockStock()
     if (
       producto.codigo_barras &&
@@ -963,6 +969,17 @@ export default function CajaPage() {
   }
 
   function recibirReponerRemoto(reponer: PayloadReponer) {
+    if (isSupabaseConfigured) {
+      // El celular ya aplicó el ajuste en Stock vía RPC; acá solo refrescamos.
+      const linea = buscarPorCodigo(stock ?? [], reponer.codigo_barras)
+      const nombre = linea?.producto?.nombre ?? reponer.codigo_barras
+      void recargarStock()
+      avisar(
+        `Se ${reponer.tipo === 'entrada' ? 'sumaron' : 'descontaron'} ${reponer.cantidad} unidades de ${nombre} desde tu celular.`,
+        'ok',
+      )
+      return
+    }
     const lista = stock ?? getMockStock()
     const nombre = reponerStockMock(
       reponer.codigo_barras,
