@@ -431,7 +431,7 @@ export default function ConfiguracionPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="88">88 mm — ancho estándar</SelectItem>
-                <SelectItem value="44">44 mm — angosto</SelectItem>
+                <SelectItem value="58">58 mm — angosto</SelectItem>
               </SelectContent>
             </Select>
           </div>

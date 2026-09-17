@@ -9,7 +9,7 @@ export type CertificadoSifen = {
   base64: string | null
 }
 
-export type AnchoTicketPc = 88 | 44
+export type AnchoTicketPc = 88 | 58
 
 export type CajaNumero = 1 | 2 | 3
 
@@ -78,6 +78,8 @@ function leerConfigGuardada(): Partial<ConfigApp> {
     // storage del navegador. Solo vive en memoria durante la sesión (y se
     // vuelve a cargar cada vez que haga falta firmar en el futuro).
     delete datos.certificado
+    // Migración: el ancho de ticket angosto pasó de 44mm a 58mm.
+    if (Number(datos.anchoTicketPc) === 44) datos.anchoTicketPc = 58
     if (Array.isArray(datos.monedasActivas)) {
       datos.monedasActivas = datos.monedasActivas.filter((m): m is Moneda =>
         MONEDAS_DEFAULT.includes(m as Moneda),
