@@ -1,8 +1,9 @@
 # Kahabox — configuración de build para Netlify (raíz del repo).
-# Este archivo aplica cuando el "base directory" de Netlify queda vacío.
+# Base directory de Netlify debe quedar VACÍO (raíz del repo).
 # Monorepo npm con workspaces: `npm run build` desde la raíz compila `web` con
 # el script "build": "npm run build -w web" y deja la salida en web/dist.
-# (Si en Netlify configurás base directory = web, se usa web/netlify.toml.)
+# No debe existir un netlify.toml dentro de web/ (Netlify le daría prioridad
+# por el package directory y resolvería "publish" relativo a la raíz).
 [build]
   command = "npm run build"
   publish = "web/dist"
