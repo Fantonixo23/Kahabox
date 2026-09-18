@@ -2,6 +2,9 @@ apply plugin: 'com.android.application'
 
 android {
     namespace "com.kahabox.app"
+    buildFeatures {
+        buildConfig true
+    }
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "com.kahabox.app"
