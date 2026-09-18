@@ -143,6 +143,7 @@ export default defineConfig({
     basicSsl(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: false,
       includeAssets: ['logo.png'],
       workbox: {
         // El APK de la app Android vive en public/ y se descarga directo. No debe

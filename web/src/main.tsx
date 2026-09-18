@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom'
 
 import { AuthProvider } from '@/components/auth/AuthContext'
 import App from './App'
+import './pwa'
 import './index.css'
 
 createRoot(document.getElementById('root')!).render(
