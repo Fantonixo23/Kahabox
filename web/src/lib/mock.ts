@@ -554,6 +554,144 @@ export function getMockSucursales(): Sucursal[] {
   return [...sucursales]
 }
 
+export type FilaImportacion = {
+  nombre: string
+  codigo: string | null
+  marca: string | null
+  categoria: string | null
+  sku: string | null
+  variante: string | null
+  moneda: Moneda
+  precio: number
+  costo: number | null
+  cantidad: number
+}
+
+export function importarStockMock(
+  filas: FilaImportacion[],
+  sucursalId: string | null,
+): { creados: number; actualizados: number; sinCambios: number; errores: Array<{ fila: number; motivo: string }> } {
+  let creados = 0
+  let actualizados = 0
+  let sinCambios = 0
+  const errores: Array<{ fila: number; motivo: string }> = []
+  const suc = sucursalId ?? SUCURSAL
+
+  filas.forEach((f, i) => {
+    try {
+      const nombre = f.nombre.trim()
+      if (!nombre) {
+        errores.push({ fila: i + 1, motivo: 'Falta el nombre' })
+        return
+      }
+      const cantidad = Math.max(0, Math.floor(f.cantidad))
+      if (!Number.isFinite(f.precio) || f.precio < 0) {
+        errores.push({ fila: i + 1, motivo: 'Precio inválido' })
+        return
+      }
+
+      let maestro = f.codigo
+        ? productos.find((p) => p.codigo_barras === f.codigo)
+        : undefined
+      if (!maestro) {
+        maestro = productos.find(
+          (p) =>
+            p.nombre.toLowerCase() === nombre.toLowerCase() &&
+            (p.marca ?? '').toLowerCase() === (f.marca ?? '').toLowerCase() &&
+            (p.categoria ?? '').toLowerCase() === (f.categoria ?? '').toLowerCase(),
+        )
+      }
+      if (!maestro) {
+        maestro = {
+          id: crypto.randomUUID(),
+          codigo_barras: f.codigo,
+          nombre,
+          marca: f.marca,
+          categoria: f.categoria,
+          foto_url: null,
+          creado_por_tenant_id: TENANT,
+          created_at: new Date().toISOString(),
+        }
+        productos.unshift(maestro)
+      }
+
+      const linea = stock.find(
+        (s) =>
+          s.producto_id === maestro.id &&
+          (s.sucursal_id ?? SUCURSAL) === suc &&
+          (s.sku ?? '') === (f.sku ?? '') &&
+          (s.variante ?? '') === (f.variante ?? ''),
+      )
+
+      const ahora = new Date().toISOString()
+      let lineaId: string | null = null
+      if (!linea) {
+        lineaId = crypto.randomUUID()
+        stock.unshift({
+          id: lineaId,
+          tenant_id: TENANT,
+          sucursal_id: suc,
+          producto_id: maestro.id,
+          sku: f.sku,
+          variante: f.variante,
+          precio: f.precio,
+          costo: f.costo,
+          moneda: f.moneda === 'USD' ? 'USD' : 'PYG',
+          cantidad,
+          updated_at: ahora,
+          producto: maestro,
+        })
+        creados += 1
+        if (cantidad > 0) {
+          registrarMovimiento({
+            sucursal_id: suc,
+            linea_id: lineaId,
+            nombre,
+            codigo: f.codigo,
+            sku: f.sku,
+            tipo: 'entrada',
+            cantidad,
+            motivo: 'Importación desde Excel',
+          })
+        }
+      } else {
+        const prev = linea.cantidad
+        linea.precio = f.precio
+        linea.costo = f.costo
+        linea.moneda = f.moneda === 'USD' ? 'USD' : 'PYG'
+        linea.cantidad = cantidad
+        linea.updated_at = ahora
+        if (prev === cantidad) {
+          sinCambios += 1
+        } else {
+          actualizados += 1
+          const delta = cantidad - prev
+          if (delta !== 0) {
+            registrarMovimiento({
+              sucursal_id: suc,
+              linea_id: linea.id,
+              nombre,
+              codigo: f.codigo,
+              sku: f.sku,
+              tipo: delta < 0 ? 'salida' : 'entrada',
+              cantidad: delta,
+              motivo: 'Importación desde Excel',
+            })
+          }
+        }
+      }
+    } catch (e) {
+      errores.push({
+        fila: i + 1,
+        motivo: e instanceof Error ? e.message : 'Error al importar la fila',
+      })
+    }
+  })
+
+  guardar()
+  return { creados, actualizados, sinCambios, errores }
+}
+
 export function getSucursalNombre(id: string | null | undefined): string {
   if (!id) return '—'
   return sucursales.find((s) => s.id === id)?.nombre ?? '—'

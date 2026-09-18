@@ -648,6 +648,13 @@ Relationships: [
         }
         Returns: Record<string, unknown>
       }
+      importar_stock: {
+        Args: {
+          p_sucursal_id: string | null
+          p_filas: Record<string, unknown>[]
+        }
+        Returns: Record<string, unknown>
+      }
       tomar_trabajo_impresion: {
         Args: {
           p_estacion: string

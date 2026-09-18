@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 
 import {
   ArrowRightLeft,
+  FileUp,
   History,
   PackagePlus,
   Plus,
@@ -12,6 +13,7 @@ import {
 import BarcodeScanner from '@/components/BarcodeScanner'
 import AdministrarProductoDialog from '@/components/AdministrarProductoDialog'
 import EscanerSelector from '@/components/EscanerSelector'
+import ImportarStockDialog from '@/components/ImportarStockDialog'
 import { useAuth } from '@/components/auth/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -151,6 +153,7 @@ export default function StockPage() {
   const [adminLinea, setAdminLinea] = useState<StockRow | null>(null)
   const [nuevoOpen, setNuevoOpen] = useState(false)
   const [nuevoCodigo, setNuevoCodigo] = useState('')
+  const [importarOpen, setImportarOpen] = useState(false)
 
   function manejarCodigoEscaneado(code: string) {
     const c = code.trim()
@@ -325,6 +328,12 @@ export default function StockPage() {
             <ArrowRightLeft />
             Mover
           </Button>
+          {esDuenoActivo && (
+            <Button variant="outline" onClick={() => setImportarOpen(true)}>
+              <FileUp />
+              Importar Excel
+            </Button>
+          )}
           <Button
             onClick={() => {
               setNuevoCodigo('')
@@ -554,6 +563,15 @@ export default function StockPage() {
         sucursalId={sucursalId}
         onLineaNueva={aplicarLineaNueva}
       />
+      {esDuenoActivo && (
+        <ImportarStockDialog
+          open={importarOpen}
+          onOpenChange={setImportarOpen}
+          sucursales={sucursales}
+          sucursalId={sucursalId}
+          onImportado={() => void load()}
+        />
+      )}
     </div>
   )
 }
