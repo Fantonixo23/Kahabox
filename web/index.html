@@ -10,6 +10,13 @@
       content="Kahabox — gestión de stock para tiendas revendedoras"
     />
     <title>Kahabox — Gestión de stock</title>
+    <script>
+      try {
+        var raw = localStorage.getItem('kahabox:config')
+        var tema = raw ? JSON.parse(raw).tema : null
+        if (tema === 'oscuro') document.documentElement.classList.add('dark')
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

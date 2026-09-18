@@ -8,9 +8,11 @@ import {
   Info,
   Loader2,
   MonitorSmartphone,
+  Moon,
   Printer,
   ShieldCheck,
   Store as StoreIcon,
+  Sun,
   Trash2,
 } from 'lucide-react'
 
@@ -44,6 +46,7 @@ import {
   type CajaNumero,
   type CertificadoSifen,
   type MetodoImpresion,
+  type Tema,
 } from '@/lib/config'
 
 export default function ConfiguracionPage() {
@@ -108,6 +111,44 @@ export default function ConfiguracionPage() {
           Nombre del negocio, facturación electrónica (SIFEN) y qué módulos querés ver.
         </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sun className="size-4" />
+            Apariencia
+          </CardTitle>
+          <CardDescription>
+            Elegí el tema de la interfaz en este dispositivo. Se aplica lo mismo
+            en la PC y en la app de Android.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2 sm:max-w-xs">
+            {(
+              [
+                { valor: 'claro', etiqueta: 'Claro', Icono: Sun },
+                { valor: 'oscuro', etiqueta: 'Oscuro', Icono: Moon },
+              ] as const
+            ).map(({ valor, etiqueta, Icono }) => (
+              <button
+                key={valor}
+                type="button"
+                onClick={() => actualizarConfig({ tema: valor as Tema })}
+                className={cn(
+                  'flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-semibold transition-colors',
+                  config.tema === valor
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'bg-background text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Icono className="size-4" />
+                {etiqueta}
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

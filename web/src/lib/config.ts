@@ -15,6 +15,8 @@ export type MetodoImpresion = 'estacion' | 'navegador'
 
 export type CajaNumero = 1 | 2 | 3
 
+export type Tema = 'claro' | 'oscuro'
+
 export type EstacionImpresion = {
   activa: boolean
   dispositivoId: string
@@ -38,6 +40,7 @@ export type ConfigApp = {
   modulosOcultos: string[]
   monedasActivas: Moneda[]
   monedaPrincipal: Moneda
+  tema: Tema
 }
 
 const MONEDAS_DEFAULT: Moneda[] = ['PYG', 'USD', 'ARS', 'BRL']
@@ -81,7 +84,8 @@ function estacionInicial(): EstacionImpresion {
 
 function configInicial(): ConfigApp {
   const guardada = leerConfigGuardada()
-  return {
+  const { estacionImpresion: estacionGuardada, ...resto } = guardada
+  const config: ConfigApp = {
     nombreNegocio: '',
     sifenActivo: false,
     sifenRuc: '',
@@ -95,14 +99,21 @@ function configInicial(): ConfigApp {
     modulosOcultos: leerModulosOcultos(),
     monedasActivas: MONEDAS_DEFAULT,
     monedaPrincipal: 'PYG',
-    ...guardada,
+    tema: 'claro',
+    ...resto,
     estacionImpresion: {
       ...estacionInicial(),
-      ...(guardada.estacionImpresion ?? {}),
-      dispositivoId:
-        guardada.estacionImpresion?.dispositivoId || nuevoDispositivoId(),
+      ...(estacionGuardada ?? {}),
+      dispositivoId: estacionGuardada?.dispositivoId || nuevoDispositivoId(),
     },
   }
+  aplicarTema(config.tema)
+  return config
+}
+
+function aplicarTema(tema: Tema) {
+  if (typeof document === 'undefined') return
+  document.documentElement.classList.toggle('dark', tema === 'oscuro')
 }
 
 function leerConfigGuardada(): Partial<ConfigApp> {
@@ -161,6 +172,7 @@ function guardar() {
         estacionImpresion: config.estacionImpresion,
         monedasActivas: config.monedasActivas,
         monedaPrincipal: config.monedaPrincipal,
+        tema: config.tema,
       }),
     )
     localStorage.setItem(
@@ -180,6 +192,9 @@ export function actualizarConfig(patch: Partial<ConfigApp>) {
   config = { ...config, ...patch }
   if (patch.modulosOcultos !== undefined) {
     config.modulosOcultos = patch.modulosOcultos
+  }
+  if (patch.tema !== undefined) {
+    aplicarTema(patch.tema)
   }
   guardar()
   listeners.forEach((l) => l())
