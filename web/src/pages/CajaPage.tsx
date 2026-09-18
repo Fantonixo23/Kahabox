@@ -16,7 +16,6 @@ import {
   HandCoins,
   Loader2,
   Minus,
-  PackagePlus,
   Plus,
   Printer,
   QrCode as QrCodeIcon,
@@ -35,11 +34,6 @@ import MoneyInput from '@/components/MoneyInput'
 import { useAuth } from '@/components/auth/AuthContext'
 import ImpresoraDialog from '@/components/ImpresoraDialog'
 import ResultadoImpresionDialog from '@/components/ResultadoImpresionDialog'
-import {
-  ProductoFormFields,
-  productoFormInicial,
-  type ProductoFormValues,
-} from '@/components/ProductoFormFields'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -176,37 +170,6 @@ function buscarPorQuery(lista: StockRow[], texto: string): StockRow[] {
   )
 }
 
-function lineaLocalDesdeProducto(
-  producto: PayloadNuevoProducto,
-  maestroId: string,
-  lineaId: string,
-): StockRow {
-  const ahora = new Date().toISOString()
-  return {
-    id: lineaId,
-    tenant_id: '',
-    sucursal_id: null,
-    producto_id: maestroId,
-    sku: producto.sku ?? null,
-    variante: producto.variante ?? null,
-    precio: producto.precio,
-    costo: producto.costo,
-    moneda: producto.moneda,
-    cantidad: producto.cantidad,
-    updated_at: ahora,
-    producto: {
-      id: maestroId,
-      codigo_barras: producto.codigo_barras?.trim() || null,
-      nombre: producto.nombre,
-      marca: producto.marca ?? null,
-      categoria: producto.categoria ?? null,
-      foto_url: null,
-      creado_por_tenant_id: null,
-      created_at: ahora,
-    },
-  }
-}
-
 function leerCarritoPersistido(): { id: string; cantidad: number }[] {
   try {
     const raw = localStorage.getItem(CLAVE_CARRITO)
@@ -273,268 +236,6 @@ function guardarUltimoTicket(ticket: TicketVenta) {
   }
 }
 
-function NuevoProductoCajaDialog({
-  open,
-  onOpenChange,
-  codigoInicial,
-  onGuardar,
-}: {
-  open: boolean
-  onOpenChange: (next: boolean) => void
-  codigoInicial: string
-  onGuardar: (producto: PayloadNuevoProducto) => Promise<void>
-}) {
-  const [form, setForm] = useState<ProductoFormValues>(productoFormInicial)
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-
-  useEffect(() => {
-    if (!open) return
-    setForm({ ...productoFormInicial, codigo_barras: codigoInicial })
-    setError(null)
-    setSubmitting(false)
-  }, [open, codigoInicial])
-
-  function set<K extends keyof ProductoFormValues>(
-    key: K,
-    value: ProductoFormValues[K],
-  ) {
-    setForm((prev) => ({ ...prev, [key]: value }))
-  }
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault()
-    const nombre = form.nombre.trim()
-    const precio = Number(form.precio)
-    const cantidad = Number(form.cantidad)
-
-    if (!nombre || !Number.isFinite(precio) || precio < 0) {
-      setError('Falta el nombre o el precio no es válido.')
-      return
-    }
-
-    setError(null)
-    setSubmitting(true)
-    try {
-      await onGuardar({
-        nombre,
-        codigo_barras: form.codigo_barras.trim() || null,
-        marca: form.marca.trim() || null,
-        categoria: form.categoria.trim() || null,
-        variante: form.variante.trim() || null,
-        sku: form.sku.trim() || null,
-        precio,
-        costo: form.costo ? Number(form.costo) : null,
-        moneda: form.moneda === 'USD' ? 'USD' : 'PYG',
-        cantidad: Number.isFinite(cantidad) ? Math.max(0, Math.floor(cantidad)) : 0,
-      })
-    } catch (e) {
-      setSubmitting(false)
-      const msg = e instanceof Error ? e.message : 'Ocurrió un error al cargar el producto.'
-      setError(
-        msg.includes('unique')
-          ? 'Ese producto + variante ya existe en tu stock.'
-          : msg,
-      )
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-svh overflow-y-auto sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Agregar producto</DialogTitle>
-          <DialogDescription>
-            Escaneá el código o tipealo, completá los datos y quedará en el stock
-            de esta Caja.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form id="nuevo-producto-caja" onSubmit={handleSubmit}>
-          <ProductoFormFields
-            form={form}
-            set={set}
-            onCodigoEscaneado={(code) => set('codigo_barras', code.trim())}
-          />
-          {error && (
-            <p className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
-              {error}
-            </p>
-          )}
-        </form>
-
-        <DialogFooter>
-          <Button variant="outline" disabled={submitting} onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button type="submit" form="nuevo-producto-caja" disabled={submitting}>
-            {submitting ? 'Guardando…' : 'Guardar producto'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function ReponerStockCajaDialog({
-  open,
-  onOpenChange,
-  codigoInicial,
-  onGuardar,
-}: {
-  open: boolean
-  onOpenChange: (next: boolean) => void
-  codigoInicial: string
-  onGuardar: (reponer: PayloadReponer) => Promise<boolean>
-}) {
-  const [codigo, setCodigo] = useState('')
-  const [cantidad, setCantidad] = useState('')
-  const [tipo, setTipo] = useState<PayloadReponer['tipo']>('entrada')
-  const [motivo, setMotivo] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!open) return
-    setCodigo(codigoInicial)
-    setCantidad('')
-    setTipo('entrada')
-    setMotivo('')
-    setSubmitting(false)
-    setError(null)
-  }, [open, codigoInicial])
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault()
-    const code = codigo.trim()
-    const n = Number(cantidad)
-    if (!code || !Number.isFinite(n) || n <= 0) {
-      setError('Ingresá un código y una cantidad de unidades.')
-      return
-    }
-    setError(null)
-    setSubmitting(true)
-    const ok = await onGuardar({
-      codigo_barras: code,
-      cantidad: Math.floor(n),
-      tipo,
-      motivo: motivo.trim() || null,
-    })
-    setSubmitting(false)
-    if (!ok) {
-      setError(`El código ${code} no está en el stock de esta Caja.`)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Reponer stock</DialogTitle>
-          <DialogDescription>
-            Suma unidades a un producto que ya está en tu stock.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form id="reponer-stock-caja" onSubmit={handleSubmit} className="grid gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="rep-codigo">Código de barras</Label>
-            <div className="flex gap-2">
-              <Input
-                id="rep-codigo"
-                value={codigo}
-                onChange={(e) => setCodigo(e.target.value)}
-                placeholder="Código escaneado"
-                className="flex-1"
-                autoCapitalize="off"
-                autoCorrect="off"
-              />
-              <BarcodeScanner
-                onDetected={(code) => setCodigo(code.trim())}
-                trigger={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    aria-label="Escanear código"
-                    className="size-11"
-                  >
-                    <ScanBarcode />
-                  </Button>
-                }
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setTipo('entrada')}
-              className={cn(
-                'h-10 rounded-lg border text-sm font-semibold transition-colors',
-                tipo === 'entrada'
-                  ? 'border-emerald-400/60 bg-emerald-50 text-emerald-700'
-                  : 'bg-background text-muted-foreground hover:text-foreground',
-              )}
-            >
-              Entrada (+)
-            </button>
-            <button
-              type="button"
-              onClick={() => setTipo('salida')}
-              className={cn(
-                'h-10 rounded-lg border text-sm font-semibold transition-colors',
-                tipo === 'salida'
-                  ? 'border-amber-400/60 bg-amber-50 text-amber-700'
-                  : 'bg-background text-muted-foreground hover:text-foreground',
-              )}
-            >
-              Salida (−)
-            </button>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="rep-cantidad">
-              Unidades a {tipo === 'entrada' ? 'sumar' : 'descontar'}
-            </Label>
-            <Input
-              id="rep-cantidad"
-              type="number"
-              min={1}
-              step={1}
-              value={cantidad}
-              onChange={(e) => setCantidad(e.target.value)}
-              placeholder="Ej. 10"
-              required
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="rep-motivo">Motivo (opcional)</Label>
-            <Input
-              id="rep-motivo"
-              value={motivo}
-              onChange={(e) => setMotivo(e.target.value)}
-              placeholder="Ej. compra a proveedor / merma"
-            />
-          </div>
-          {error && (
-            <p className="rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
-              {error}
-            </p>
-          )}
-        </form>
-
-        <DialogFooter>
-          <Button variant="outline" disabled={submitting} onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button type="submit" form="reponer-stock-caja" disabled={submitting}>
-            {submitting ? 'Aplicando…' : 'Aplicar ajuste'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 export default function CajaPage() {
   const config = useConfig()
   const { user } = useAuth()
@@ -565,10 +266,6 @@ export default function CajaPage() {
   const [posMedio, setPosMedio] = useState<MedioPosCaja | null>(null)
   const [posMontoGs, setPosMontoGs] = useState(0)
 
-  const [nuevoOpen, setNuevoOpen] = useState(false)
-  const [nuevoCodigo, setNuevoCodigo] = useState('')
-  const [reponerOpen, setReponerOpen] = useState(false)
-  const [reponerCodigo, setReponerCodigo] = useState('')
   const [impresoraOpen, setImpresoraOpen] = useState(false)
 
   const [flashId, setFlashId] = useState<string | null>(null)
@@ -757,19 +454,6 @@ export default function CajaPage() {
     setCarrito((prev) => prev.filter((c) => c.linea.id !== id))
   }
 
-  function aplicarAjusteStockLocal(lineaId: string, delta: number) {
-    setStock((prev) => {
-      if (!prev) return prev
-      const lista = prev.map((s) =>
-        s.id === lineaId
-          ? { ...s, cantidad: Math.max(0, s.cantidad + delta) }
-          : s,
-      )
-      guardarCacheStock(vista, lista)
-      return lista
-    })
-  }
-
   async function agregarCodigo(code: string) {
     const limpio = code.trim()
     const lista = stock ?? []
@@ -779,168 +463,6 @@ export default function CajaPage() {
       return
     }
     agregarCarrito(linea)
-  }
-
-  async function guardarProductoEnCaja(producto: PayloadNuevoProducto) {
-    if (!isSupabaseConfigured) {
-      crearProductoMock(producto)
-      const lista = getMockStock()
-      setStock(lista)
-      if (producto.cantidad > 0 && producto.codigo_barras) {
-        const linea = buscarPorCodigo(lista, producto.codigo_barras)
-        if (linea && linea.cantidad > 0) agregarCarrito(linea)
-      }
-      avisar(`Producto cargado a la Caja: ${producto.nombre}.`, 'ok')
-      setNuevoOpen(false)
-      return
-    }
-
-    const codigoBarras = producto.codigo_barras?.trim() || null
-    const ahora = new Date().toISOString()
-    const maestroId = crypto.randomUUID()
-    const lineaId = crypto.randomUUID()
-
-    const resultado = await ejecutarEscritura<{ lineaId: string }>({
-      operacion: {
-        tipo: 'producto',
-        maestroId,
-        lineaId,
-        codigo: codigoBarras,
-        nombre: producto.nombre,
-        marca: producto.marca,
-        categoria: producto.categoria,
-        sucursalId: null,
-        sku: producto.sku,
-        variante: producto.variante,
-        precio: producto.precio,
-        costo: producto.costo,
-        moneda: producto.moneda,
-        cantidad: producto.cantidad,
-        creadoEn: ahora,
-      },
-      ejecutarRemoto: async () => {
-        const { data, error } = await supabase.rpc('registrar_producto', {
-          p_maestro_id: maestroId,
-          p_codigo: codigoBarras,
-          p_nombre: producto.nombre,
-          p_marca: producto.marca,
-          p_categoria: producto.categoria,
-          p_linea_id: lineaId,
-          p_sucursal_id: null,
-          p_sku: producto.sku,
-          p_variante: producto.variante,
-          p_precio: producto.precio,
-          p_costo: producto.costo,
-          p_moneda: producto.moneda,
-          p_cantidad: producto.cantidad,
-          p_created_at: ahora,
-        })
-        if (error) throw error
-        if (!data) throw new Error('No se pudo registrar el producto')
-        return { lineaId: data }
-      },
-    })
-
-    const lineaIdEfectiva = resultado.remoto
-      ? resultado.resultado.lineaId
-      : lineaId
-    const existente = stock?.find((s) => s.id === lineaIdEfectiva)
-
-    if (existente) {
-      if (existente.cantidad > 0) agregarCarrito(existente)
-    } else {
-      const fila = lineaLocalDesdeProducto(producto, maestroId, lineaIdEfectiva)
-      setStock((prev) => {
-        const lista = prev
-          ? [fila, ...prev.filter((s) => s.id !== fila.id)]
-          : [fila]
-        guardarCacheStock(vista, lista)
-        return lista
-      })
-      if (fila.cantidad > 0) agregarCarrito(fila)
-    }
-
-    avisar(
-      `Producto cargado a la Caja${resultado.remoto ? '' : ' (sin conexión: quedó pendiente de sincronizar)'}: ${producto.nombre}.`,
-      'ok',
-    )
-    setNuevoOpen(false)
-  }
-
-  async function reponerProductoEnCaja(reponer: PayloadReponer) {
-    const cantidad = Math.max(1, Math.floor(reponer.cantidad))
-    if (!isSupabaseConfigured) {
-      const nombre = reponerStockMock(
-        reponer.codigo_barras,
-        cantidad,
-        reponer.tipo,
-        reponer.motivo,
-      )
-      if (!nombre) return false
-      setStock(getMockStock())
-      avisar(
-        `Se ${reponer.tipo === 'entrada' ? 'sumaron' : 'descontaron'} ${cantidad} unidades de ${nombre}.`,
-        'ok',
-      )
-      setReponerOpen(false)
-      return true
-    }
-
-    const lista = stock ?? []
-    const linea = buscarPorCodigo(lista, reponer.codigo_barras.trim())
-    if (!linea) {
-      avisar(`El código ${reponer.codigo_barras} no está en el stock de esta Caja.`)
-      setReponerOpen(false)
-      return false
-    }
-
-    const movimientoId = crypto.randomUUID()
-    const ahora = new Date().toISOString()
-
-    const resultado = await ejecutarEscritura<{ movimientoId: string }>({
-      operacion: {
-        tipo: 'ajuste',
-        movimientoId,
-        lineaId: linea.id,
-        sucursalId: linea.sucursal_id,
-        sentido: reponer.tipo,
-        cantidad,
-        motivo: reponer.motivo?.trim() || null,
-        productoNombre: linea.producto?.nombre ?? 'Producto',
-        codigoBarras: linea.producto?.codigo_barras ?? null,
-        sku: linea.sku,
-        creadoEn: ahora,
-      },
-      ejecutarRemoto: async () => {
-        const { error } = await supabase.rpc('registrar_ajuste', {
-          p_movimiento_id: movimientoId,
-          p_linea_id: linea.id,
-          p_sucursal_id: linea.sucursal_id,
-          p_tipo: reponer.tipo,
-          p_cantidad: cantidad,
-          p_motivo: reponer.motivo?.trim() || null,
-          p_producto_nombre: linea.producto?.nombre ?? 'Producto',
-          p_codigo_barras: linea.producto?.codigo_barras ?? null,
-          p_sku: linea.sku,
-          p_created_at: ahora,
-        })
-        if (error) throw error
-        return { movimientoId }
-      },
-      aplicarLocal: () =>
-        aplicarAjusteStockLocal(
-          linea.id,
-          reponer.tipo === 'entrada' ? cantidad : -cantidad,
-        ),
-    })
-
-    if (resultado.remoto) await recargarStock()
-    avisar(
-      `Se ${reponer.tipo === 'entrada' ? 'sumaron' : 'descontaron'} ${cantidad} unidades de ${linea.producto?.nombre ?? 'el producto'}${resultado.remoto ? '' : ' (sin conexión: quedó pendiente de sincronizar)'}.`,
-      'ok',
-    )
-    setReponerOpen(false)
-    return true
   }
 
   function recibirProductoRemoto(producto: PayloadNuevoProducto) {
@@ -1276,6 +798,14 @@ export default function CajaPage() {
           })),
           totalGs,
           estado,
+          pagos: pagos
+            .filter((p) => pagoGs(p) > 0)
+            .map((p) => ({
+              metodo: p.metodo,
+              moneda: p.moneda,
+              monto: Math.round(parseMonto(p.monto) * 100) / 100,
+              detalle: p.detalle ?? null,
+            })),
         })
         ventaId = venta.id
         setStock(getMockStock())
@@ -1412,33 +942,6 @@ export default function CajaPage() {
               }
             />
           </form>
-
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11"
-              onClick={() => {
-                setNuevoCodigo('')
-                setNuevoOpen(true)
-              }}
-            >
-              <PackagePlus className="size-5" />
-              Agregar producto
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11"
-              onClick={() => {
-                setReponerCodigo('')
-                setReponerOpen(true)
-              }}
-            >
-              <Plus className="size-5" />
-              Reponer stock
-            </Button>
-          </div>
 
           {query.trim() && resultadosBusqueda.length > 0 && (
             <div className="-mt-2 overflow-hidden rounded-md border bg-card">
@@ -1835,20 +1338,6 @@ export default function CajaPage() {
           }
         />
       </div>
-
-      <NuevoProductoCajaDialog
-        open={nuevoOpen}
-        onOpenChange={setNuevoOpen}
-        codigoInicial={nuevoCodigo}
-        onGuardar={guardarProductoEnCaja}
-      />
-
-      <ReponerStockCajaDialog
-        open={reponerOpen}
-        onOpenChange={setReponerOpen}
-        codigoInicial={reponerCodigo}
-        onGuardar={reponerProductoEnCaja}
-      />
 
       <ImpresoraDialog open={impresoraOpen} onOpenChange={setImpresoraOpen} />
 

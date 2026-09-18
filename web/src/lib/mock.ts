@@ -22,8 +22,16 @@ export type VentaItemDetalle = {
   moneda: Moneda
 }
 
+export type VentaPagoDetalle = {
+  metodo: 'efectivo' | 'pos' | 'transferencia' | 'fiado'
+  moneda: Moneda
+  monto: number
+  detalle: string | null
+}
+
 export type VentaConItems = Venta & {
   items: VentaItemDetalle[]
+  pagos: VentaPagoDetalle[]
 }
 
 const TENANT = '11111111-1111-1111-1111-111111111111'
@@ -418,6 +426,7 @@ export function getMockVentas(): Venta[] {
 }
 
 const ventasItems: Array<{ ventaId: string; items: VentaItemDetalle[] }> = []
+const ventaPagos: Array<{ ventaId: string; pagos: VentaPagoDetalle[] }> = []
 const tickets: Array<{ ventaId: string; ticket: TicketVenta }> = []
 
 export function getMockVentasDetalle(): VentaConItems[] {
@@ -426,6 +435,7 @@ export function getMockVentasDetalle(): VentaConItems[] {
     .map((v) => ({
       ...v,
       items: ventasItems.find((it) => it.ventaId === v.id)?.items ?? [],
+      pagos: ventaPagos.find((p) => p.ventaId === v.id)?.pagos ?? [],
     }))
 }
 
@@ -733,6 +743,7 @@ export function registrarVentaCaja(params: {
   items: VentaCajaItem[]
   totalGs: number
   estado?: Venta['estado']
+  pagos?: VentaPagoDetalle[]
 }): Venta {
   const ahora = new Date().toISOString()
 
@@ -756,6 +767,7 @@ export function registrarVentaCaja(params: {
   }
   ventas.unshift(venta)
   ventasItems.push({ ventaId: venta.id, items: detalles })
+  ventaPagos.push({ ventaId: venta.id, pagos: params.pagos ?? [] })
   guardar()
   return venta
 }
@@ -882,6 +894,7 @@ type DemoSnapshot = {
   movimientos: MovimientoStock[]
   ventas: Venta[]
   ventasItems: Array<{ ventaId: string; items: VentaItemDetalle[] }>
+  ventaPagos: Array<{ ventaId: string; pagos: VentaPagoDetalle[] }>
   tickets: Array<{ ventaId: string; ticket: TicketVenta }>
   miembros: Miembro[]
   proveedores: Proveedor[]
@@ -904,6 +917,7 @@ function cargarPersistido() {
     if (Array.isArray(data.movimientos)) reemplazar(movimientos, data.movimientos)
     if (Array.isArray(data.ventas)) reemplazar(ventas, data.ventas)
     if (Array.isArray(data.ventasItems)) reemplazar(ventasItems, data.ventasItems)
+    if (Array.isArray(data.ventaPagos)) reemplazar(ventaPagos, data.ventaPagos)
     if (Array.isArray(data.tickets)) reemplazar(tickets, data.tickets)
     if (Array.isArray(data.miembros)) reemplazar(miembros, data.miembros)
     if (Array.isArray(data.proveedores)) reemplazar(proveedores, data.proveedores)
@@ -921,6 +935,7 @@ function guardar() {
       movimientos,
       ventas,
       ventasItems,
+      ventaPagos,
       tickets,
       miembros,
       proveedores,

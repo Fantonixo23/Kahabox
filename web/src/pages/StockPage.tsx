@@ -311,7 +311,7 @@ export default function StockPage() {
           <BarcodeScanner
             onDetected={(code) => manejarCodigoEscaneado(code)}
             trigger={
-              <Button variant="outline">
+              <Button variant="outline" className="lg:hidden">
                 <ScanBarcode />
                 Escanear
               </Button>
@@ -337,12 +337,14 @@ export default function StockPage() {
         </div>
       </div>
 
-      <EscanerSelector
-        enlace={enlaceEscaneo}
-        estado={remoto.estado}
-        escaneadoresConectados={remoto.escaneadoresConectados}
-        destino="tu Stock"
-      />
+      <div className="hidden lg:block">
+        <EscanerSelector
+          enlace={enlaceEscaneo}
+          estado={remoto.estado}
+          escaneadoresConectados={remoto.escaneadoresConectados}
+          destino="tu Stock"
+        />
+      </div>
 
       <div className="flex flex-wrap items-center gap-2">
         {sucursales.map((s) => (

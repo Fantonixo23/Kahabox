@@ -57,6 +57,7 @@ import {
   type StockRow,
   type VentaConItems,
   type VentaItemDetalle,
+  type VentaPagoDetalle,
 } from '@/lib/mock'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { vistaStock, type VistaStock } from '@/lib/vistaStock'
@@ -79,6 +80,13 @@ const estadoBadge: Record<VentaRow['estado'], React.ReactNode> = {
 
 function numeroVenta(id: string): string {
   return `VTA-${id.replace(/-/g, '').slice(0, 6).toUpperCase()}`
+}
+
+const metodoVentaLabel: Record<VentaPagoDetalle['metodo'], string> = {
+  efectivo: 'Efectivo',
+  pos: 'POS Bancard',
+  transferencia: 'Transferencia',
+  fiado: 'Crédito / Fiado',
 }
 
 function armarTicketDesdeVenta(v: VentaConItems): TicketVenta {
@@ -127,6 +135,7 @@ export default function VentasPage() {
   const [aAnular, setAAnular] = useState<VentaConItems | null>(null)
   const [anulando, setAnulando] = useState(false)
   const [anularError, setAnularError] = useState<string | null>(null)
+  const [detalle, setDetalle] = useState<VentaConItems | null>(null)
 
   async function anular(venta: VentaConItems) {
     setAnulando(true)
@@ -163,23 +172,49 @@ export default function VentasPage() {
     }
     const ventas = (ventasRes as VentaRow[]) ?? []
     const porVenta = await cargarItemsPorVenta(vista)
+
+    const ids = ventas.map((v) => v.id)
+    const pagosPorVenta = new Map<string, VentaPagoDetalle[]>()
+    if (ids.length > 0) {
+      const { data: pagosRes } = await supabase
+        .from('venta_pagos')
+        .select('venta_id, metodo, moneda, monto, detalle')
+        .in('venta_id', ids)
+        .order('created_at', { ascending: true })
+      for (const p of (pagosRes ?? []) as Array<{
+        venta_id: string
+        metodo: VentaPagoDetalle['metodo']
+        moneda: Moneda
+        monto: number
+        detalle: string | null
+      }>) {
+        const arr = pagosPorVenta.get(p.venta_id) ?? []
+        arr.push({
+          metodo: p.metodo,
+          moneda: p.moneda,
+          monto: p.monto,
+          detalle: p.detalle,
+        })
+        pagosPorVenta.set(p.venta_id, arr)
+      }
+    }
+
     setRows(
       ventas.map((v) => ({
         ...v,
         items: porVenta.get(v.id) ?? [],
+        pagos: pagosPorVenta.get(v.id) ?? [],
       })),
     )
-    const ids = ventas.map((v) => v.id)
-    let fiadas = new Set<string>()
-    if (ids.length > 0) {
-      const { data: pagosRes } = await supabase
-        .from('venta_pagos')
-        .select('venta_id')
-        .eq('metodo', 'fiado')
-        .in('venta_id', ids)
-      fiadas = new Set((pagosRes ?? []).map((p) => p.venta_id))
-    }
-    setFiadas(fiadas)
+    setFiadas(
+      new Set(
+        ventas
+          .filter((v) =>
+            (pagosPorVenta.get(v.id) ?? []).some((p) => p.metodo === 'fiado'),
+          )
+          .map((v) => v.id),
+      ),
+    )
   }, [vista])
 
   useEffect(() => {
@@ -212,6 +247,12 @@ export default function VentasPage() {
     setDesde('')
     setHasta('')
     setCantidadMin('')
+  }
+
+  function pedirAnular(v: VentaConItems) {
+    setDetalle(null)
+    setAnularError(null)
+    setAAnular(v)
   }
 
   function reimprimir(v: VentaConItems) {
@@ -310,7 +351,11 @@ export default function VentasPage() {
                 )
                 const resumen = venta.items[0]
                 return (
-                  <TableRow key={venta.id}>
+                  <TableRow
+                    key={venta.id}
+                    onClick={() => setDetalle(venta)}
+                    className="cursor-pointer"
+                  >
                     <TableCell className="font-mono text-xs">
                       {numeroVenta(venta.id)}
                     </TableCell>
@@ -348,7 +393,8 @@ export default function VentasPage() {
                           variant="ghost"
                           size="sm"
                           className="text-muted-foreground hover:text-destructive"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation()
                             setAnularError(null)
                             setAAnular(venta)
                           }}
@@ -361,7 +407,10 @@ export default function VentasPage() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => reimprimir(venta)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          reimprimir(venta)
+                        }}
                       >
                         <Printer />
                         Ticket
@@ -425,6 +474,15 @@ export default function VentasPage() {
         </DialogContent>
       </Dialog>
 
+      <VentaDetalleDialog
+        venta={detalle}
+        onOpenChange={(v) => {
+          if (!v) setDetalle(null)
+        }}
+        onAnular={pedirAnular}
+        onReimprimir={reimprimir}
+      />
+
       <ResultadoImpresionDialog
         resultado={resultado}
         puedeImprimir
@@ -437,6 +495,166 @@ export default function VentasPage() {
         }}
       />
     </div>
+  )
+}
+
+function VentaDetalleDialog({
+  venta,
+  onOpenChange,
+  onAnular,
+  onReimprimir,
+}: {
+  venta: VentaConItems | null
+  onOpenChange: (next: boolean) => void
+  onAnular: (v: VentaConItems) => void
+  onReimprimir: (v: VentaConItems) => void
+}) {
+  const unidades = venta
+    ? venta.items.reduce((acc, i) => acc + i.cantidad, 0)
+    : 0
+
+  return (
+    <Dialog open={venta !== null} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-svh overflow-y-auto sm:max-w-lg">
+        {venta && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-sm">{numeroVenta(venta.id)}</span>
+                {estadoBadge[venta.estado]}
+              </DialogTitle>
+              <DialogDescription>
+                {formatFecha(venta.created_at)}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Total</p>
+                <p className="text-base font-semibold tabular-nums">
+                  {formatMoney(venta.total, 'PYG')}
+                </p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Ítems</p>
+                <p className="text-base font-semibold tabular-nums">
+                  {venta.items.length} · {unidades} unid.
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Producto</TableHead>
+                    <TableHead className="text-right">Cant.</TableHead>
+                    <TableHead className="text-right">Precio</TableHead>
+                    <TableHead className="text-right">Subtotal</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {venta.items.length === 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={4}
+                        className="text-center text-sm text-muted-foreground"
+                      >
+                        Sin detalle de ítems.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {venta.items.map((item, idx) => (
+                    <TableRow key={`${item.nombre}-${item.variante}-${idx}`}>
+                      <TableCell>
+                        <span className="font-medium">{item.nombre}</span>
+                        {item.variante && (
+                          <span className="block text-xs text-muted-foreground">
+                            {item.variante}
+                          </span>
+                        )}
+                        {item.codigo_barras && (
+                          <span className="block font-mono text-[11px] text-muted-foreground">
+                            {item.codigo_barras}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {item.cantidad}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatMoney(item.precio, item.moneda)}
+                      </TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        {formatMoney(item.precio * item.cantidad, item.moneda)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="space-y-1.5">
+              <p className="text-sm font-semibold">Métodos de cobro</p>
+              {venta.pagos.length === 0 ? (
+                <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                  Sin desglose de cobro registrado.
+                </p>
+              ) : (
+                <ul className="divide-y rounded-md border">
+                  {venta.pagos.map((pago, idx) => (
+                    <li
+                      key={`${pago.metodo}-${idx}`}
+                      className="flex items-center justify-between gap-2 px-3 py-2 text-sm"
+                    >
+                      <span>
+                        {metodoVentaLabel[pago.metodo]}
+                        {pago.detalle && (
+                          <span className="text-xs text-muted-foreground">
+                            {' '}
+                            · {pago.detalle}
+                          </span>
+                        )}
+                      </span>
+                      <span className="font-medium tabular-nums">
+                        {formatMoney(pago.monto, pago.moneda)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </>
+        )}
+
+        <DialogFooter className="flex-wrap gap-2">
+          {venta && venta.estado !== 'anulada' && isSupabaseConfigured && (
+            <Button
+              type="button"
+              variant="outline"
+              className="text-destructive"
+              onClick={() => onAnular(venta)}
+            >
+              <Ban />
+              Anular
+            </Button>
+          )}
+          {venta && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onReimprimir(venta)}
+            >
+              <Printer />
+              Reimprimir
+            </Button>
+          )}
+          <Button type="button" onClick={() => onOpenChange(false)}>
+            Cerrar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
