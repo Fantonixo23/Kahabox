@@ -2,6 +2,8 @@
 // Recibe el trigger (INSERT en public.tenants) y avisa por Discord con links
 // firmados para aprobar/rechazar el alta. Usa embeds: un resumen de la tienda
 // y dos bloques tipo boton: Aceptar (azul) y Rechazar (rojo).
+// Ademas envia el mismo aviso por email (SMTP, por defecto Gmail) si esta
+// configurado; el email es opcional y su fallo no afecta el aviso por Discord.
 //
 // Secrets:
 //   DISCORD_WEBHOOK_URL  (obligatorio) URL del webhook de Discord.
@@ -9,11 +11,26 @@
 //   WEBHOOK_SECRET       (opcional) header x-kahabox-webhook-secret exigido.
 //   APPROVAL_FUNCTION_URL (opcional) base publica de aprobar-registro; si no,
 //                        se deriva de la URL de la propia request.
+//   EMAIL_DESTINO        (opcional) destinatario(s) del aviso, separados por coma.
+//   EMAIL_SMTP_USER      (opcional) usuario SMTP (para Gmail: la cuenta @gmail.com).
+//   EMAIL_SMTP_PASS      (opcional) password de aplicacion de Gmail (16 caracteres).
+//   EMAIL_SMTP_HOST      (opcional) host SMTP, default smtp.gmail.com.
+//   EMAIL_SMTP_PORT      (opcional) puerto, default 465 (TLS).
+
+import { SmtpClient } from 'jsr:@std/smtp'
 
 const DISCORD_WEBHOOK_URL = Deno.env.get('DISCORD_WEBHOOK_URL')
 const APPROVAL_SECRET = Deno.env.get('APPROVAL_SECRET')
 const WEBHOOK_SECRET = Deno.env.get('WEBHOOK_SECRET')
 const APPROVAL_FUNCTION_URL = Deno.env.get('APPROVAL_FUNCTION_URL')
+
+const EMAIL_DESTINO = Deno.env.get('EMAIL_DESTINO')
+const EMAIL_SMTP_USER = Deno.env.get('EMAIL_SMTP_USER')
+const EMAIL_SMTP_PASS = Deno.env.get('EMAIL_SMTP_PASS')
+const EMAIL_SMTP_HOST = Deno.env.get('EMAIL_SMTP_HOST') ?? 'smtp.gmail.com'
+const EMAIL_SMTP_PORT = Number.isFinite(Number(Deno.env.get('EMAIL_SMTP_PORT')))
+  ? Number(Deno.env.get('EMAIL_SMTP_PORT'))
+  : 465
 
 const EXPIRACION_SEG = 7 * 24 * 60 * 60 // 7 días
 
@@ -48,6 +65,92 @@ async function firmar(secreto: string, mensaje: string): Promise<string> {
   return Array.from(new Uint8Array(firma))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('')
+}
+
+function esc(s: string | null | undefined): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+type Notificacion = {
+  nombre: string
+  email: string
+  creada: string
+  linkAprobar: string
+  linkRechazar: string
+}
+
+async function enviarEmail(n: Notificacion): Promise<void> {
+  const destinos = (EMAIL_DESTINO ?? '')
+    .split(',')
+    .map((d) => d.trim())
+    .filter(Boolean)
+  if (!EMAIL_SMTP_USER || !EMAIL_SMTP_PASS || destinos.length === 0) {
+    console.warn(
+      'Email no configurado: falta EMAIL_SMTP_USER, EMAIL_SMTP_PASS o EMAIL_DESTINO',
+    )
+    return
+  }
+
+  const boton = (href: string, texto: string, fondo: string) => {
+    if (!href) return ''
+    return `<a href="${href}" style="background:${fondo};color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;display:inline-block;font-weight:600">${texto}</a>`
+  }
+
+  const texto = [
+    'Nueva tienda solicitando acceso a Kahabox.',
+    '  Tienda: ' + n.nombre,
+    '  Email: ' + (n.email || '—'),
+    '  Registro: ' + n.creada,
+    '',
+    'Aprobar: ' + (n.linkAprobar || 'Sin link'),
+    'Rechazar: ' + (n.linkRechazar || 'Sin link'),
+    '',
+    'El link de aprobacion vence en 7 dias.',
+  ].join('\r\n')
+
+  const html = [
+    '<div style="font-family:Arial,sans-serif;font-size:14px;max-width:520px;margin:auto;padding:20px;background:#faf6f1;border-radius:12px">',
+    '  <h2 style="margin:0 0 12px;color:#0c0a09">Nueva tienda solicitando acceso</h2>',
+    '  <table style="border-collapse:collapse;margin-bottom:16px">',
+    `    <tr><td style="padding:4px 12px 4px 0;color:#78716c">Tienda</td><td style="padding:4px 0;font-weight:600">${esc(n.nombre)}</td></tr>`,
+    `    <tr><td style="padding:4px 12px 4px 0;color:#78716c">Email</td><td style="padding:4px 0">${esc(n.email || '—')}</td></tr>`,
+    `    <tr><td style="padding:4px 12px 4px 0;color:#78716c">Registro</td><td style="padding:4px 0">${esc(n.creada)}</td></tr>`,
+    '  </table>',
+    `  <div style="display:flex;gap:12px">${boton(n.linkAprobar, 'Aprobar', '#2563eb')}${boton(n.linkRechazar, 'Rechazar', '#dc2626')}</div>`,
+    '  <p style="color:#a8a29e;font-size:12px;margin-top:16px">El link de aprobación vence en 7 días.</p>',
+    '</div>',
+  ]
+    .join('')
+    .replace(/\r?\n/g, '\r\n')
+
+  const reemails = destinos.filter((d) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d))
+  if (reemails.length === 0) {
+    console.warn('EMAIL_DESTINO no contiene direcciones válidas', destinos)
+    return
+  }
+
+  const client = new SmtpClient()
+  try {
+    await client.connect({
+      hostname: EMAIL_SMTP_HOST,
+      port: EMAIL_SMTP_PORT,
+      tls: true,
+      auth: { username: EMAIL_SMTP_USER, password: EMAIL_SMTP_PASS },
+    })
+    await client.send({
+      from: `Kahabox <${EMAIL_SMTP_USER}>`,
+      to: reemails,
+      subject: `Nueva tienda: ${n.nombre} — aprobar acceso`,
+      content: texto,
+      html,
+    })
+  } finally {
+    await client.close()
+  }
 }
 
 Deno.serve(async (req) => {
@@ -142,6 +245,14 @@ Deno.serve(async (req) => {
     const texto = await res.text()
     console.error(`Discord respondio ${res.status}: ${texto}`)
     return json('Error al notificar a Discord', { status: 502 })
+  }
+
+  // Aviso por email: si esta configurado, se envia en paralelo. Un fallo aca
+  // no debe impedir que la funcion responda OK (el canal principal es Discord).
+  try {
+    await enviarEmail({ nombre, email, creada, linkAprobar, linkRechazar })
+  } catch (err) {
+    console.error('Fallo el envio de email:', err)
   }
 
   return json('ok')
