@@ -361,7 +361,7 @@ export default function AdministrarProductoDialog({
                 type="button"
                 onClick={() => set('ajusteTipo', 'entrada')}
                 className={cn(
-                  'h-10 rounded-lg border text-sm font-semibold transition-colors',
+                  'h-10 rounded-lg border text-sm font-semibold',
                   form.ajusteTipo === 'entrada'
                     ? 'border-emerald-400/60 bg-emerald-50 text-emerald-700'
                     : 'bg-background text-muted-foreground hover:text-foreground',
@@ -373,7 +373,7 @@ export default function AdministrarProductoDialog({
                 type="button"
                 onClick={() => set('ajusteTipo', 'salida')}
                 className={cn(
-                  'h-10 rounded-lg border text-sm font-semibold transition-colors',
+                  'h-10 rounded-lg border text-sm font-semibold',
                   form.ajusteTipo === 'salida'
                     ? 'border-amber-400/60 bg-amber-50 text-amber-700'
                     : 'bg-background text-muted-foreground hover:text-foreground',

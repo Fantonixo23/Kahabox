@@ -143,7 +143,7 @@ function ReponerStockRemotoDialog({
               type="button"
               onClick={() => setTipo('entrada')}
               className={cn(
-                'h-10 rounded-lg border text-sm font-semibold transition-colors',
+                'h-10 rounded-lg border text-sm font-semibold',
                 tipo === 'entrada'
                   ? 'border-emerald-400/60 bg-emerald-50 text-emerald-700'
                   : 'bg-background text-muted-foreground hover:text-foreground',
@@ -155,7 +155,7 @@ function ReponerStockRemotoDialog({
               type="button"
               onClick={() => setTipo('salida')}
               className={cn(
-                'h-10 rounded-lg border text-sm font-semibold transition-colors',
+                'h-10 rounded-lg border text-sm font-semibold',
                 tipo === 'salida'
                   ? 'border-amber-400/60 bg-amber-50 text-amber-700'
                   : 'bg-background text-muted-foreground hover:text-foreground',
@@ -759,7 +759,7 @@ export default function EscaneadorPage() {
                   type="button"
                   onClick={() => setCajaYGuardar(n)}
                   className={cn(
-                    'flex h-11 items-center justify-center rounded-lg border text-sm font-semibold transition-colors',
+                    'flex h-11 items-center justify-center rounded-lg border text-sm font-semibold',
                     caja === n
                       ? 'border-primary bg-primary text-primary-foreground'
                       : 'bg-background text-muted-foreground hover:text-foreground',
@@ -836,7 +836,7 @@ export default function EscaneadorPage() {
             <button
               type="button"
               className={cn(
-                'flex w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 text-center transition-colors',
+                'flex w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 text-center',
                 conectado
                   ? 'border-emerald-300/60 bg-emerald-50/50 text-emerald-700'
                   : 'border-muted-foreground/40 text-muted-foreground',

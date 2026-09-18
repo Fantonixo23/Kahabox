@@ -216,7 +216,7 @@ export default function ImpresoraDialog({
                         })
                       }
                       className={cn(
-                        'flex items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-muted',
+                        'flex items-center justify-between rounded-md border px-3 py-2 text-left text-sm hover:bg-muted',
                         activo && 'border-primary bg-muted font-medium',
                       )}
                     >

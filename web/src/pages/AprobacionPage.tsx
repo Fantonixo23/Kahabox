@@ -130,8 +130,8 @@ export default function AprobacionPage() {
     <div className="relative min-h-svh overflow-hidden bg-fondo-login">
       <div className="absolute inset-0 bg-neutral-950/55" />
       <div className="relative z-10 flex min-h-svh items-center justify-center p-5">
-        <div className="w-full max-w-md animate-in zoom-in-95 fade-in duration-300">
-          <div className="anim-dibujar rounded-3xl bg-white p-8 text-center shadow-2xl ring-1 ring-black/5">
+        <div className="w-full max-w-md">
+          <div className="rounded-3xl bg-white p-8 text-center shadow-2xl ring-1 ring-black/5">
             <img src="/logo.png" alt="Kahabox" className="mx-auto size-12 object-contain" />
             <div className="mt-2">
               <Icono tipo={cfg.icono} />
@@ -155,13 +155,6 @@ export default function AprobacionPage() {
           </div>
         </div>
       </div>
-      <style>{`
-        .anim-dibujar .anillo { stroke-dasharray: 240; stroke-dashoffset: 240;
-          animation: k-dibujar 1s 0.15s ease-out forwards; }
-        .anim-dibujar .marca { stroke-dasharray: 80; stroke-dashoffset: 80;
-          animation: k-dibujar 0.5s 0.8s ease-out forwards; }
-        @keyframes k-dibujar { to { stroke-dashoffset: 0; } }
-      `}</style>
     </div>
   )
 }

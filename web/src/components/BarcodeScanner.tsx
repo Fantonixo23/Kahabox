@@ -425,7 +425,7 @@ export default function BarcodeScanner({
                   exito ? 'border-emerald-400' : 'border-white/80'
                 }`}
               >
-                <div className="absolute inset-x-1 top-1 h-[3px] rounded-full bg-emerald-400 shadow-[0_0_10px_2px_rgba(52,211,153,0.7)] animate-[scan-line_1.6s_ease-in-out_infinite_alternate]" />
+                <div className="absolute inset-x-1 top-1 h-[3px] rounded-full bg-emerald-400" />
               </div>
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2">
                 <p className="text-center text-[11px] leading-tight text-white">
@@ -445,7 +445,7 @@ export default function BarcodeScanner({
 
         {estado === 'arrancando' && (
           <p className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Camera className="size-4 animate-pulse" />
+            <Camera className="size-4" />
             Activando la cámara…
           </p>
         )}

@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
@@ -125,26 +124,10 @@
     }
   body {
     @apply bg-background text-foreground;
+    overflow-x: clip;
     }
   html {
     @apply font-sans;
     overflow-x: clip;
     }
-  body {
-    overflow-x: clip;
-    }
-}
-
-@keyframes scan-line {
-  0% { top: 6px; }
-  100% { top: calc(100% - 10px); }
-}
-
-@keyframes caja-flash {
-  0% { background-color: oklch(0.97 0.13 145); }
-  100% { background-color: transparent; }
-}
-
-.caja-flash-row {
-  animation: caja-flash 0.8s ease-out;
 }

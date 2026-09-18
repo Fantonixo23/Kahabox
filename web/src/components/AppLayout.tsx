@@ -105,7 +105,7 @@ export default function AppLayout() {
               to={item.to}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                  'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground',
                   isActive && 'bg-muted font-medium text-foreground',
                 )
               }
@@ -120,7 +120,7 @@ export default function AppLayout() {
             to="/app/instalar"
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground',
                 isActive && 'bg-muted font-medium text-foreground',
               )
             }
@@ -189,7 +189,7 @@ export default function AppLayout() {
                 to={item.to}
                 className={({ isActive }) =>
                   cn(
-                    'flex min-w-14 flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[10px] text-muted-foreground transition-colors hover:bg-muted',
+                    'flex min-w-14 flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[10px] text-muted-foreground hover:bg-muted',
                     isActive && 'font-semibold text-foreground',
                   )
                 }
@@ -202,7 +202,7 @@ export default function AppLayout() {
               to="/app/instalar"
               className={({ isActive }) =>
                 cn(
-                  'flex min-w-14 flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[10px] text-muted-foreground transition-colors hover:bg-muted',
+                  'flex min-w-14 flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[10px] text-muted-foreground hover:bg-muted',
                   isActive && 'font-semibold text-foreground',
                 )
               }

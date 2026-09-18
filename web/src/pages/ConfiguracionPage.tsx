@@ -224,7 +224,7 @@ export default function ConfiguracionPage() {
                 type="button"
                 onClick={() => actualizarConfig({ tema: valor as Tema })}
                 className={cn(
-                  'flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-semibold transition-colors',
+                  'flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-semibold',
                   config.tema === valor
                     ? 'border-primary bg-primary text-primary-foreground'
                     : 'bg-background text-muted-foreground hover:text-foreground',
@@ -362,7 +362,7 @@ export default function ConfiguracionPage() {
                 type="button"
                 onClick={() => actualizarConfig({ cotizacionesModo: valor })}
                 className={cn(
-                  'flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-semibold transition-colors',
+                  'flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-semibold',
                   config.cotizacionesModo === valor
                     ? 'border-primary bg-primary text-primary-foreground'
                     : 'bg-background text-muted-foreground hover:text-foreground',
@@ -474,7 +474,7 @@ export default function ConfiguracionPage() {
               aria-checked={config.sifenActivo}
               onClick={() => actualizarConfig({ sifenActivo: !config.sifenActivo })}
               className={cn(
-                'flex h-6 w-11 shrink-0 items-center rounded-full border px-0.5 transition-colors',
+                'flex h-6 w-11 shrink-0 items-center rounded-full border px-0.5',
                 config.sifenActivo
                   ? 'justify-end border-primary bg-primary'
                   : 'justify-start border-input bg-muted',
@@ -482,7 +482,7 @@ export default function ConfiguracionPage() {
             >
               <span
                 className={cn(
-                  'size-5 rounded-full transition-colors',
+                  'size-5 rounded-full',
                   config.sifenActivo ? 'bg-primary-foreground' : 'bg-background',
                 )}
               />
@@ -538,7 +538,7 @@ export default function ConfiguracionPage() {
                 actualizarConfig({ bancardActivo: !config.bancardActivo })
               }
               className={cn(
-                'flex h-6 w-11 shrink-0 items-center rounded-full border px-0.5 transition-colors',
+                'flex h-6 w-11 shrink-0 items-center rounded-full border px-0.5',
                 config.bancardActivo
                   ? 'justify-end border-primary bg-primary'
                   : 'justify-start border-input bg-muted',
@@ -546,7 +546,7 @@ export default function ConfiguracionPage() {
             >
               <span
                 className={cn(
-                  'size-5 rounded-full transition-colors',
+                  'size-5 rounded-full',
                   config.bancardActivo
                     ? 'bg-primary-foreground'
                     : 'bg-background',
@@ -747,7 +747,7 @@ export default function ConfiguracionPage() {
                   type="button"
                   onClick={() => actualizarConfig({ cajaNumero: n })}
                   className={cn(
-                    'flex h-10 flex-1 items-center justify-center rounded-lg border text-sm font-semibold transition-colors',
+                    'flex h-10 flex-1 items-center justify-center rounded-lg border text-sm font-semibold',
                     config.cajaNumero === n
                       ? 'border-primary bg-primary text-primary-foreground'
                       : 'bg-background text-muted-foreground hover:text-foreground',

@@ -57,7 +57,7 @@ export default function EscanerSelector({
                 ? 'bg-emerald-500'
                 : estado === 'error'
                   ? 'bg-destructive'
-                  : 'animate-pulse bg-amber-500',
+                  : 'bg-amber-500',
           )}
           aria-hidden
         />
@@ -68,7 +68,7 @@ export default function EscanerSelector({
           type="button"
           onClick={() => setDispositivo('telefono')}
           className={cn(
-            'flex h-9 items-center justify-center gap-1.5 rounded-md text-sm font-semibold transition-colors',
+            'flex h-9 items-center justify-center gap-1.5 rounded-md text-sm font-semibold',
             dispositivo === 'telefono'
               ? 'bg-background text-foreground shadow-sm'
               : 'text-muted-foreground hover:text-foreground',
@@ -81,7 +81,7 @@ export default function EscanerSelector({
           type="button"
           onClick={() => setDispositivo('usb')}
           className={cn(
-            'flex h-9 items-center justify-center gap-1.5 rounded-md text-sm font-semibold transition-colors',
+            'flex h-9 items-center justify-center gap-1.5 rounded-md text-sm font-semibold',
             dispositivo === 'usb'
               ? 'bg-background text-foreground shadow-sm'
               : 'text-muted-foreground hover:text-foreground',

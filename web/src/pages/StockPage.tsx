@@ -353,7 +353,7 @@ export default function StockPage() {
             type="button"
             onClick={() => setSucursalId(s.id)}
             className={cn(
-              'h-9 rounded-lg border px-3 text-sm font-semibold transition-colors',
+              'h-9 rounded-lg border px-3 text-sm font-semibold',
               sucursalId === s.id
                 ? 'border-primary bg-primary text-primary-foreground'
                 : 'bg-background text-muted-foreground hover:text-foreground',
@@ -738,7 +738,7 @@ function ReponerStockDialog({
               type="button"
               onClick={() => setTipo('entrada')}
               className={cn(
-                'h-10 rounded-lg border text-sm font-semibold transition-colors',
+                'h-10 rounded-lg border text-sm font-semibold',
                 tipo === 'entrada'
                   ? 'border-emerald-400/60 bg-emerald-50 text-emerald-700'
                   : 'bg-background text-muted-foreground hover:text-foreground',
@@ -750,7 +750,7 @@ function ReponerStockDialog({
               type="button"
               onClick={() => setTipo('salida')}
               className={cn(
-                'h-10 rounded-lg border text-sm font-semibold transition-colors',
+                'h-10 rounded-lg border text-sm font-semibold',
                 tipo === 'salida'
                   ? 'border-amber-400/60 bg-amber-50 text-amber-700'
                   : 'bg-background text-muted-foreground hover:text-foreground',

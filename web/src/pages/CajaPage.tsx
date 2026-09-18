@@ -2,7 +2,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type FormEvent,
 } from 'react'
@@ -271,9 +270,6 @@ export default function CajaPage() {
 
   const [impresoraOpen, setImpresoraOpen] = useState(false)
 
-  const [flashId, setFlashId] = useState<string | null>(null)
-  const flashTimer = useRef<number | undefined>(undefined)
-
   const [ultimoTicket, setUltimoTicket] = useState<TicketVenta | null>(() =>
     leerUltimoTicket(),
   )
@@ -377,12 +373,6 @@ export default function CajaPage() {
     return () => clearTimeout(t)
   }, [aviso])
 
-  useEffect(() => {
-    return () => {
-      if (flashTimer.current !== undefined) clearTimeout(flashTimer.current)
-    }
-  }, [])
-
   const totalGs = useMemo(
     () =>
       carrito.reduce(
@@ -409,11 +399,8 @@ export default function CajaPage() {
     setAviso({ tipo, texto })
   }
 
-  function marcarAgregado(lineaId: string) {
+  function marcarAgregado() {
     if (navigator.vibrate) navigator.vibrate(15)
-    setFlashId(lineaId)
-    if (flashTimer.current !== undefined) clearTimeout(flashTimer.current)
-    flashTimer.current = window.setTimeout(() => setFlashId(null), 800)
   }
 
   function agregarCarrito(linea: StockRow) {
@@ -436,7 +423,7 @@ export default function CajaPage() {
       return [...prev, { linea, cantidad: 1 }]
     })
     setQuery('')
-    marcarAgregado(linea.id)
+    marcarAgregado()
   }
 
   function setCantidad(id: string, cantidad: number) {
@@ -985,7 +972,7 @@ export default function CajaPage() {
                   key={linea.id}
                   type="button"
                   onClick={() => agregarCarrito(linea)}
-                  className="flex w-full items-center justify-between gap-2 px-3 py-3 text-left text-sm transition-colors hover:bg-muted"
+                  className="flex w-full items-center justify-between gap-2 px-3 py-3 text-left text-sm hover:bg-muted"
                 >
                   <span>
                     <span className="font-medium">{linea.producto?.nombre}</span>
@@ -1038,10 +1025,7 @@ export default function CajaPage() {
                   return (
                     <div
                       key={c.linea.id}
-                      className={cn(
-                        'flex items-center gap-1.5 p-2',
-                        flashId === c.linea.id && 'caja-flash-row',
-                      )}
+                      className="flex items-center gap-1.5 p-2"
                     >
                       <div className="min-w-0 flex-1">
                         <p
@@ -1127,7 +1111,7 @@ export default function CajaPage() {
                   type="button"
                   onClick={() => setMultiples((m) => !m)}
                   className={cn(
-                    'flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium transition-colors',
+                    'flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium',
                     multiples
                       ? 'border-primary/40 bg-primary/10 text-primary'
                       : 'text-muted-foreground hover:bg-muted',

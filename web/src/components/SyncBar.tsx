@@ -111,7 +111,7 @@ export default function SyncBar() {
         type="button"
         onClick={() => setAbierto(true)}
         className={cn(
-          'flex w-full items-center gap-2 px-4 py-1.5 text-xs transition-colors sm:text-sm',
+          'flex w-full items-center gap-2 px-4 py-1.5 text-xs sm:text-sm',
           enLinea
             ? 'bg-amber-100 text-amber-900 hover:bg-amber-200 dark:bg-amber-500/15 dark:text-amber-200'
             : 'bg-destructive/10 text-destructive hover:bg-destructive/20',
