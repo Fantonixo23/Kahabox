@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import {
+  ArrowLeftRight,
   Coins,
   CreditCard,
   Download,
@@ -29,6 +30,7 @@ import {
 import ImpresoraDialog from '@/components/ImpresoraDialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import MoneyInput from '@/components/MoneyInput'
 import { esNativo } from '@/lib/impresion/nativo'
 import {
   Select,
@@ -46,7 +48,8 @@ import {
   type InfoActualizacion,
 } from '@/lib/actualizacion'
 import { probarConexionPos } from '@/lib/bancard'
-import { MONEDAS, type Moneda } from '@/lib/format'
+import { buscarCotizacionesAutomaticas } from '@/lib/cotizaciones'
+import { MONEDAS, formatMoney, type Moneda } from '@/lib/format'
 import {
   MODULOS,
   actualizarConfig,
@@ -77,6 +80,12 @@ export default function ConfiguracionPage() {
     'inicial' | 'buscando' | 'ok' | 'al-dia' | 'error'
   >('inicial')
   const [mensajeActualizacion, setMensajeActualizacion] = useState('')
+  const [tasaUsd, setTasaUsd] = useState(String(config.cotizacionesManuales.USD))
+  const [tasaBrl, setTasaBrl] = useState(String(config.cotizacionesManuales.BRL))
+  const [tasaArs, setTasaArs] = useState(String(config.cotizacionesManuales.ARS))
+  const [actualizandoAuto, setActualizandoAuto] = useState(false)
+  const [autoInfo, setAutoInfo] = useState<string | null>(null)
+  const [autoError, setAutoError] = useState<string | null>(null)
 
   useEffect(() => {
     void versionInstalada().then(setVersionActual)
@@ -147,6 +156,39 @@ export default function ConfiguracionPage() {
       ? config.monedaPrincipal
       : (activas[0] ?? config.monedaPrincipal)
     actualizarConfig({ monedasActivas: activas, monedaPrincipal: principal })
+  }
+
+  function guardarTasa(
+    codigo: 'USD' | 'BRL' | 'ARS',
+    texto: string,
+    setTexto: (v: string) => void,
+  ) {
+    setTexto(texto)
+    const n = Number(texto)
+    if (!Number.isFinite(n) || n <= 0) return
+    actualizarConfig({
+      cotizacionesManuales: { ...config.cotizacionesManuales, [codigo]: n },
+    })
+  }
+
+  async function consultarTasasAutomaticas() {
+    setActualizandoAuto(true)
+    setAutoInfo(null)
+    setAutoError(null)
+    try {
+      const t = await buscarCotizacionesAutomaticas()
+      setAutoInfo(
+        `Hoy: ${formatMoney(t.USD, 'PYG')} el US$ · ${formatMoney(t.BRL, 'PYG')} el R$ · ${formatMoney(t.ARS, 'PYG')} el $`,
+      )
+    } catch (e) {
+      setAutoError(
+        e instanceof Error
+          ? `No se pudo consultar: ${e.message}`
+          : 'No se pudo consultar la cotización.',
+      )
+    } finally {
+      setActualizandoAuto(false)
+    }
   }
 
   return (
@@ -293,6 +335,117 @@ export default function ConfiguracionPage() {
               </p>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ArrowLeftRight className="size-4" />
+            Cotizaciones
+          </CardTitle>
+          <CardDescription>
+            Elegí si la cotización se actualiza sola o la cargás a mano. Se usa
+            para convertir precios y pagos en la Caja.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2 sm:max-w-xs">
+            {(
+              [
+                { valor: 'manual', etiqueta: 'Manual' },
+                { valor: 'automatico', etiqueta: 'Automático' },
+              ] as const
+            ).map(({ valor, etiqueta }) => (
+              <button
+                key={valor}
+                type="button"
+                onClick={() => actualizarConfig({ cotizacionesModo: valor })}
+                className={cn(
+                  'flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-semibold transition-colors',
+                  config.cotizacionesModo === valor
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'bg-background text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {etiqueta}
+              </button>
+            ))}
+          </div>
+
+          {config.cotizacionesModo === 'automatico' ? (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Se consulta en vivo al abrir la Caja y con su botón de recargar.
+                Si no hay conexión se usan las tasas manuales {formatMoney(config.cotizacionesManuales.USD, 'PYG')} el US$
+                como respaldo.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={actualizandoAuto}
+                  onClick={() => void consultarTasasAutomaticas()}
+                >
+                  {actualizandoAuto ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="size-4" />
+                  )}
+                  Consultar ahora
+                </Button>
+                {autoInfo && (
+                  <span className="text-xs font-medium text-emerald-600">
+                    {autoInfo}
+                  </span>
+                )}
+                {autoError && (
+                  <span className="text-xs font-medium text-red-600">
+                    {autoError}
+                  </span>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Cargá cuántos guaraníes vale una unidad de cada moneda. Se
+                guardan solas al escribir.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="cfg-tasa-usd">1 US$ (dólar)</Label>
+                  <MoneyInput
+                    id="cfg-tasa-usd"
+                    value={tasaUsd}
+                    onChange={(v) =>
+                      guardarTasa('USD', v, setTasaUsd)
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="cfg-tasa-brl">1 R$ (real)</Label>
+                  <MoneyInput
+                    id="cfg-tasa-brl"
+                    value={tasaBrl}
+                    onChange={(v) =>
+                      guardarTasa('BRL', v, setTasaBrl)
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="cfg-tasa-ars">1 $ (peso argentino)</Label>
+                  <MoneyInput
+                    id="cfg-tasa-ars"
+                    value={tasaArs}
+                    onChange={(v) =>
+                      guardarTasa('ARS', v, setTasaArs)
+                    }
+                  />
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

@@ -1362,18 +1362,6 @@ export default function CajaPage() {
         </aside>
       </div>
 
-      <div className="fixed inset-x-0 bottom-16 z-20 border-t bg-background/95 p-3 pb-[calc(env(safe-area-inset-bottom)+12px)] backdrop-blur md:bottom-0 md:pb-3 lg:hidden">
-        <BarcodeScanner
-          onDetected={(code) => void agregarCodigo(code)}
-          trigger={
-            <Button type="button" className="h-14 w-full text-base">
-              <ScanBarcode className="size-6" />
-              Escanear
-            </Button>
-          }
-        />
-      </div>
-
       <ImpresoraDialog open={impresoraOpen} onOpenChange={setImpresoraOpen} />
 
       <Dialog open={concluirOpen} onOpenChange={setConcluirOpen}>

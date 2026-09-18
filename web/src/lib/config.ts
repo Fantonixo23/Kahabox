@@ -17,6 +17,18 @@ export type CajaNumero = 1 | 2 | 3
 
 export type Tema = 'claro' | 'oscuro'
 
+export type ModoCotizaciones = 'manual' | 'automatico'
+
+/** Cuántos guaraníes (Gs) vale UNA unidad de la moneda. Ej.: USD 7850 → 1 US$ = 7.850 Gs. */
+export type Tasas = Record<Moneda, number>
+
+export const TASAS_INICIALES: Tasas = {
+  PYG: 1,
+  USD: 7850,
+  ARS: 8.4,
+  BRL: 1420,
+}
+
 export type EstacionImpresion = {
   activa: boolean
   dispositivoId: string
@@ -40,6 +52,8 @@ export type ConfigApp = {
   modulosOcultos: string[]
   monedasActivas: Moneda[]
   monedaPrincipal: Moneda
+  cotizacionesModo: ModoCotizaciones
+  cotizacionesManuales: Tasas
   tema: Tema
 }
 
@@ -99,6 +113,8 @@ function configInicial(): ConfigApp {
     modulosOcultos: leerModulosOcultos(),
     monedasActivas: MONEDAS_DEFAULT,
     monedaPrincipal: 'PYG',
+    cotizacionesModo: 'manual',
+    cotizacionesManuales: TASAS_INICIALES,
     tema: 'claro',
     ...resto,
     estacionImpresion: {
@@ -172,6 +188,8 @@ function guardar() {
         estacionImpresion: config.estacionImpresion,
         monedasActivas: config.monedasActivas,
         monedaPrincipal: config.monedaPrincipal,
+        cotizacionesModo: config.cotizacionesModo,
+        cotizacionesManuales: config.cotizacionesManuales,
         tema: config.tema,
       }),
     )
