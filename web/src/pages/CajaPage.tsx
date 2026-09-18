@@ -85,6 +85,7 @@ import {
 } from '@/lib/ejecutar'
 import {
   copiarTicket,
+  imprimirPorEstacion,
   imprimirTicket,
   imprimirTicketPC,
   type ResultadoImpresion,
@@ -745,6 +746,17 @@ export default function CajaPage() {
     }
   }
 
+  async function imprimirUltimoEstacion() {
+    if (!ultimoTicket) return
+    setReimprimiendo(true)
+    try {
+      const res = await imprimirPorEstacion(ultimoTicket, config.anchoTicketPc)
+      setResultadoImpresion(res)
+    } finally {
+      setReimprimiendo(false)
+    }
+  }
+
   async function copiarUltimo() {
     if (!ultimoTicket) return
     const ok = await copiarTicket(armarTextoPlano(ultimoTicket))
@@ -896,11 +908,17 @@ export default function CajaPage() {
         guardarTicketVentaMock(ventaId, ticket)
         guardarUltimoTicket(ticket)
         setUltimoTicket(ticket)
-        setResultadoImpresion({
-          texto: armarTextoPlano(ticket),
-          nativo: false,
-          compartido: false,
-        })
+        if (config.metodoImpresion === 'estacion' && isSupabaseConfigured) {
+          setResultadoImpresion(
+            await imprimirPorEstacion(ticket, config.anchoTicketPc),
+          )
+        } else {
+          setResultadoImpresion({
+            texto: armarTextoPlano(ticket),
+            nativo: false,
+            compartido: false,
+          })
+        }
       }
     } catch (e) {
       avisar(e instanceof Error ? e.message : 'Ocurrió un error al cobrar.')
@@ -1499,6 +1517,8 @@ export default function CajaPage() {
         resultado={resultadoImpresion}
         puedeImprimir={Boolean(ultimoTicket)}
         reimprimiendo={reimprimiendo}
+        estacionActiva={config.metodoImpresion === 'estacion' && isSupabaseConfigured}
+        onImprimirEstacion={() => void imprimirUltimoEstacion()}
         onImprimirPC={() => void imprimirUltimoPC()}
         onImprimir={() => void imprimirUltimo()}
         onCopiar={() => void copiarUltimo()}

@@ -18,6 +18,7 @@ import SyncBar from '@/components/SyncBar'
 import { Button } from '@/components/ui/button'
 import { cn } from 'cn'
 import { MODULOS, useConfig } from '@/lib/config'
+import { useEstacionImpresion } from '@/lib/impresion/estacion'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 
 const ICONOS = {
@@ -45,6 +46,7 @@ export default function AppLayout() {
   const navigate = useNavigate()
   const { user, salirDemo } = useAuth()
   const { modulosOcultos } = useConfig()
+  const estacion = useEstacionImpresion()
 
   const nav = useMemo(
     () =>
@@ -73,11 +75,25 @@ export default function AppLayout() {
         <div className="flex h-14 items-center gap-2 border-b px-4">
           <Package className="size-5" />
           <span className="text-sm font-semibold">Kahabox</span>
-          {!isSupabaseConfigured && (
-            <span className="ml-auto rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
-              demo
-            </span>
-          )}
+          <div className="ml-auto flex items-center gap-1">
+            {!isSupabaseConfigured && (
+              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                demo
+              </span>
+            )}
+            {estacion.activa && (
+              <span
+                className={cn(
+                  'rounded px-1.5 py-0.5 text-[10px] font-medium',
+                  estacion.conectada
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-amber-100 text-amber-700',
+                )}
+              >
+                {estacion.ultimoError ? 'impresora ⚠' : 'impresora'}
+              </span>
+            )}
+          </div>
         </div>
         <nav className="flex-1 space-y-1 p-2">
           {nav.map((item) => (
@@ -124,6 +140,18 @@ export default function AppLayout() {
           {!isSupabaseConfigured && (
             <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
               demo
+            </span>
+          )}
+          {estacion.activa && (
+            <span
+              className={cn(
+                'rounded px-1.5 py-0.5 text-[10px] font-medium',
+                estacion.conectada
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : 'bg-amber-100 text-amber-700',
+              )}
+            >
+              {estacion.ultimoError ? 'impresora ⚠' : 'impresora'}
             </span>
           )}
           <div className="ml-auto flex items-center gap-2">

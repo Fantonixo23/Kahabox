@@ -1,0 +1,78 @@
+name: APK Android
+
+# Compila la app Android (Capacitor) y publica el APK en un Release.
+# Netlify expone el último en https://kahabox.netlify.app/kahabox-caja.apk
+#
+# Requisitos (Settings → Secrets and variables → Actions):
+#   VITE_SUPABASE_URL
+#   VITE_SUPABASE_ANON_KEY
+#
+# Nota: el APK incluye el bundle web compilado dentro (no carga de Netlify),
+# así que hay que recompilarlo cada vez que cambie la web.
+
+on:
+  push:
+    tags:
+      - 'apk-v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Compilar web
+        run: npm run build -w web
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Sincronizar Capacitor
+        run: npx cap sync android
+        working-directory: web
+
+      - name: Compilar APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+        working-directory: web/android
+
+      - name: Renombrar APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk ../kahabox-caja.apk
+        working-directory: web/android
+
+      - name: Subir artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: kahabox-caja-apk
+          path: web/kahabox-caja.apk
+
+      - name: Publicar Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: Kahabox Caja (APK)
+          body: |
+            APK compilado desde ${{ github.sha }}.
+            Descarga: https://kahabox.netlify.app/kahabox-caja.apk
+          files: web/kahabox-caja.apk
+          make_latest: true

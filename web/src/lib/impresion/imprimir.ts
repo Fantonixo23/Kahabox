@@ -1,7 +1,13 @@
 import { Capacitor } from '@capacitor/core'
 import { Share } from '@capacitor/share'
 
-import { armarHtmlTicket, armarTextoPlano, type TicketVenta } from './ticket'
+import {
+  armarHtmlTicket,
+  armarTextoPlano,
+  columnasPorAnchoMm,
+  type TicketVenta,
+} from './ticket'
+import { enviarTrabajoAEstacion } from './estacion'
 
 export type ResultadoImpresion = {
   texto: string
@@ -56,11 +62,31 @@ export async function copiarTicket(texto: string): Promise<boolean> {
   }
 }
 
+/**
+ * Imprime mandando el trabajo a la estación (celular/tablet con la app).
+ * La PC solo inserta la fila en Supabase; la estación imprime por Bluetooth.
+ */
+export async function imprimirPorEstacion(
+  ticket: TicketVenta,
+  anchoMm: number,
+): Promise<ResultadoImpresion> {
+  const ancho = columnasPorAnchoMm(anchoMm)
+  const texto = armarTextoPlano(ticket, ancho)
+  const res = await enviarTrabajoAEstacion(ticket, ancho)
+  return {
+    texto,
+    nativo: true,
+    compartido: false,
+    ...(res.ok ? {} : { error: res.error }),
+  }
+}
+
 export async function imprimirTicketPC(
   ticket: TicketVenta,
   anchoMm: number,
 ): Promise<ResultadoImpresion> {
-  const texto = armarTextoPlano(ticket)
+  const ancho = columnasPorAnchoMm(anchoMm)
+  const texto = armarTextoPlano(ticket, ancho)
   try {
     const iframe = document.createElement('iframe')
     iframe.setAttribute('aria-hidden', 'true')
@@ -70,7 +96,7 @@ export async function imprimirTicketPC(
     iframe.style.width = '0'
     iframe.style.height = '0'
     iframe.style.border = '0'
-    iframe.srcdoc = armarHtmlTicket(ticket, anchoMm)
+    iframe.srcdoc = armarHtmlTicket(ticket, anchoMm, ancho)
     document.body.appendChild(iframe)
 
     try {

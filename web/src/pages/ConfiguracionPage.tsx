@@ -22,6 +22,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import ImpresoraDialog from '@/components/ImpresoraDialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -42,6 +43,7 @@ import {
   type AnchoTicketPc,
   type CajaNumero,
   type CertificadoSifen,
+  type MetodoImpresion,
 } from '@/lib/config'
 
 export default function ConfiguracionPage() {
@@ -53,6 +55,7 @@ export default function ConfiguracionPage() {
     'ok' | 'error' | null
   >(null)
   const [mensajePos, setMensajePos] = useState('')
+  const [impresoraAbierta, setImpresoraAbierta] = useState(false)
 
   async function probarPos() {
     setProbandoPos(true)
@@ -413,11 +416,33 @@ export default function ConfiguracionPage() {
             Impresión del ticket
           </CardTitle>
           <CardDescription>
-            Ancho del recibo cuando imprimís en la PC desde el botón "Imprimir
-            PC". En el celular se imprime siempre por RawBT.
+            Impresión directa por Bluetooth desde un celular/tablet que hace de
+            estación. La PC le manda el ticket por internet, sin instalar nada.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="cfg-metodo-impresion">Método de impresión</Label>
+            <Select
+              value={config.metodoImpresion}
+              onValueChange={(v) =>
+                actualizarConfig({ metodoImpresion: v as MetodoImpresion })
+              }
+            >
+              <SelectTrigger id="cfg-metodo-impresion" className="w-full sm:max-w-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="estacion">
+                  Estación de impresión (celular/tablet)
+                </SelectItem>
+                <SelectItem value="navegador">
+                  PC / navegador (ventana de impresión)
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="cfg-ancho-ticket">Ancho del ticket</Label>
             <Select
@@ -435,8 +460,31 @@ export default function ConfiguracionPage() {
               </SelectContent>
             </Select>
           </div>
+
+          <div className="flex flex-wrap items-center gap-2 rounded-md border px-3 py-2.5">
+            <span className="text-sm">
+              {config.estacionImpresion.activa && config.estacionImpresion.impresoraDireccion
+                ? `Estación activa · ${config.estacionImpresion.impresoraNombre || config.estacionImpresion.impresoraDireccion}`
+                : 'Este dispositivo no está configurado como estación'}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="ml-auto"
+              onClick={() => setImpresoraAbierta(true)}
+            >
+              <Printer />
+              Configurar impresora
+            </Button>
+          </div>
         </CardContent>
       </Card>
+
+      <ImpresoraDialog
+        open={impresoraAbierta}
+        onOpenChange={setImpresoraAbierta}
+      />
 
       <Card>
         <CardHeader>

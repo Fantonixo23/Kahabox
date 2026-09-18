@@ -1,4 +1,11 @@
-import { AlertTriangle, Copy, Printer, RotateCw, Smartphone } from 'lucide-react'
+import {
+  AlertTriangle,
+  Copy,
+  Printer,
+  RotateCw,
+  Smartphone,
+  Wifi,
+} from 'lucide-react'
 
 import type { ResultadoImpresion } from '@/lib/impresion/imprimir'
 import { Button } from '@/components/ui/button'
@@ -15,6 +22,8 @@ export default function ResultadoImpresionDialog({
   resultado,
   puedeImprimir,
   reimprimiendo,
+  estacionActiva,
+  onImprimirEstacion,
   onImprimirPC,
   onImprimir,
   onCopiar,
@@ -23,6 +32,8 @@ export default function ResultadoImpresionDialog({
   resultado: ResultadoImpresion | null
   puedeImprimir: boolean
   reimprimiendo: boolean
+  estacionActiva?: boolean
+  onImprimirEstacion?: () => void
   onImprimirPC: () => void
   onImprimir: () => void
   onCopiar: () => void
@@ -37,7 +48,7 @@ export default function ResultadoImpresionDialog({
           <DialogDescription>
             {error
               ? 'La venta quedó guardada. Elegí cómo imprimir o copiar el ticket.'
-              : 'En la PC elegís tu impresora; en el celular, del menú Compartir elegís RawBT y se imprime.'}
+              : 'Elegí por dónde imprimir: estación, PC o el menú Compartir del celular.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -61,6 +72,20 @@ export default function ResultadoImpresionDialog({
               <Copy />
               Copiar
             </Button>
+            {estacionActiva && onImprimirEstacion && (
+              <Button
+                type="button"
+                disabled={!puedeImprimir || reimprimiendo}
+                onClick={onImprimirEstacion}
+              >
+                {reimprimiendo ? (
+                  <RotateCw className="animate-spin" />
+                ) : (
+                  <Wifi />
+                )}
+                Imprimir estación
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"
@@ -72,15 +97,16 @@ export default function ResultadoImpresionDialog({
               ) : (
                 <Smartphone />
               )}
-              Imprimir celular
+              Celular
             </Button>
             <Button
               type="button"
+              variant="outline"
               disabled={!puedeImprimir || reimprimiendo}
               onClick={onImprimirPC}
             >
               <Printer />
-              Imprimir PC
+              PC
             </Button>
           </div>
         </DialogFooter>

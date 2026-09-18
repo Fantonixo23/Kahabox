@@ -144,6 +144,13 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['logo.png'],
+      workbox: {
+        // El APK de la app Android vive en public/ y se descarga directo. No debe
+        // entrar al precache ni caer en el fallback del service worker (si no,
+        // una navegación a /kahabox-caja.apk devolvería index.html).
+        globIgnores: ['**/*.apk'],
+        navigateFallbackDenylist: [/\.apk$/],
+      },
       manifest: {
         name: 'Kahabox',
         short_name: 'Kahabox',

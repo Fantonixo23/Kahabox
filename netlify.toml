@@ -8,6 +8,15 @@
   command = "npm run build"
   publish = "web/dist"
 
+# APK de la app Android: vive en el último GitHub Release y se expone en una URL
+# fija del sitio. Va ANTES del fallback SPA para que no lo capture index.html.
+# Se genera con el workflow .github/workflows/android.yml.
+[[redirects]]
+  from = "/kahabox-caja.apk"
+  to = "https://github.com/Fantonixo23/Kahabox/releases/latest/download/kahabox-caja.apk"
+  status = 302
+  force = true
+
 # Fallback SPA: todas las rutas del cliente (login, /app/*, /escaneo y los futuros
 # links de aprobación) sirven index.html con status 200.
 [[redirects]]

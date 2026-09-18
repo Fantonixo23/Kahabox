@@ -11,7 +11,17 @@ export type CertificadoSifen = {
 
 export type AnchoTicketPc = 88 | 58
 
+export type MetodoImpresion = 'estacion' | 'navegador'
+
 export type CajaNumero = 1 | 2 | 3
+
+export type EstacionImpresion = {
+  activa: boolean
+  dispositivoId: string
+  impresoraNombre: string
+  impresoraDireccion: string
+  sucursalId: string | null
+}
 
 export type ConfigApp = {
   nombreNegocio: string
@@ -23,6 +33,8 @@ export type ConfigApp = {
   bancardPuerto: string
   anchoTicketPc: AnchoTicketPc
   cajaNumero: CajaNumero
+  metodoImpresion: MetodoImpresion
+  estacionImpresion: EstacionImpresion
   modulosOcultos: string[]
   monedasActivas: Moneda[]
   monedaPrincipal: Moneda
@@ -49,6 +61,24 @@ export const MODULOS: Modulo[] = [
 const CLAVE = 'kahabox:config'
 const CLAVE_MODULOS_OCULTOS = 'kahabox:modulos-ocultos'
 
+function nuevoDispositivoId(): string {
+  try {
+    return crypto.randomUUID()
+  } catch {
+    return `est-${Date.now().toString(36)}`
+  }
+}
+
+function estacionInicial(): EstacionImpresion {
+  return {
+    activa: false,
+    dispositivoId: nuevoDispositivoId(),
+    impresoraNombre: '',
+    impresoraDireccion: '',
+    sucursalId: null,
+  }
+}
+
 function configInicial(): ConfigApp {
   const guardada = leerConfigGuardada()
   return {
@@ -61,10 +91,17 @@ function configInicial(): ConfigApp {
     bancardPuerto: '9000',
     anchoTicketPc: 88,
     cajaNumero: 1,
+    metodoImpresion: 'navegador',
     modulosOcultos: leerModulosOcultos(),
     monedasActivas: MONEDAS_DEFAULT,
     monedaPrincipal: 'PYG',
     ...guardada,
+    estacionImpresion: {
+      ...estacionInicial(),
+      ...(guardada.estacionImpresion ?? {}),
+      dispositivoId:
+        guardada.estacionImpresion?.dispositivoId || nuevoDispositivoId(),
+    },
   }
 }
 
@@ -120,6 +157,8 @@ function guardar() {
         bancardPuerto: config.bancardPuerto,
         anchoTicketPc: config.anchoTicketPc,
         cajaNumero: config.cajaNumero,
+        metodoImpresion: config.metodoImpresion,
+        estacionImpresion: config.estacionImpresion,
         monedasActivas: config.monedasActivas,
         monedaPrincipal: config.monedaPrincipal,
       }),
@@ -144,6 +183,14 @@ export function actualizarConfig(patch: Partial<ConfigApp>) {
   }
   guardar()
   listeners.forEach((l) => l())
+}
+
+export function actualizarEstacionImpresion(
+  patch: Partial<EstacionImpresion>,
+) {
+  actualizarConfig({
+    estacionImpresion: { ...config.estacionImpresion, ...patch },
+  })
 }
 
 export function nombreNegocio(): string {

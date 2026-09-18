@@ -44,6 +44,7 @@ import type { Database } from '@/lib/database'
 import { formatFecha, formatMoney, type Moneda } from '@/lib/format'
 import {
   copiarTicket,
+  imprimirPorEstacion,
   imprimirTicket,
   imprimirTicketPC,
   type ResultadoImpresion,
@@ -283,6 +284,17 @@ export default function VentasPage() {
     }
   }
 
+  async function imprimirActualEstacion() {
+    const ticket = ticketActual.current
+    if (!ticket) return
+    setReimprimiendo(true)
+    try {
+      setResultado(await imprimirPorEstacion(ticket, config.anchoTicketPc))
+    } finally {
+      setReimprimiendo(false)
+    }
+  }
+
   async function copiarActual() {
     const ticket = ticketActual.current
     if (!ticket) return
@@ -487,6 +499,8 @@ export default function VentasPage() {
         resultado={resultado}
         puedeImprimir
         reimprimiendo={reimprimiendo}
+        estacionActiva={config.metodoImpresion === 'estacion' && isSupabaseConfigured}
+        onImprimirEstacion={() => void imprimirActualEstacion()}
         onImprimirPC={() => void imprimirActualPC()}
         onImprimir={() => void imprimirActual()}
         onCopiar={() => void copiarActual()}

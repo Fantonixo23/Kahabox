@@ -30,5 +30,5 @@ Thumbs.db
 # Sentry
 .env.sentry-build-plugin
 
-# App Android (APK) — se genera con `npx cap add android`
-web/android/
+# App Android (APK) — se versiona: tiene el plugin nativo KahaboxPrinter.
+# Sus artefactos de build se ignoran en web/android/.gitignore
