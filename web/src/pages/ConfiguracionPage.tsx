@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import {
   Coins,
   CreditCard,
+  Download,
   EyeOff,
   FileKey2,
   Info,
@@ -10,6 +11,7 @@ import {
   MonitorSmartphone,
   Moon,
   Printer,
+  RefreshCw,
   ShieldCheck,
   Store as StoreIcon,
   Sun,
@@ -27,6 +29,7 @@ import {
 import ImpresoraDialog from '@/components/ImpresoraDialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { esNativo } from '@/lib/impresion/nativo'
 import {
   Select,
   SelectContent,
@@ -35,6 +38,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from 'cn'
+import {
+  actualizarApp,
+  buscarActualizacion,
+  fechaLegible,
+  versionInstalada,
+  type InfoActualizacion,
+} from '@/lib/actualizacion'
 import { probarConexionPos } from '@/lib/bancard'
 import { MONEDAS, type Moneda } from '@/lib/format'
 import {
@@ -59,6 +69,42 @@ export default function ConfiguracionPage() {
   >(null)
   const [mensajePos, setMensajePos] = useState('')
   const [impresoraAbierta, setImpresoraAbierta] = useState(false)
+  const [versionActual, setVersionActual] = useState<string | null>(null)
+  const [actualizacion, setActualizacion] = useState<InfoActualizacion | null>(
+    null,
+  )
+  const [estadoActualizacion, setEstadoActualizacion] = useState<
+    'inicial' | 'buscando' | 'ok' | 'al-dia' | 'error'
+  >('inicial')
+  const [mensajeActualizacion, setMensajeActualizacion] = useState('')
+
+  useEffect(() => {
+    void versionInstalada().then(setVersionActual)
+  }, [])
+
+  async function buscarActualizacionApp() {
+    setEstadoActualizacion('buscando')
+    setActualizacion(null)
+    setMensajeActualizacion('')
+    try {
+      const info = await buscarActualizacion()
+      setActualizacion(info)
+      setEstadoActualizacion(info ? 'ok' : 'al-dia')
+    } catch {
+      setEstadoActualizacion('error')
+    }
+  }
+
+  async function instalarActualizacionApp() {
+    if (!actualizacion) return
+    setMensajeActualizacion('')
+    try {
+      await actualizarApp(actualizacion.url)
+      setMensajeActualizacion('Se abrió el instalador de Android. Confirmá la instalación.')
+    } catch {
+      setMensajeActualizacion('No se pudo descargar el APK. Revisá la conexión.')
+    }
+  }
 
   async function probarPos() {
     setProbandoPos(true)
@@ -563,6 +609,83 @@ export default function ConfiguracionPage() {
               <span className="font-mono">caja-{config.cajaNumero}</span>).
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="size-4" />
+            Actualización de la app
+          </CardTitle>
+          <CardDescription>
+            La app lleva la web adentro, así que cuando haya una versión nueva
+            la descargás y la instalás acá mismo, en 2 toques.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {!esNativo() ? (
+            <p className="text-sm text-muted-foreground">
+              Este ajuste es solo para la app de Android. Desde la web de la PC
+              las actualizaciones llegan solas.
+            </p>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <Label>Versión instalada</Label>
+                <p className="text-sm font-medium">
+                  {versionActual
+                    ? `Kahabox Caja v${versionActual}`
+                    : 'Consultando…'}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={estadoActualizacion === 'buscando'}
+                  onClick={() => void buscarActualizacionApp()}
+                >
+                  {estadoActualizacion === 'buscando' ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="size-4" />
+                  )}
+                  Buscar actualizaciones
+                </Button>
+                {estadoActualizacion === 'al-dia' && (
+                  <span className="text-xs font-medium text-emerald-600">
+                    Estás al día.
+                  </span>
+                )}
+                {estadoActualizacion === 'ok' && actualizacion && (
+                  <>
+                    <span className="text-xs font-medium text-amber-600">
+                      Hay v{actualizacion.versionName} disponible (
+                      {fechaLegible(actualizacion.fecha)}).
+                    </span>
+                    <Button
+                      type="button"
+                      onClick={() => void instalarActualizacionApp()}
+                    >
+                      <Download />
+                      Actualizar ahora
+                    </Button>
+                  </>
+                )}
+                {estadoActualizacion === 'error' && (
+                  <span className="text-xs font-medium text-red-600">
+                    No se pudo consultar. Revisá la conexión.
+                  </span>
+                )}
+              </div>
+              {mensajeActualizacion && (
+                <p className="text-xs font-medium text-emerald-600">
+                  {mensajeActualizacion}
+                </p>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
 

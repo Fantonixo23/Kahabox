@@ -49,6 +49,9 @@ jobs:
         working-directory: web
 
       - name: Compilar APK
+        env:
+          APK_VERSION_CODE: ${{ github.run_number }}
+          APK_VERSION_NAME: 1.${{ github.run_number }}
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
@@ -57,6 +60,10 @@ jobs:
       - name: Renombrar APK
         run: cp app/build/outputs/apk/debug/app-debug.apk ../kahabox-caja.apk
         working-directory: web/android
+
+      - name: Metadatos de versión
+        run: |
+          echo "{\"versionCode\": ${{ github.run_number }}, \"versionName\": \"1.${{ github.run_number }}\", \"fecha\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"url\": \"https://kahabox.netlify.app/kahabox-caja.apk\"}" > web/kahabox-caja.json
 
       - name: Subir artefacto
         uses: actions/upload-artifact@v4
@@ -70,7 +77,9 @@ jobs:
           tag_name: apk-latest
           name: Kahabox Caja (APK)
           body: |
-            APK compilado desde ${{ github.sha }}.
+            APK compilado desde ${{ github.sha }} (versión 1.${{ github.run_number }}).
             Descarga: https://kahabox.netlify.app/kahabox-caja.apk
-          files: web/kahabox-caja.apk
+          files: |
+            web/kahabox-caja.apk
+            web/kahabox-caja.json
           make_latest: true

@@ -28,6 +28,8 @@ export interface KahaboxPrinterPlugin {
   estado(): Promise<{ connected: boolean; address: string | null }>
   startService(options: { titulo: string; texto: string }): Promise<void>
   stopService(): Promise<void>
+  version(): Promise<{ build: number; version: string }>
+  updateApk(options: { url: string }): Promise<void>
 }
 
 export const KahaboxPrinter = registerPlugin<KahaboxPrinterPlugin>(
@@ -63,4 +65,13 @@ export async function iniciarServicioImpresion(
 export async function detenerServicioImpresion(): Promise<void> {
   if (!impresoraNativaDisponible()) return
   await KahaboxPrinter.stopService()
+}
+
+export async function versionApp(): Promise<{ build: number; version: string }> {
+  if (!esNativo()) return { build: 0, version: '' }
+  return await KahaboxPrinter.version()
+}
+
+export async function instalarActualizacion(url: string): Promise<void> {
+  await KahaboxPrinter.updateApk({ url })
 }

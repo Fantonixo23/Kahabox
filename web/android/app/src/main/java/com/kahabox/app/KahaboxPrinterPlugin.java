@@ -194,6 +194,75 @@ public class KahaboxPrinterPlugin extends Plugin {
         call.resolve();
     }
 
+    @PluginMethod
+    public void version(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("build", BuildConfig.VERSION_CODE);
+        ret.put("version", BuildConfig.VERSION_NAME);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void updateApk(PluginCall call) {
+        String url = call.getString("url");
+        if (url == null || url.isEmpty()) {
+            call.reject("Falta la URL del APK.");
+            return;
+        }
+        new Thread(() -> {
+            try {
+                java.net.HttpURLConnection con = (java.net.HttpURLConnection)
+                        new java.net.URL(url).openConnection();
+                con.setInstanceFollowRedirects(true);
+                con.setConnectTimeout(15000);
+                con.setReadTimeout(60000);
+                con.setRequestProperty("User-Agent", "Kahabox Caja");
+                int estado = con.getResponseCode();
+                if (estado < 200 || estado >= 300) {
+                    call.reject("El servidor respondió " + estado + ".");
+                    return;
+                }
+                java.io.File dir = getContext().getExternalCacheDir();
+                if (dir == null) dir = getContext().getCacheDir();
+                java.io.File apk = new java.io.File(dir, "kahabox-caja.apk");
+                try (java.io.InputStream in = con.getInputStream();
+                        java.io.FileOutputStream out = new java.io.FileOutputStream(apk)) {
+                    byte[] buf = new byte[8192];
+                    int leidos;
+                    while ((leidos = in.read(buf)) != -1) {
+                        out.write(buf, 0, leidos);
+                    }
+                }
+                con.disconnect();
+                if (!apk.exists() || apk.length() == 0) {
+                    call.reject("El APK descargado está vacío.");
+                    return;
+                }
+                com.getcapacitor.Bridge bridge = getBridge();
+                if (bridge != null) {
+                    bridge.executeOnMainThread(() -> {
+                        try {
+                        android.net.Uri uri = androidx.core.content.FileProvider.getUriForFile(
+                                getContext(),
+                                getContext().getPackageName() + ".fileprovider",
+                                apk);
+                        Intent instalar = new Intent(Intent.ACTION_VIEW);
+                        instalar.setDataAndType(uri, "application/vnd.android.package-archive");
+                        instalar.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        instalar.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        getContext().startActivity(instalar);
+                        call.resolve();
+                    } catch (Exception e) {
+                        call.reject("No se pudo abrir el instalador: " + e.getMessage());
+                    }
+                });
+                }
+            } catch (Exception e) {
+                call.reject("No se pudo descargar el APK: " + e.getMessage());
+            }
+        }, "kahabox-actualizar").start();
+    }
+
     private void cerrar() {
         address = null;
         if (socket != null) {
