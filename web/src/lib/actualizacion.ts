@@ -39,13 +39,31 @@ export async function buscarActualizacion(): Promise<InfoActualizacion | null> {
     url: URL_METADATA,
     headers: { Accept: 'application/json' },
   })
-  const data = res.data as Partial<InfoActualizacion>
+  const data = parseMetadata(res.data)
   if (!data || typeof data.versionCode !== 'number') {
     throw new Error('Metadatos de versión inválidos.')
   }
   const info = data as InfoActualizacion
   const v = await versionApp()
   return info.versionCode > v.build ? info : null
+}
+
+/**
+ * GitHub sirve los assets del Release con content-type `application/octet-stream`,
+ * así que CapacitorHttp puede devolver el JSON como string en vez de objeto.
+ */
+function parseMetadata(data: unknown): Partial<InfoActualizacion> | null {
+  if (data && typeof data === 'object') {
+    return data as Partial<InfoActualizacion>
+  }
+  if (typeof data === 'string' && data.trim()) {
+    try {
+      return JSON.parse(data) as Partial<InfoActualizacion>
+    } catch {
+      return null
+    }
+  }
+  return null
 }
 
 /** Descarga e instala el APK nuevo (abre el instalador de Android). */
