@@ -11,6 +11,7 @@ import AprobacionPage from '@/pages/AprobacionPage'
 import ConfiguracionPage from '@/pages/ConfiguracionPage'
 import EquipoPage from '@/pages/EquipoPage'
 import EscaneadorPage from '@/pages/EscaneadorPage'
+import InstalarPage from '@/pages/InstalarPage'
 import LoginPage from '@/pages/LoginPage'
 import PagosProveedoresPage from '@/pages/PagosProveedoresPage'
 import ProveedoresPage from '@/pages/ProveedoresPage'
@@ -76,6 +77,7 @@ export default function App() {
         <Route path="equipo" element={<EquipoPage />} />
         <Route path="configuracion" element={<ConfiguracionPage />} />
         <Route path="reportes" element={<ReportesPage />} />
+        <Route path="instalar" element={<InstalarPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/app" replace />} />
     </Routes>

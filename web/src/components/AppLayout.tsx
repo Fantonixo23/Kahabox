@@ -9,6 +9,7 @@ import {
   Package,
   Receipt,
   Settings,
+  Smartphone,
   Truck,
   Users,
 } from 'lucide-react'
@@ -112,6 +113,20 @@ export default function AppLayout() {
             </NavLink>
           ))}
         </nav>
+        <div className="border-t p-2">
+          <NavLink
+            to="/app/instalar"
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                isActive && 'bg-muted font-medium text-foreground',
+              )
+            }
+          >
+            <Smartphone className="size-4" />
+            Instalar app
+          </NavLink>
+        </div>
         <div className="border-t p-3">
           <div className="mb-2 flex items-center gap-2 px-1">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-semibold uppercase">
@@ -181,6 +196,18 @@ export default function AppLayout() {
                 {item.corto}
               </NavLink>
             ))}
+            <NavLink
+              to="/app/instalar"
+              className={({ isActive }) =>
+                cn(
+                  'flex min-w-14 flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[10px] text-muted-foreground transition-colors hover:bg-muted',
+                  isActive && 'font-semibold text-foreground',
+                )
+              }
+            >
+              <Smartphone className="size-5" />
+              Instalar
+            </NavLink>
           </div>
         </nav>
       </div>

@@ -1,0 +1,109 @@
+import { Download, Printer, QrCode as QrIcon, Smartphone } from 'lucide-react'
+
+import QrCode from '@/components/QrCode'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+
+const APK_CANONICA = 'https://kahabox.netlify.app/kahabox-caja.apk'
+
+function urlApk(): string {
+  if (typeof window === 'undefined') return APK_CANONICA
+  const { origin, hostname, protocol } = window.location
+  if (/^https?:$/.test(protocol) && hostname !== 'localhost') {
+    return `${origin}/kahabox-caja.apk`
+  }
+  return APK_CANONICA
+}
+
+const PASOS = [
+  'Escaneá el código QR con la cámara del celular o tablet Android (o abrí el enlace).',
+  'Descargá el archivo kahabox-caja.apk.',
+  'Si Android lo pide, permití "Instalar apps de origen desconocido" para Chrome.',
+  'Abrí Kahabox Caja, iniciá sesión con tu usuario de siempre.',
+  'En Configuración → Impresora, elegí la térmica Bluetooth y activá "Usar este dispositivo como estación".',
+]
+
+export default function InstalarPage() {
+  const apk = urlApk()
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-6">
+      <div>
+        <h1 className="text-xl font-semibold">
+          Instalá Kahabox en tu dispositivo móvil
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Instalá la app para imprimir los tickets por Bluetooth y usar el
+          celular o tablet como caja y estación de impresión.
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Smartphone className="size-4" />
+            Descargar la app (Android)
+          </CardTitle>
+          <CardDescription>
+            Escaneá el QR desde el celular o tablet, o descargá el APK en este
+            dispositivo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
+          <div className="flex flex-col items-center gap-2">
+            <QrCode value={apk} size={180} />
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <QrIcon className="size-3.5" />
+              Apuntá la cámara acá
+            </span>
+          </div>
+
+          <div className="flex-1 space-y-3">
+            <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
+              {PASOS.map((paso) => (
+                <li key={paso}>{paso}</li>
+              ))}
+            </ol>
+            <Button asChild className="h-11 w-full sm:w-auto">
+              <a href={apk} download>
+                <Download />
+                Descargar APK
+              </a>
+            </Button>
+            <p className="truncate text-xs text-muted-foreground">{apk}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Printer className="size-4" />
+            ¿Para qué sirve la app?
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm text-muted-foreground">
+          <p>
+            · Imprime los tickets en una impresora térmica Bluetooth (ESC/POS),
+            sin instalar nada en la PC.
+          </p>
+          <p>
+            · Con la pantalla apagada sigue escuchando los tickets que manda la
+            caja; conviene dejarla enchufada.
+          </p>
+          <p>
+            · Si tu dispositivo no es Android, podés agregar Kahabox a la
+            pantalla de inicio desde el menú del navegador (Compartir → Agregar
+            a inicio) y usarlo como caja.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
