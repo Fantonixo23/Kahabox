@@ -5,7 +5,13 @@
  * `armarEscPos` devuelve los bytes ESC/POS reales, que son los que se mandan al
  * puerto de la impresora.
  *
- * Ancho útil por fuente A: 32 columnas en 58mm y 48 en 80mm.
+ * Ancho útil por fuente A: 32 columnas en 58mm y 48 en 80mm. Elegí siempre el
+ * ancho que coincida con la impresora física: si se arma a 48 columnas pero la
+ * impresora es de 58mm, cada línea de 48 caracteres rebasa y se corta.
+ *
+ * Cada ítem se imprime en dos renglones: el nombre arriba y abajo la cantidad
+ * con su precio (izquierda) y el total del ítem (derecha). Así el total se ve
+ * siempre y ninguna línea excede las columnas de la impresora.
  */
 
 import * as escpos from './escpos'
@@ -83,21 +89,13 @@ export function formatearItem(
   const cabecera = item.detalle
     ? `${item.nombre} · ${item.detalle}`
     : item.nombre
-  const nombre = cortarLineas(cabecera, Math.max(1, ancho - 10))
-  const cantidad = `${item.cantidad} x ${item.precio}`
-
-  const lineas = nombre.map((l) => columnaIzq(l, ancho))
-
-  const ultima = lineas[lineas.length - 1].trimEnd()
-  const cabida = ancho - ultima.length
-  if (cabida >= cantidad.length + 1) {
-    lineas[lineas.length - 1] = `${ultima} ${cantidad}`
-    return lineas
-  }
+  const lineas = cortarLineas(cabecera, ancho).map((l) => columnaIzq(l, ancho))
 
   const anchoTotal = Math.min(14, Math.max(1, ancho - 1))
+  const cantidad = `${item.cantidad} x ${item.precio}`
   lineas.push(
-    columnaIzq(cantidad, ancho - anchoTotal) + columnaDer(item.total, anchoTotal),
+    columnaIzq(cantidad, Math.max(1, ancho - anchoTotal)) +
+      columnaDer(item.total, anchoTotal),
   )
   return lineas
 }
@@ -180,7 +178,10 @@ export function armarOperaciones(
     texto('* CRÉDITO / FIADO *', { alineacion: 'centro', negrita: true })
   }
   texto('')
-  texto(filaEtiquetaValor('TOTAL', t.total, 12, ancho), {
+  // El TOTAL usa fuente doble (ancho 2): la línea debe ocupar la mitad de las
+  // columnas para que duplicada entre justa y no rebase la impresora.
+  const maxDoble = Math.floor(ancho / 2)
+  texto(centrar(`TOTAL ${t.total}`.slice(0, maxDoble), maxDoble), {
     negrita: true,
     ancho: 2,
     alto: 2,

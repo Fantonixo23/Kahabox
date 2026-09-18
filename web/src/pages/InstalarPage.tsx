@@ -25,7 +25,7 @@ const PASOS = [
   'Escaneá el código QR con la cámara del celular o tablet Android (o abrí el enlace).',
   'Descargá el archivo kahabox-caja.apk.',
   'Si Android lo pide, permití "Instalar apps de origen desconocido" para Chrome.',
-  'Abrí Kahabox Caja, iniciá sesión con tu usuario de siempre.',
+  'Abrí Kahabox, iniciá sesión con tu usuario de siempre.',
   'En Configuración → Impresora, elegí la térmica Bluetooth y activá "Usar este dispositivo como estación".',
 ]
 

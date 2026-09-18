@@ -44,12 +44,14 @@ import type { Database } from '@/lib/database'
 import { formatFecha, formatMoney, type Moneda } from '@/lib/format'
 import {
   copiarTicket,
+  imprimirBluetooth,
   imprimirPorEstacion,
   imprimirTicket,
   imprimirTicketPC,
   type ResultadoImpresion,
 } from '@/lib/impresion/imprimir'
 import { armarTextoPlano, type TicketVenta } from '@/lib/impresion/ticket'
+import { impresoraNativaDisponible } from '@/lib/impresion/nativo'
 import {
   getMockStock,
   getMockVentasDetalle,
@@ -295,6 +297,17 @@ export default function VentasPage() {
     }
   }
 
+  async function imprimirActualBluetooth() {
+    const ticket = ticketActual.current
+    if (!ticket) return
+    setReimprimiendo(true)
+    try {
+      setResultado(await imprimirBluetooth(ticket, config.anchoTicketPc))
+    } finally {
+      setReimprimiendo(false)
+    }
+  }
+
   async function copiarActual() {
     const ticket = ticketActual.current
     if (!ticket) return
@@ -500,7 +513,12 @@ export default function VentasPage() {
         puedeImprimir
         reimprimiendo={reimprimiendo}
         estacionActiva={config.metodoImpresion === 'estacion' && isSupabaseConfigured}
+        bluetoothActivo={
+          impresoraNativaDisponible() &&
+          Boolean(config.estacionImpresion.impresoraDireccion)
+        }
         onImprimirEstacion={() => void imprimirActualEstacion()}
+        onImprimirBluetooth={() => void imprimirActualBluetooth()}
         onImprimirPC={() => void imprimirActualPC()}
         onImprimir={() => void imprimirActual()}
         onCopiar={() => void copiarActual()}

@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 
-import { CheckCircle2, Printer, RotateCw, Smartphone } from 'lucide-react'
+import {
+  Bluetooth,
+  CheckCircle2,
+  Monitor,
+  Printer,
+  RotateCw,
+  Smartphone,
+} from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -77,6 +84,53 @@ export default function ImpresoraDialog({
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null)
 
   const estacion = config.estacionImpresion
+
+  const selectorMetodo = (
+    <div className="space-y-2">
+      <Label>Método de impresión de esta caja</Label>
+      <div className="grid grid-cols-2 gap-2">
+        {nativo && (
+          <Button
+            type="button"
+            variant={
+              config.metodoImpresion === 'bluetooth' ? 'default' : 'outline'
+            }
+            onClick={() => actualizarConfig({ metodoImpresion: 'bluetooth' })}
+          >
+            <Bluetooth />
+            Bluetooth
+          </Button>
+        )}
+        <Button
+          type="button"
+          variant={
+            config.metodoImpresion === 'estacion' ? 'default' : 'outline'
+          }
+          onClick={() => actualizarConfig({ metodoImpresion: 'estacion' })}
+        >
+          <Smartphone />
+          Estación
+        </Button>
+        <Button
+          type="button"
+          variant={
+            config.metodoImpresion === 'navegador' ? 'default' : 'outline'
+          }
+          onClick={() => actualizarConfig({ metodoImpresion: 'navegador' })}
+        >
+          <Monitor />
+          PC / navegador
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {config.metodoImpresion === 'bluetooth'
+          ? 'Al cobrar, este celular imprime el ticket directo por Bluetooth.'
+          : config.metodoImpresion === 'estacion'
+            ? 'Al cobrar, se encola el ticket y la estación elegida lo imprime.'
+            : 'Al cobrar se muestra el ticket para imprimir desde la PC, la estación o compartirlo.'}
+      </p>
+    </div>
+  )
 
   useEffect(() => {
     if (!open) return
@@ -194,6 +248,8 @@ export default function ImpresoraDialog({
                 </span>
               </span>
             </label>
+
+            {selectorMetodo}
           </div>
         ) : (
           <div className="space-y-4">
@@ -208,35 +264,7 @@ export default function ImpresoraDialog({
               </li>
               <li>3. Acá elegí imprimir en la estación.</li>
             </ol>
-            <div className="space-y-2">
-              <Label>Método de impresión de esta caja</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant={
-                    config.metodoImpresion === 'estacion' ? 'default' : 'outline'
-                  }
-                  onClick={() =>
-                    actualizarConfig({ metodoImpresion: 'estacion' })
-                  }
-                >
-                  <Smartphone />
-                  Estación
-                </Button>
-                <Button
-                  type="button"
-                  variant={
-                    config.metodoImpresion === 'navegador' ? 'default' : 'outline'
-                  }
-                  onClick={() =>
-                    actualizarConfig({ metodoImpresion: 'navegador' })
-                  }
-                >
-                  <Printer />
-                  PC / navegador
-                </Button>
-              </div>
-            </div>
+            {selectorMetodo}
           </div>
         )}
 

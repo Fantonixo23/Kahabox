@@ -2,12 +2,18 @@ import { Capacitor } from '@capacitor/core'
 import { Share } from '@capacitor/share'
 
 import {
+  armarEscPosBase64,
   armarHtmlTicket,
   armarTextoPlano,
   columnasPorAnchoMm,
   type TicketVenta,
 } from './ticket'
 import { enviarTrabajoAEstacion } from './estacion'
+import {
+  impresoraNativaDisponible,
+  KahaboxPrinter,
+} from './nativo'
+import { leerConfig } from '@/lib/config'
 
 export type ResultadoImpresion = {
   texto: string
@@ -78,6 +84,59 @@ export async function imprimirPorEstacion(
     nativo: true,
     compartido: false,
     ...(res.ok ? {} : { error: res.error }),
+  }
+}
+
+/**
+ * Imprime directo por Bluetooth clásico desde la app nativa (celular/tablet
+ * Android). Manda los bytes ESC/POS a la impresora configurada en
+ * Configuración → Impresora, igual que lo haría la PC con su diálogo.
+ */
+export async function imprimirBluetooth(
+  ticket: TicketVenta,
+  anchoMm: number,
+): Promise<ResultadoImpresion> {
+  const ancho = columnasPorAnchoMm(anchoMm)
+  const texto = armarTextoPlano(ticket, ancho)
+
+  if (!impresoraNativaDisponible()) {
+    return {
+      texto,
+      nativo: false,
+      compartido: false,
+      error:
+        'La impresión Bluetooth se hace desde la app Kahabox instalada en el celular o tablet Android.',
+    }
+  }
+
+  const direccion = leerConfig().estacionImpresion.impresoraDireccion
+  if (!direccion) {
+    return {
+      texto,
+      nativo: true,
+      compartido: false,
+      error:
+        'Configurá la impresora Bluetooth en Configuración → Impresora y volvé a intentar.',
+    }
+  }
+
+  try {
+    const { connected, address } = await KahaboxPrinter.estado()
+    if (!connected || address !== direccion) {
+      await KahaboxPrinter.connect({ address: direccion })
+    }
+    await KahaboxPrinter.print({ data: armarEscPosBase64(ticket, ancho) })
+    return { texto, nativo: true, compartido: false }
+  } catch (e) {
+    return {
+      texto,
+      nativo: true,
+      compartido: false,
+      error:
+        e instanceof Error
+          ? e.message
+          : 'No se pudo imprimir por Bluetooth.',
+    }
   }
 }
 

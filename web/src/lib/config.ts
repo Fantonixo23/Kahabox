@@ -11,7 +11,7 @@ export type CertificadoSifen = {
 
 export type AnchoTicketPc = 88 | 58
 
-export type MetodoImpresion = 'estacion' | 'navegador'
+export type MetodoImpresion = 'estacion' | 'navegador' | 'bluetooth'
 
 export type CajaNumero = 1 | 2 | 3
 

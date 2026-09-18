@@ -85,12 +85,14 @@ import {
 } from '@/lib/ejecutar'
 import {
   copiarTicket,
+  imprimirBluetooth,
   imprimirPorEstacion,
   imprimirTicket,
   imprimirTicketPC,
   type ResultadoImpresion,
 } from '@/lib/impresion/imprimir'
 import { armarTextoPlano, type TicketVenta } from '@/lib/impresion/ticket'
+import { impresoraNativaDisponible } from '@/lib/impresion/nativo'
 import {
   crearProductoMock,
   getMockStock,
@@ -757,6 +759,17 @@ export default function CajaPage() {
     }
   }
 
+  async function imprimirUltimoBluetooth() {
+    if (!ultimoTicket) return
+    setReimprimiendo(true)
+    try {
+      const res = await imprimirBluetooth(ultimoTicket, config.anchoTicketPc)
+      setResultadoImpresion(res)
+    } finally {
+      setReimprimiendo(false)
+    }
+  }
+
   async function copiarUltimo() {
     if (!ultimoTicket) return
     const ok = await copiarTicket(armarTextoPlano(ultimoTicket))
@@ -912,6 +925,10 @@ export default function CajaPage() {
           setResultadoImpresion(
             await imprimirPorEstacion(ticket, config.anchoTicketPc),
           )
+        } else if (config.metodoImpresion === 'bluetooth') {
+          setResultadoImpresion(
+            await imprimirBluetooth(ticket, config.anchoTicketPc),
+          )
         } else {
           setResultadoImpresion({
             texto: armarTextoPlano(ticket),
@@ -929,8 +946,8 @@ export default function CajaPage() {
 
   return (
     <>
-      <div className="grid gap-4 pb-36 md:pb-28 lg:grid-cols-[minmax(0,1fr)_360px] lg:pb-0">
-        <section className="space-y-3">
+      <div className="grid min-w-0 gap-4 pb-36 md:pb-28 lg:grid-cols-[minmax(0,1fr)_360px] lg:pb-0">
+        <section className="min-w-0 space-y-3">
           <div>
             <h1 className="text-lg font-semibold">Caja</h1>
             <p className="text-sm text-muted-foreground">
@@ -1091,7 +1108,7 @@ export default function CajaPage() {
           )}
         </section>
 
-        <aside className="space-y-4">
+        <aside className="min-w-0 space-y-4">
           <div className="rounded-xl border bg-card p-4">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold">Cobro</h2>
@@ -1518,7 +1535,12 @@ export default function CajaPage() {
         puedeImprimir={Boolean(ultimoTicket)}
         reimprimiendo={reimprimiendo}
         estacionActiva={config.metodoImpresion === 'estacion' && isSupabaseConfigured}
+        bluetoothActivo={
+          impresoraNativaDisponible() &&
+          Boolean(config.estacionImpresion.impresoraDireccion)
+        }
         onImprimirEstacion={() => void imprimirUltimoEstacion()}
+        onImprimirBluetooth={() => void imprimirUltimoBluetooth()}
         onImprimirPC={() => void imprimirUltimoPC()}
         onImprimir={() => void imprimirUltimo()}
         onCopiar={() => void copiarUltimo()}

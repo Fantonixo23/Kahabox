@@ -183,6 +183,14 @@ public class KahaboxPrinterPlugin extends Plugin {
         Intent intent = new Intent(getContext(), PrinterService.class);
         intent.putExtra("titulo", titulo);
         intent.putExtra("texto", texto);
+        intent.putExtra("supabaseUrl", call.getString("supabaseUrl", ""));
+        intent.putExtra("supabaseKey", call.getString("supabaseKey", ""));
+        intent.putExtra("accessToken", call.getString("accessToken", ""));
+        intent.putExtra("refreshToken", call.getString("refreshToken", ""));
+        intent.putExtra("dispositivoId", call.getString("dispositivoId", ""));
+        intent.putExtra("sucursalId", call.getString("sucursalId", ""));
+        intent.putExtra(
+                "impresoraDireccion", call.getString("impresoraDireccion", ""));
         ContextCompat.startForegroundService(getContext(), intent);
         call.resolve();
     }
@@ -192,6 +200,16 @@ public class KahaboxPrinterPlugin extends Plugin {
         Intent intent = new Intent(getContext(), PrinterService.class);
         getContext().stopService(intent);
         call.resolve();
+    }
+
+    @PluginMethod
+    public void estadoServicio(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("corriendo", PrinterService.enServicio());
+        ret.put("conectada", PrinterService.btConectada());
+        ret.put("impresos", PrinterService.impresos());
+        ret.put("ultimoError", PrinterService.ultimoError());
+        call.resolve(ret);
     }
 
     @PluginMethod
@@ -216,7 +234,7 @@ public class KahaboxPrinterPlugin extends Plugin {
                 con.setInstanceFollowRedirects(true);
                 con.setConnectTimeout(15000);
                 con.setReadTimeout(60000);
-                con.setRequestProperty("User-Agent", "Kahabox Caja");
+                con.setRequestProperty("User-Agent", "Kahabox");
                 int estado = con.getResponseCode();
                 if (estado < 200 || estado >= 300) {
                     call.reject("El servidor respondió " + estado + ".");

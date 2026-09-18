@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 
 import { useAuth } from '@/components/auth/AuthContext'
+import { AvisoActualizacion } from '@/components/AvisoActualizacion'
 import SyncBar from '@/components/SyncBar'
 import { Button } from '@/components/ui/button'
 import { cn } from 'cn'
@@ -72,6 +73,7 @@ export default function AppLayout() {
 
   return (
     <div className="flex min-h-svh">
+      <AvisoActualizacion />
       <aside className="hidden w-56 shrink-0 flex-col border-r md:flex">
         <div className="flex h-14 items-center gap-2 border-b px-4">
           <Package className="size-5" />
@@ -176,7 +178,7 @@ export default function AppLayout() {
           </div>
         </header>
         <SyncBar />
-        <main className="flex-1 p-4 pb-24 md:p-6 md:pb-6">
+        <main className="min-w-0 flex-1 overflow-x-clip p-4 pb-24 md:p-6 md:pb-6">
           <Outlet />
         </main>
         <nav className="fixed inset-x-0 bottom-0 z-30 overflow-x-auto border-t bg-card md:hidden">

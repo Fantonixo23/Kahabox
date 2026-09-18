@@ -635,7 +635,7 @@ export default function ConfiguracionPage() {
                 <Label>Versión instalada</Label>
                 <p className="text-sm font-medium">
                   {versionActual
-                    ? `Kahabox Caja v${versionActual}`
+                    ? `Kahabox v${versionActual}`
                     : 'Consultando…'}
                 </p>
               </div>

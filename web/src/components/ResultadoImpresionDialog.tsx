@@ -23,7 +23,9 @@ export default function ResultadoImpresionDialog({
   puedeImprimir,
   reimprimiendo,
   estacionActiva,
+  bluetoothActivo,
   onImprimirEstacion,
+  onImprimirBluetooth,
   onImprimirPC,
   onImprimir,
   onCopiar,
@@ -33,7 +35,9 @@ export default function ResultadoImpresionDialog({
   puedeImprimir: boolean
   reimprimiendo: boolean
   estacionActiva?: boolean
+  bluetoothActivo?: boolean
   onImprimirEstacion?: () => void
+  onImprimirBluetooth?: () => void
   onImprimirPC: () => void
   onImprimir: () => void
   onCopiar: () => void
@@ -48,7 +52,7 @@ export default function ResultadoImpresionDialog({
           <DialogDescription>
             {error
               ? 'La venta quedó guardada. Elegí cómo imprimir o copiar el ticket.'
-              : 'Elegí por dónde imprimir: estación, PC o el menú Compartir del celular.'}
+              : 'Elegí por dónde imprimir: Bluetooth, estación, PC o el menú Compartir del celular.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -72,9 +76,24 @@ export default function ResultadoImpresionDialog({
               <Copy />
               Copiar
             </Button>
+            {bluetoothActivo && onImprimirBluetooth && (
+              <Button
+                type="button"
+                disabled={!puedeImprimir || reimprimiendo}
+                onClick={onImprimirBluetooth}
+              >
+                {reimprimiendo ? (
+                  <RotateCw className="animate-spin" />
+                ) : (
+                  <Printer />
+                )}
+                Imprimir
+              </Button>
+            )}
             {estacionActiva && onImprimirEstacion && (
               <Button
                 type="button"
+                variant="outline"
                 disabled={!puedeImprimir || reimprimiendo}
                 onClick={onImprimirEstacion}
               >
@@ -83,7 +102,7 @@ export default function ResultadoImpresionDialog({
                 ) : (
                   <Wifi />
                 )}
-                Imprimir estación
+                Estación
               </Button>
             )}
             <Button

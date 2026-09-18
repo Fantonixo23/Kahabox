@@ -44,7 +44,7 @@ export function AvisoActualizacion() {
         <DialogHeader>
           <DialogTitle>Nueva versión disponible</DialogTitle>
           <DialogDescription>
-            Hay una actualización de Kahabox Caja (v{info?.versionName}). Se
+            Hay una actualización de Kahabox (v{info?.versionName}). Se
             descarga e instala automáticamente, sin perder la configuración.
           </DialogDescription>
         </DialogHeader>

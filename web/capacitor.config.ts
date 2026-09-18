@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
   appId: 'com.kahabox.app',
-  appName: 'Kahabox Caja',
+  appName: 'Kahabox',
   webDir: 'dist',
   android: {
     allowMixedContent: true,

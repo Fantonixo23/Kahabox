@@ -20,14 +20,34 @@ export type DispositivoBluetooth = {
   type: TipoDispositivo
 }
 
+export type ParametrosServicio = {
+  titulo: string
+  texto: string
+  supabaseUrl: string
+  supabaseKey: string
+  accessToken: string
+  refreshToken: string
+  dispositivoId: string
+  sucursalId: string
+  impresoraDireccion: string
+}
+
+export type EstadoServicio = {
+  corriendo: boolean
+  conectada: boolean
+  impresos: number
+  ultimoError: string | null
+}
+
 export interface KahaboxPrinterPlugin {
   list(): Promise<{ devices: DispositivoBluetooth[] }>
   connect(options: { address: string }): Promise<void>
   print(options: { data: string }): Promise<void>
   disconnect(): Promise<void>
   estado(): Promise<{ connected: boolean; address: string | null }>
-  startService(options: { titulo: string; texto: string }): Promise<void>
+  startService(options: ParametrosServicio): Promise<void>
   stopService(): Promise<void>
+  estadoServicio(): Promise<EstadoServicio>
   version(): Promise<{ build: number; version: string }>
   updateApk(options: { url: string }): Promise<void>
 }
@@ -55,16 +75,20 @@ export async function imprimirEscPos(base64: string): Promise<void> {
 }
 
 export async function iniciarServicioImpresion(
-  titulo: string,
-  texto: string,
+  params: ParametrosServicio,
 ): Promise<void> {
   if (!impresoraNativaDisponible()) return
-  await KahaboxPrinter.startService({ titulo, texto })
+  await KahaboxPrinter.startService(params)
 }
 
 export async function detenerServicioImpresion(): Promise<void> {
   if (!impresoraNativaDisponible()) return
   await KahaboxPrinter.stopService()
+}
+
+export async function estadoServicioNativo(): Promise<EstadoServicio | null> {
+  if (!impresoraNativaDisponible()) return null
+  return await KahaboxPrinter.estadoServicio()
 }
 
 export async function versionApp(): Promise<{ build: number; version: string }> {
