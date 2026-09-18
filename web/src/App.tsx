@@ -8,6 +8,7 @@ import TenantGate from '@/components/TenantGate'
 import { useAuth } from '@/components/auth/AuthContext'
 import CajaPage from '@/pages/CajaPage'
 import AprobacionPage from '@/pages/AprobacionPage'
+import ClientesPage from '@/pages/ClientesPage'
 import ConfiguracionPage from '@/pages/ConfiguracionPage'
 import EquipoPage from '@/pages/EquipoPage'
 import EscaneadorPage from '@/pages/EscaneadorPage'
@@ -72,6 +73,7 @@ export default function App() {
         <Route path="caja" element={<CajaPage />} />
         <Route path="stock" element={<StockPage />} />
         <Route path="ventas" element={<VentasPage />} />
+        <Route path="clientes" element={<ClientesPage />} />
         <Route path="proveedores" element={<ProveedoresPage />} />
         <Route path="pagos-proveedores" element={<PagosProveedoresPage />} />
         <Route path="equipo" element={<EquipoPage />} />

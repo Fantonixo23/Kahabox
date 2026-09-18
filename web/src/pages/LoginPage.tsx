@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 
+import { Eye, EyeOff } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { AuthShell } from '@/components/auth/AuthShell'
@@ -16,6 +17,7 @@ export default function LoginPage() {
   const [modo, setModo] = useState<Modo>('entrar')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [verPassword, setVerPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -92,14 +94,29 @@ export default function LoginPage() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="login-password">Contraseña</Label>
-            <Input
-              id="login-password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="relative">
+              <Input
+                id="login-password"
+                type={verPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                className="pr-9"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <button
+                type="button"
+                aria-label={verPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                className="absolute top-1/2 right-1 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:text-foreground"
+                onClick={() => setVerPassword((v) => !v)}
+              >
+                {verPassword ? (
+                  <EyeOff className="size-4" />
+                ) : (
+                  <Eye className="size-4" />
+                )}
+              </button>
+            </div>
           </div>
 
           {!isSupabaseConfigured && (

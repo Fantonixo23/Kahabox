@@ -39,7 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { nombreNegocio, useConfig } from '@/lib/config'
+import { datosEmpresa, nombreNegocio, useConfig } from '@/lib/config'
 import type { Database } from '@/lib/database'
 import { formatFecha, formatMoney, type Moneda } from '@/lib/format'
 import {
@@ -108,8 +108,12 @@ function armarTicketDesdeVenta(v: VentaConItems): TicketVenta {
       total: formatMoney(v.total, 'PYG'),
     })
   }
+  const empresa = datosEmpresa()
   return {
     nombreLocal: nombreNegocio(),
+    ruc: empresa.ruc || undefined,
+    direccion: empresa.direccion || undefined,
+    telefono: empresa.telefono || undefined,
     fecha: formatFecha(v.created_at),
     numeroVenta: numeroVenta(v.id),
     items,

@@ -53,7 +53,6 @@ import { MONEDAS, formatMoney, type Moneda } from '@/lib/format'
 import {
   MODULOS,
   actualizarConfig,
-  nombreNegocio,
   useConfig,
   type AnchoTicketPc,
   type CajaNumero,
@@ -65,6 +64,9 @@ import {
 export default function ConfiguracionPage() {
   const config = useConfig()
   const [nombre, setNombre] = useState(config.nombreNegocio)
+  const [ruc, setRuc] = useState(config.ruc)
+  const [direccion, setDireccion] = useState(config.direccion)
+  const [telefono, setTelefono] = useState(config.telefono)
   const [mensaje, setMensaje] = useState<string | null>(null)
   const [probandoPos, setProbandoPos] = useState(false)
   const [resultadoPos, setResultadoPos] = useState<
@@ -131,9 +133,14 @@ export default function ConfiguracionPage() {
     }
   }
 
-  function guardarNombre() {
-    actualizarConfig({ nombreNegocio: nombre.trim() })
-    setMensaje('Nombre del negocio actualizado.')
+  function guardarEmpresa() {
+    actualizarConfig({
+      nombreNegocio: nombre.trim(),
+      ruc: ruc.trim(),
+      direccion: direccion.trim(),
+      telefono: telefono.trim(),
+    })
+    setMensaje('Datos de la empresa actualizados.')
     window.setTimeout(() => setMensaje(null), 2500)
   }
 
@@ -242,11 +249,11 @@ export default function ConfiguracionPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <StoreIcon className="size-4" />
-            Nombre del negocio
+            Datos de la empresa
           </CardTitle>
           <CardDescription>
-            Aparece en el encabezado del ticket. Hoy se imprime:{' '}
-            <span className="font-medium">{nombreNegocio()}</span>
+            Se imprimen en el encabezado del ticket: nombre, RUC, ubicación y
+            teléfono.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -259,9 +266,36 @@ export default function ConfiguracionPage() {
               placeholder="KAHABOX"
             />
           </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cfg-ruc">RUC</Label>
+            <Input
+              id="cfg-ruc"
+              value={ruc}
+              onChange={(e) => setRuc(e.target.value)}
+              placeholder="80012345-6"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cfg-direccion">Ubicación / Dirección</Label>
+            <Input
+              id="cfg-direccion"
+              value={direccion}
+              onChange={(e) => setDireccion(e.target.value)}
+              placeholder="Av. San Blas 1001, Ciudad del Este"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cfg-telefono">Teléfono</Label>
+            <Input
+              id="cfg-telefono"
+              value={telefono}
+              onChange={(e) => setTelefono(e.target.value)}
+              placeholder="(061) 500-123"
+            />
+          </div>
           <div className="flex items-center gap-2">
-            <Button type="button" onClick={guardarNombre}>
-              Guardar nombre
+            <Button type="button" onClick={guardarEmpresa}>
+              Guardar datos
             </Button>
             {mensaje && (
               <span className="text-xs font-medium text-emerald-600">

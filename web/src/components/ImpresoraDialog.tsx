@@ -45,6 +45,9 @@ function ticketPrueba(): TicketVenta {
   })
   return {
     nombreLocal: 'KAHABOX',
+    ruc: '80012345-6',
+    direccion: 'Av. San Blas 1001, Ciudad del Este',
+    telefono: '(061) 500-123',
     fecha,
     numeroVenta: 'PRUEBA-0001',
     items: [

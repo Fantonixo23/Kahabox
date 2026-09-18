@@ -39,6 +39,9 @@ export type EstacionImpresion = {
 
 export type ConfigApp = {
   nombreNegocio: string
+  ruc: string
+  direccion: string
+  telefono: string
   sifenActivo: boolean
   sifenRuc: string
   certificado: CertificadoSifen | null
@@ -65,6 +68,7 @@ export const MODULOS: Modulo[] = [
   { ruta: '/app/caja', label: 'Caja', corto: 'Caja' },
   { ruta: '/app/stock', label: 'Stock', corto: 'Stock' },
   { ruta: '/app/ventas', label: 'Ventas', corto: 'Ventas' },
+  { ruta: '/app/clientes', label: 'Clientes', corto: 'Client.' },
   { ruta: '/app/proveedores', label: 'Proveedores', corto: 'Prov.' },
   {
     ruta: '/app/pagos-proveedores',
@@ -101,6 +105,9 @@ function configInicial(): ConfigApp {
   const { estacionImpresion: estacionGuardada, ...resto } = guardada
   const config: ConfigApp = {
     nombreNegocio: '',
+    ruc: '',
+    direccion: '',
+    telefono: '',
     sifenActivo: false,
     sifenRuc: '',
     certificado: null,
@@ -177,6 +184,9 @@ function guardar() {
       CLAVE,
       JSON.stringify({
         nombreNegocio: config.nombreNegocio,
+        ruc: config.ruc,
+        direccion: config.direccion,
+        telefono: config.telefono,
         sifenActivo: config.sifenActivo,
         sifenRuc: config.sifenRuc,
         bancardActivo: config.bancardActivo,
@@ -228,6 +238,20 @@ export function actualizarEstacionImpresion(
 
 export function nombreNegocio(): string {
   return config.nombreNegocio.trim() || 'KAHABOX'
+}
+
+export type DatosEmpresa = {
+  ruc: string
+  direccion: string
+  telefono: string
+}
+
+export function datosEmpresa(): DatosEmpresa {
+  return {
+    ruc: config.ruc.trim(),
+    direccion: config.direccion.trim(),
+    telefono: config.telefono.trim(),
+  }
 }
 
 // Divisas que el usuario dejó habilitadas en Configuración. Si por algún

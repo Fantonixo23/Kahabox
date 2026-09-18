@@ -939,6 +939,48 @@ export type PagoProveedorConProveedor = PagoProveedor & {
   proveedor: Proveedor | null
 }
 
+export type Cliente = {
+  id: string
+  tenant_id: string
+  nombre: string
+  tipo: 'fisica' | 'juridica'
+  ruc: string | null
+  cedula: string | null
+  telefono: string | null
+  email: string | null
+  direccion: string | null
+  ciudad: string | null
+  notas: string | null
+  activo: boolean
+  created_at: string
+}
+
+export type Deuda = {
+  id: string
+  tenant_id: string
+  cliente_id: string
+  venta_id: string | null
+  fecha: string
+  vencimiento: string | null
+  monto: number
+  moneda: Moneda
+  created_by: string | null
+  created_at: string
+}
+
+export type Cobro = {
+  id: string
+  tenant_id: string
+  cliente_id: string
+  fecha: string
+  concepto: string | null
+  monto: number
+  moneda: Moneda
+  metodo: 'efectivo' | 'pos' | 'transferencia'
+  created_by: string | null
+  created_at: string
+}
+
 const proveedores: Proveedor[] = [
   {
     id: 'eeee0001-0000-0000-0000-000000000001',
@@ -1026,6 +1068,139 @@ const pagosProveedor: PagoProveedor[] = [
   },
 ]
 
+function enDias(dias: number): string {
+  return new Date(Date.now() + dias * 86400000).toISOString().slice(0, 10)
+}
+
+const clientes: Cliente[] = [
+  {
+    id: 'aaaa1001-0000-0000-0000-000000000001',
+    tenant_id: TENANT,
+    nombre: 'María González',
+    tipo: 'fisica',
+    ruc: '1234567-8',
+    cedula: '1234567',
+    telefono: '(0985) 555-010',
+    email: 'mariagz@example.com',
+    direccion: 'Microcentro, Av. San Blas 321',
+    ciudad: 'Ciudad del Este',
+    notas: 'Cliente frecuente. Límite de crédito 500.000 Gs.',
+    activo: true,
+    created_at: hace(1200),
+  },
+  {
+    id: 'aaaa1002-0000-0000-0000-000000000002',
+    tenant_id: TENANT,
+    nombre: 'Comercial San Blas SRL',
+    tipo: 'juridica',
+    ruc: '80054321-0',
+    cedula: null,
+    telefono: '(061) 500-123',
+    email: 'ventas@comercialsanblas.com.py',
+    direccion: 'Av. San Blas 1001',
+    ciudad: 'Ciudad del Este',
+    notas: 'Compra al mayor. Paga a 15 días.',
+    activo: true,
+    created_at: hace(1000),
+  },
+  {
+    id: 'aaaa1003-0000-0000-0000-000000000003',
+    tenant_id: TENANT,
+    nombre: 'Juan Pérez',
+    tipo: 'fisica',
+    ruc: null,
+    cedula: '9876543',
+    telefono: '(0971) 222-333',
+    email: null,
+    direccion: null,
+    ciudad: 'Minga Guazú',
+    notas: null,
+    activo: true,
+    created_at: hace(800),
+  },
+  {
+    id: 'aaaa1004-0000-0000-0000-000000000004',
+    tenant_id: TENANT,
+    nombre: 'Ferretería Los Hermanos SA',
+    tipo: 'juridica',
+    ruc: '80011122-3',
+    cedula: null,
+    telefono: '(061) 611-222',
+    email: 'contacto@loshermanos.com.py',
+    direccion: 'Barrio Obrero, Calle 12',
+    ciudad: 'Ciudad del Este',
+    notas: null,
+    activo: false,
+    created_at: hace(600),
+  },
+]
+
+const deudas: Deuda[] = [
+  {
+    id: 'aaaa2001-0000-0000-0000-000000000001',
+    tenant_id: TENANT,
+    cliente_id: clientes[0].id,
+    venta_id: null,
+    fecha: hace(8).slice(0, 10),
+    vencimiento: enDias(5),
+    monto: 350000,
+    moneda: 'PYG',
+    created_by: DEMO_USER_ID,
+    created_at: hace(8),
+  },
+  {
+    id: 'aaaa2002-0000-0000-0000-000000000002',
+    tenant_id: TENANT,
+    cliente_id: clientes[1].id,
+    venta_id: null,
+    fecha: hace(15).slice(0, 10),
+    vencimiento: enDias(10),
+    monto: 400,
+    moneda: 'USD',
+    created_by: DEMO_USER_ID,
+    created_at: hace(15),
+  },
+  {
+    id: 'aaaa2003-0000-0000-0000-000000000003',
+    tenant_id: TENANT,
+    cliente_id: clientes[2].id,
+    venta_id: null,
+    fecha: hace(2).slice(0, 10),
+    vencimiento: null,
+    monto: 120000,
+    moneda: 'PYG',
+    created_by: DEMO_USER_ID,
+    created_at: hace(2),
+  },
+]
+
+const cobros: Cobro[] = [
+  {
+    id: 'aaaa3001-0000-0000-0000-000000000001',
+    tenant_id: TENANT,
+    cliente_id: clientes[0].id,
+    fecha: hace(1).slice(0, 10),
+    concepto: 'Pago a cuenta venta a crédito',
+    monto: 100000,
+    moneda: 'PYG',
+    metodo: 'efectivo',
+    created_by: DEMO_USER_ID,
+    created_at: hace(1),
+  },
+  {
+    id: 'aaaa3002-0000-0000-0000-000000000002',
+    tenant_id: TENANT,
+    cliente_id: clientes[1].id,
+    fecha: hace(12).slice(0, 10),
+    concepto: 'Abono cuenta corriente',
+    monto: 200,
+    moneda: 'USD',
+    metodo: 'transferencia',
+    created_by: DEMO_USER_ID,
+    created_at: hace(12),
+  },
+]
+
 type DemoSnapshot = {
   productos: Producto[]
   stock: StockRow[]
@@ -1037,6 +1212,9 @@ type DemoSnapshot = {
   miembros: Miembro[]
   proveedores: Proveedor[]
   pagosProveedor: PagoProveedor[]
+  clientes: Cliente[]
+  deudas: Deuda[]
+  cobros: Cobro[]
 }
 
 const DEMO_KEY = 'kahabox_demo_v1'
@@ -1060,6 +1238,9 @@ function cargarPersistido() {
     if (Array.isArray(data.miembros)) reemplazar(miembros, data.miembros)
     if (Array.isArray(data.proveedores)) reemplazar(proveedores, data.proveedores)
     if (Array.isArray(data.pagosProveedor)) reemplazar(pagosProveedor, data.pagosProveedor)
+    if (Array.isArray(data.clientes)) reemplazar(clientes, data.clientes)
+    if (Array.isArray(data.deudas)) reemplazar(deudas, data.deudas)
+    if (Array.isArray(data.cobros)) reemplazar(cobros, data.cobros)
   } catch {
     // Snapshot dañado: se mantiene el seed demo.
   }
@@ -1078,6 +1259,9 @@ function guardar() {
       miembros,
       proveedores,
       pagosProveedor,
+      clientes,
+      deudas,
+      cobros,
     }
     localStorage.setItem(DEMO_KEY, JSON.stringify(snapshot))
   } catch {
@@ -1175,6 +1359,156 @@ export function eliminarPagoProveedorMock(id: string): boolean {
   const idx = pagosProveedor.findIndex((p) => p.id === id)
   if (idx < 0) return false
   pagosProveedor.splice(idx, 1)
+  guardar()
+  return true
+}
+
+export function getMockClientes(): Cliente[] {
+  return [...clientes].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+}
+
+export function getMockDeudas(): Deuda[] {
+  return [...deudas].sort((a, b) => b.fecha.localeCompare(a.fecha))
+}
+
+export function getMockCobros(): Cobro[] {
+  return [...cobros].sort((a, b) => b.fecha.localeCompare(a.fecha))
+}
+
+export function crearClienteMock(entrada: {
+  nombre: string
+  tipo: 'fisica' | 'juridica'
+  ruc?: string
+  cedula?: string
+  telefono?: string
+  email?: string
+  direccion?: string
+  ciudad?: string
+  notas?: string
+}): Cliente {
+  const cliente: Cliente = {
+    id: crypto.randomUUID(),
+    tenant_id: TENANT,
+    nombre: entrada.nombre,
+    tipo: entrada.tipo,
+    ruc: entrada.ruc?.trim() || null,
+    cedula: entrada.cedula?.trim() || null,
+    telefono: entrada.telefono?.trim() || null,
+    email: entrada.email?.trim() || null,
+    direccion: entrada.direccion?.trim() || null,
+    ciudad: entrada.ciudad?.trim() || null,
+    notas: entrada.notas?.trim() || null,
+    activo: true,
+    created_at: new Date().toISOString(),
+  }
+  clientes.unshift(cliente)
+  guardar()
+  return cliente
+}
+
+export function actualizarClienteMock(
+  id: string,
+  cambios: Partial<
+    Pick<
+      Cliente,
+      | 'nombre'
+      | 'tipo'
+      | 'ruc'
+      | 'cedula'
+      | 'telefono'
+      | 'email'
+      | 'direccion'
+      | 'ciudad'
+      | 'notas'
+      | 'activo'
+    >
+  >,
+): boolean {
+  const idx = clientes.findIndex((c) => c.id === id)
+  if (idx < 0) return false
+  clientes[idx] = { ...clientes[idx], ...cambios }
+  guardar()
+  return true
+}
+
+export function eliminarClienteMock(id: string): boolean {
+  const idx = clientes.findIndex((c) => c.id === id)
+  if (idx < 0) return false
+  clientes.splice(idx, 1)
+  for (let i = deudas.length - 1; i >= 0; i--) {
+    if (deudas[i].cliente_id === id) deudas.splice(i, 1)
+  }
+  for (let i = cobros.length - 1; i >= 0; i--) {
+    if (cobros[i].cliente_id === id) cobros.splice(i, 1)
+  }
+  guardar()
+  return true
+}
+
+export function registrarDeudaMock(entrada: {
+  cliente_id: string
+  venta_id?: string | null
+  fecha: string
+  vencimiento?: string | null
+  monto: number
+  moneda: Moneda
+}): Deuda {
+  const ahora = new Date().toISOString()
+  const deuda: Deuda = {
+    id: crypto.randomUUID(),
+    tenant_id: TENANT,
+    cliente_id: entrada.cliente_id,
+    venta_id: entrada.venta_id?.trim() || null,
+    fecha: entrada.fecha,
+    vencimiento: entrada.vencimiento?.trim() || null,
+    monto: entrada.monto,
+    moneda: entrada.moneda,
+    created_by: DEMO_USER_ID,
+    created_at: ahora,
+  }
+  deudas.unshift(deuda)
+  guardar()
+  return deuda
+}
+
+export function eliminarDeudaMock(id: string): boolean {
+  const idx = deudas.findIndex((d) => d.id === id)
+  if (idx < 0) return false
+  deudas.splice(idx, 1)
+  guardar()
+  return true
+}
+
+export function registrarCobroMock(entrada: {
+  cliente_id: string
+  fecha: string
+  concepto?: string
+  monto: number
+  moneda: Moneda
+  metodo: 'efectivo' | 'pos' | 'transferencia'
+}): Cobro {
+  const ahora = new Date().toISOString()
+  const cobro: Cobro = {
+    id: crypto.randomUUID(),
+    tenant_id: TENANT,
+    cliente_id: entrada.cliente_id,
+    fecha: entrada.fecha,
+    concepto: entrada.concepto?.trim() || null,
+    monto: entrada.monto,
+    moneda: entrada.moneda,
+    metodo: entrada.metodo,
+    created_by: DEMO_USER_ID,
+    created_at: ahora,
+  }
+  cobros.unshift(cobro)
+  guardar()
+  return cobro
+}
+
+export function eliminarCobroMock(id: string): boolean {
+  const idx = cobros.findIndex((c) => c.id === id)
+  if (idx < 0) return false
+  cobros.splice(idx, 1)
   guardar()
   return true
 }

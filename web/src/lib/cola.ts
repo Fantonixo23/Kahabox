@@ -89,12 +89,62 @@ export type ItemPagoProveedorCola = {
   creadoEn: string
 }
 
+export type ItemClienteCola = {
+  accion: 'crear' | 'actualizar' | 'eliminar'
+  clienteId: string
+  datos: {
+    nombre: string
+    tipo: 'fisica' | 'juridica'
+    ruc: string | null
+    cedula: string | null
+    telefono: string | null
+    email: string | null
+    direccion: string | null
+    ciudad: string | null
+    notas: string | null
+  } | null
+  creadoEn: string
+}
+
+export type ItemDeudaCola = {
+  accion: 'registrar' | 'eliminar'
+  deudaId: string
+  clienteId: string | null
+  datos: {
+    cliente_id: string
+    venta_id: string | null
+    fecha: string
+    vencimiento: string | null
+    monto: number
+    moneda: Moneda
+  } | null
+  creadoEn: string
+}
+
+export type ItemCobroCola = {
+  accion: 'registrar' | 'eliminar'
+  cobroId: string
+  clienteId: string | null
+  datos: {
+    cliente_id: string
+    fecha: string
+    concepto: string | null
+    monto: number
+    moneda: Moneda
+    metodo: 'efectivo' | 'pos' | 'transferencia'
+  } | null
+  creadoEn: string
+}
+
 export type OperacionCola =
   | { tipo: 'venta' } & ItemVentaCola
   | { tipo: 'producto' } & ItemProductoCola
   | { tipo: 'ajuste' } & ItemAjusteCola
   | { tipo: 'proveedor' } & ItemProveedorCola
   | { tipo: 'pagoProveedor' } & ItemPagoProveedorCola
+  | { tipo: 'cliente' } & ItemClienteCola
+  | { tipo: 'deuda' } & ItemDeudaCola
+  | { tipo: 'cobro' } & ItemCobroCola
 
 export type EstadoCola = 'pendiente' | 'sync' | 'fallo'
 
@@ -216,6 +266,9 @@ const ETIQUETAS: Record<OperacionCola['tipo'], string> = {
   ajuste: 'Ajuste de stock',
   proveedor: 'Proveedor',
   pagoProveedor: 'Pago a proveedor',
+  cliente: 'Cliente',
+  deuda: 'Crédito a cliente',
+  cobro: 'Cobro de cliente',
 }
 
 export function etiquetaOperacion(op: OperacionCola): string {
@@ -228,8 +281,20 @@ export function etiquetaOperacion(op: OperacionCola): string {
     const a = op.accion
     return `Proveedor · ${a === 'crear' ? 'nuevo' : a === 'eliminar' ? 'eliminado' : 'editado'}`
   }
+  if (op.tipo === 'pagoProveedor') {
+    const a = op.accion
+    return `Pago a proveedor · ${a === 'eliminar' ? 'eliminado' : 'registrado'}`
+  }
+  if (op.tipo === 'cliente') {
+    const a = op.accion
+    return `Cliente · ${a === 'crear' ? 'nuevo' : a === 'eliminar' ? 'eliminado' : 'editado'}`
+  }
+  if (op.tipo === 'deuda') {
+    const a = op.accion
+    return `Crédito a cliente · ${a === 'eliminar' ? 'eliminado' : 'registrado'}`
+  }
   const a = op.accion
-  return `Pago a proveedor · ${a === 'eliminar' ? 'eliminado' : 'registrado'}`
+  return `Cobro de cliente · ${a === 'eliminar' ? 'eliminado' : 'registrado'}`
 }
 
 export function etiquetaTipo(tipo: OperacionCola['tipo']): string {

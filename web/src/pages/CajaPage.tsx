@@ -78,7 +78,7 @@ import { guardarCacheStock, leerCacheStock } from '@/lib/cache'
 import type {
   MetodoPagoVenta,
 } from '@/lib/cola'
-import { monedaPrincipal, nombreNegocio, useConfig } from '@/lib/config'
+import { monedaPrincipal, nombreNegocio, datosEmpresa, useConfig } from '@/lib/config'
 import {
   ejecutarEscritura,
 } from '@/lib/ejecutar'
@@ -675,8 +675,12 @@ export default function CajaPage() {
       hour: '2-digit',
       minute: '2-digit',
     })
+    const empresa = datosEmpresa()
     return {
       nombreLocal: nombreLocalPropio(),
+      ruc: empresa.ruc || undefined,
+      direccion: empresa.direccion || undefined,
+      telefono: empresa.telefono || undefined,
       fecha,
       numeroVenta: `VTA-${ventaId.replace(/-/g, '').slice(0, 6).toUpperCase()}`,
       items: carrito.map((c) => ({

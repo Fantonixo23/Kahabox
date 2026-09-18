@@ -239,6 +239,177 @@ export type Database = {
           },
         ]
       }
+      clientes: {
+        Row: {
+          id: string
+          tenant_id: string
+          nombre: string
+          tipo: 'fisica' | 'juridica'
+          ruc: string | null
+          cedula: string | null
+          telefono: string | null
+          email: string | null
+          direccion: string | null
+          ciudad: string | null
+          notas: string | null
+          activo: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id?: string
+          nombre: string
+          tipo?: 'fisica' | 'juridica'
+          ruc?: string | null
+          cedula?: string | null
+          telefono?: string | null
+          email?: string | null
+          direccion?: string | null
+          ciudad?: string | null
+          notas?: string | null
+          activo?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          nombre?: string
+          tipo?: 'fisica' | 'juridica'
+          ruc?: string | null
+          cedula?: string | null
+          telefono?: string | null
+          email?: string | null
+          direccion?: string | null
+          ciudad?: string | null
+          notas?: string | null
+          activo?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'clientes_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'tenants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      deudas: {
+        Row: {
+          id: string
+          tenant_id: string
+          cliente_id: string
+          venta_id: string | null
+          fecha: string
+          vencimiento: string | null
+          monto: number
+          moneda: 'PYG' | 'USD' | 'ARS' | 'BRL'
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id?: string
+          cliente_id: string
+          venta_id?: string | null
+          fecha?: string
+          vencimiento?: string | null
+          monto: number
+          moneda?: 'PYG' | 'USD' | 'ARS' | 'BRL'
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          cliente_id?: string
+          venta_id?: string | null
+          fecha?: string
+          vencimiento?: string | null
+          monto?: number
+          moneda?: 'PYG' | 'USD' | 'ARS' | 'BRL'
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'deudas_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'tenants'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'deudas_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'deudas_venta_id_fkey'
+            columns: ['venta_id']
+            isOneToOne: false
+            referencedRelation: 'ventas'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      cobros: {
+        Row: {
+          id: string
+          tenant_id: string
+          cliente_id: string
+          fecha: string
+          concepto: string | null
+          monto: number
+          moneda: 'PYG' | 'USD' | 'ARS' | 'BRL'
+          metodo: 'efectivo' | 'pos' | 'transferencia'
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id?: string
+          cliente_id: string
+          fecha?: string
+          concepto?: string | null
+          monto: number
+          moneda?: 'PYG' | 'USD' | 'ARS' | 'BRL'
+          metodo?: 'efectivo' | 'pos' | 'transferencia'
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          cliente_id?: string
+          fecha?: string
+          concepto?: string | null
+          monto?: number
+          moneda?: 'PYG' | 'USD' | 'ARS' | 'BRL'
+          metodo?: 'efectivo' | 'pos' | 'transferencia'
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'cobros_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'tenants'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cobros_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       sucursales: {
         Row: {
           id: string

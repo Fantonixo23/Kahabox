@@ -24,7 +24,7 @@ export function AuthShell({
   children: ReactNode
 }) {
   return (
-    <div className="flex min-h-svh items-center justify-center bg-fondo-login p-4">
+    <div className="flex min-h-svh items-center justify-center bg-fondo-login p-4 dark:bg-neutral-950">
       <div className="w-full max-w-sm">
         <BrandMark />
         {subtitle && (
@@ -32,7 +32,7 @@ export function AuthShell({
             {subtitle}
           </p>
         )}
-        <div className="mt-6 rounded-xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+        <div className="mt-6 rounded-xl bg-white p-6 shadow-sm ring-1 ring-black/5 dark:bg-card dark:ring-white/10">
           {children}
         </div>
       </div>

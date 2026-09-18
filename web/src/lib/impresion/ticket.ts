@@ -35,6 +35,9 @@ export type ItemTicket = {
 
 export type TicketVenta = {
   nombreLocal: string
+  ruc?: string
+  direccion?: string
+  telefono?: string
   fecha: string
   numeroVenta: string
   items: ItemTicket[]
@@ -118,6 +121,9 @@ export function armarTextoPlano(
 ): string {
   const lineas: string[] = []
   lineas.push(centrar(t.nombreLocal, ancho))
+  if (t.ruc) lineas.push(centrar(`RUC: ${t.ruc}`, ancho))
+  if (t.direccion) lineas.push(centrar(t.direccion, ancho))
+  if (t.telefono) lineas.push(centrar(t.telefono, ancho))
   lineas.push('')
   lineas.push(centrar(t.fecha, ancho))
   lineas.push(centrar(t.numeroVenta, ancho))
@@ -166,6 +172,9 @@ export function armarOperaciones(
   }
 
   texto(t.nombreLocal, { alineacion: 'centro' })
+  if (t.ruc) texto(`RUC: ${t.ruc}`, { alineacion: 'centro' })
+  if (t.direccion) texto(t.direccion, { alineacion: 'centro' })
+  if (t.telefono) texto(t.telefono, { alineacion: 'centro' })
   texto('', { alineacion: 'centro' })
   texto(t.fecha, { alineacion: 'centro' })
   texto(t.numeroVenta, { alineacion: 'centro' })

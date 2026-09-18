@@ -167,6 +167,81 @@ async function ejecutarOperacion(item: ItemCola): Promise<void> {
       if (error) throw new Error(error.message)
       return
     }
+
+    case 'cliente': {
+      if (op.accion === 'eliminar') {
+        const { error } = await supabase
+          .from('clientes')
+          .delete()
+          .eq('id', op.clienteId)
+        if (error) throw new Error(error.message)
+        return
+      }
+      const datos = op.datos ?? {
+        nombre: '',
+        tipo: 'fisica',
+        ruc: null,
+        cedula: null,
+        telefono: null,
+        email: null,
+        direccion: null,
+        ciudad: null,
+        notas: null,
+      }
+      if (op.accion === 'crear') {
+        const { error } = await supabase
+          .from('clientes')
+          .upsert({ id: op.clienteId, ...datos }, { onConflict: 'id', ignoreDuplicates: true })
+        if (error) throw new Error(error.message)
+      } else {
+        const { error } = await supabase
+          .from('clientes')
+          .update(datos)
+          .eq('id', op.clienteId)
+        if (error) throw new Error(error.message)
+      }
+      return
+    }
+
+    case 'deuda': {
+      if (op.accion === 'eliminar') {
+        const { error } = await supabase
+          .from('deudas')
+          .delete()
+          .eq('id', op.deudaId)
+        if (error) throw new Error(error.message)
+        return
+      }
+      const datos = op.datos
+      if (!datos) {
+        throw new Error('Faltan datos del crédito pendiente')
+      }
+      const { error } = await supabase
+        .from('deudas')
+        .upsert({ id: op.deudaId, ...datos }, { onConflict: 'id', ignoreDuplicates: true })
+      if (error) throw new Error(error.message)
+      return
+    }
+
+    case 'cobro': {
+      if (op.accion === 'eliminar') {
+        const { error } = await supabase
+          .from('cobros')
+          .delete()
+          .eq('id', op.cobroId)
+        if (error) throw new Error(error.message)
+        return
+      }
+      const datos = op.datos
+      if (!datos) {
+        throw new Error('Faltan datos del cobro pendiente')
+      }
+      const { error } = await supabase
+        .from('cobros')
+        .upsert({ id: op.cobroId, ...datos }, { onConflict: 'id', ignoreDuplicates: true })
+      if (error) throw new Error(error.message)
+      return
+    }
   }
 }
 

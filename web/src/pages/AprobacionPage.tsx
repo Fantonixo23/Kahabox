@@ -127,11 +127,11 @@ export default function AprobacionPage() {
   const detalle = r === 'error' && mensaje ? mensaje : cfg.detalle
 
   return (
-    <div className="relative min-h-svh overflow-hidden bg-fondo-login">
+    <div className="relative min-h-svh overflow-hidden bg-fondo-login dark:bg-neutral-950">
       <div className="absolute inset-0 bg-neutral-950/55" />
       <div className="relative z-10 flex min-h-svh items-center justify-center p-5">
         <div className="w-full max-w-md">
-          <div className="rounded-3xl bg-white p-8 text-center shadow-2xl ring-1 ring-black/5">
+          <div className="rounded-3xl bg-white p-8 text-center shadow-2xl ring-1 ring-black/5 dark:bg-card dark:ring-white/10">
             <img src="/logo.png" alt="Kahabox" className="mx-auto size-12 object-contain" />
             <div className="mt-2">
               <Icono tipo={cfg.icono} />
