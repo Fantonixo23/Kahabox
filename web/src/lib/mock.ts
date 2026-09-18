@@ -1065,6 +1065,70 @@ export function getMockResumen() {
   return { stockBajo, agotados, ventasHoy, valorStock, pagosHoy }
 }
 
+export type TopProductoReporte = {
+  nombre: string
+  variante: string | null
+  unidades: number
+  ventas: number
+  ingresosGs: number
+}
+
+export type ResumenPeriodo = {
+  ventasGs: number
+  tickets: number
+  promedioGs: number
+}
+
+export function getMockTopProductos(dias: number): {
+  resumenPeriodo: ResumenPeriodo
+  porUnidades: TopProductoReporte[]
+  porIngresos: TopProductoReporte[]
+} {
+  const desde = hace(dias * 24)
+  const confirmadas = ventas.filter(
+    (v) => v.estado === 'confirmada' && v.created_at >= desde,
+  )
+  const ventasGs = confirmadas.reduce((acc, v) => acc + v.total, 0)
+  const tickets = confirmadas.length
+
+  const hash = (str: string) =>
+    str.split('').reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0) >>> 0
+
+  const filas = stock
+    .map((s) => {
+      const nombre = s.producto?.nombre ?? s.sku ?? 'Producto'
+      if (nombre === 'Producto') return null
+      const estable = Math.abs(hash(s.sku ?? s.id))
+      const unidades = (estable % 30) + Math.min(12, Math.max(1, Math.ceil(dias / 7)))
+      const precioGs = s.moneda === 'PYG' ? s.precio : s.precio * 7000
+      return {
+        nombre,
+        variante: s.variante,
+        unidades,
+        ventas: Math.max(1, Math.round(unidades / 2)),
+        ingresosGs: unidades * precioGs,
+      }
+    })
+    .filter((f): f is TopProductoReporte => f !== null)
+
+  const porUnidades = [...filas]
+    .sort((a, b) => b.unidades - a.unidades || b.ingresosGs - a.ingresosGs)
+    .slice(0, 8)
+  const porIngresos = [...filas]
+    .sort((a, b) => b.ingresosGs - a.ingresosGs)
+    .slice(0, 8)
+
+  return {
+    resumenPeriodo: {
+      ventasGs,
+      tickets,
+      promedioGs: tickets > 0 ? ventasGs / tickets : 0,
+    },
+    porUnidades,
+    porIngresos,
+  }
+}
+
 export const demoUser = {
   id: DEMO_USER_ID,
   aud: 'authenticated',
