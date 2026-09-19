@@ -977,6 +977,12 @@ Relationships: [
         }
         Returns: Record<string, unknown>
       }
+      borrar_producto: {
+        Args: {
+          p_linea_id: string
+        }
+        Returns: Record<string, unknown>
+      }
       importar_stock: {
         Args: {
           p_sucursal_id: string | null

@@ -953,6 +953,7 @@ export default function EscaneadorPage() {
         onOpenChange={setAdminOpen}
         linea={adminLinea}
         onDone={administrarHecho}
+        onDeleted={() => recargarStockRemoto()}
       />
 
       <NuevoProductoRemotoDialog

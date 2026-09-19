@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 
+import { Trash2 } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -22,10 +24,11 @@ import MoneyInput from '@/components/MoneyInput'
 import { useAuth } from '@/components/auth/AuthContext'
 import { ejecutarEscritura } from '@/lib/ejecutar'
 import { MONEDAS, type Moneda } from '@/lib/format'
-import { actualizarProductoMock, reponerStockMock } from '@/lib/mock'
+import { actualizarProductoMock, borrarProductoMock, reponerStockMock } from '@/lib/mock'
 import { esErrorDeRed } from '@/lib/red'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { dispositivoActual } from '@/lib/auditoriaData'
+import { esDueno } from '@/lib/vistaStock'
 import type { StockRemotoRow } from '@/lib/stockRemoto'
 import { useConfig } from '@/lib/config'
 import { cn } from 'cn'
@@ -88,13 +91,16 @@ export default function AdministrarProductoDialog({
   onOpenChange,
   linea,
   onDone,
+  onDeleted,
 }: {
   open: boolean
   onOpenChange: (next: boolean) => void
   linea: StockRemotoRow | null
   onDone: () => void | Promise<void>
+  onDeleted?: () => void | Promise<void>
 }) {
   const { user } = useAuth()
+  const puedeBorrar = esDueno(user)
   const { monedasActivas } = useConfig()
   const tenantId =
     typeof user?.app_metadata?.tenant_id === 'string'
@@ -106,12 +112,16 @@ export default function AdministrarProductoDialog({
   const [form, setForm] = useState<AdminForm>(formVacio)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [confirmandoBorrar, setConfirmandoBorrar] = useState(false)
+  const [borrando, setBorrando] = useState(false)
 
   useEffect(() => {
     if (!open || !linea) return
     setForm(formDeLinea(linea))
     setError(null)
     setSubmitting(false)
+    setConfirmandoBorrar(false)
+    setBorrando(false)
   }, [open, linea])
 
   function set<K extends keyof AdminForm>(key: K, value: AdminForm[K]) {
@@ -234,6 +244,43 @@ export default function AdministrarProductoDialog({
       )
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  async function handleBorrar() {
+    if (!linea) return
+    setError(null)
+    setBorrando(true)
+    try {
+      if (!isSupabaseConfigured) {
+        if (!borrarProductoMock(linea.id)) {
+          throw new Error('No se encontró la línea de stock.')
+        }
+      } else {
+        const { error: errBorrar } = await supabase.rpc('borrar_producto', {
+          p_linea_id: linea.id,
+        })
+        if (errBorrar) {
+          if (esErrorDeRed(errBorrar)) {
+            throw new Error('Sin conexión: el borrado necesita internet.')
+          }
+          throw errBorrar
+        }
+      }
+      await (onDeleted ?? onDone)()
+      onOpenChange(false)
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : 'No se pudo borrar el producto.'
+      // Mensajes amigables para los rechazos comunes del RPC.
+      setError(
+        msg.includes('ventas')
+          ? 'No se puede borrar: este producto ya tiene ventas registradas.'
+          : msg,
+      )
+      setConfirmandoBorrar(false)
+    } finally {
+      setBorrando(false)
     }
   }
 
@@ -413,7 +460,7 @@ export default function AdministrarProductoDialog({
             </div>
           </div>
 
-          {error && (
+          {error && !confirmandoBorrar && (
             <p className="rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
               {error}
             </p>
@@ -421,21 +468,74 @@ export default function AdministrarProductoDialog({
         </form>
 
         <DialogFooter>
+          {puedeBorrar && !confirmandoBorrar && (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => setConfirmandoBorrar(true)}
+              disabled={submitting || borrando}
+              className="mr-auto"
+            >
+              <Trash2 />
+              Borrar producto
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={submitting}
+            disabled={submitting || borrando}
           >
             Cancelar
           </Button>
           <Button
             type="submit"
             form="administrar-producto"
-            disabled={submitting}
+            disabled={submitting || borrando || confirmandoBorrar}
           >
             {submitting ? 'Guardando…' : 'Guardar cambios'}
           </Button>
         </DialogFooter>
+
+        {confirmandoBorrar && (
+          <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3">
+            <p className="text-sm font-medium text-destructive">
+              ¿Borrar «{linea?.producto?.nombre ?? 'este producto'}» de{' '}
+              {linea?.sucursal_id ? 'esta sucursal' : 'tu stock'}?
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Esta acción no se puede deshacer. El producto queda fuera de esta
+              sucursal (no se borra el catálogo compartido).
+            </p>
+            {error && (
+              <p className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
+                {error}
+              </p>
+            )}
+            <div className="mt-3 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setError(null)
+                  setConfirmandoBorrar(false)
+                }}
+                disabled={borrando}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={handleBorrar}
+                disabled={borrando}
+              >
+                {borrando ? 'Borrando…' : 'Sí, borrar'}
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )

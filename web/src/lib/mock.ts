@@ -989,6 +989,14 @@ export function actualizarProductoMock(
   return true
 }
 
+export function borrarProductoMock(lineaId: string): boolean {
+  const indice = stock.findIndex((s) => s.id === lineaId)
+  if (indice < 0) return false
+  stock.splice(indice, 1)
+  guardar()
+  return true
+}
+
 export function transferirStockMock(
   origenSucursalId: string,
   destinoSucursalId: string,

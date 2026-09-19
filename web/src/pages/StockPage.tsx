@@ -5,9 +5,11 @@ import {
   FileUp,
   History,
   PackagePlus,
+  Pencil,
   Plus,
   ScanBarcode,
   Search,
+  Trash2,
 } from 'lucide-react'
 
 import BarcodeScanner from '@/components/BarcodeScanner'
@@ -46,7 +48,7 @@ import { ejecutarEscritura } from '@/lib/ejecutar'
 import { esErrorDeRed } from '@/lib/red'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { dispositivoActual } from '@/lib/auditoriaData'
-import { esJefe, vistaStock, type VistaStock } from '@/lib/vistaStock'
+import { esJefe, vistaStock, esDueno, type VistaStock } from '@/lib/vistaStock'
 import { useKeyboardScanner } from '@/lib/useKeyboardScanner'
 import {
   buscarProductoMaestroPorCodigo,
@@ -144,6 +146,7 @@ const estadoBadge = {
 export default function StockPage() {
   const { user } = useAuth()
   const esDuenoActivo = esJefe(user)
+  const esDuenoUser = esDueno(user)
   const vista = vistaStock(user)
   const [rows, setRows] = useState<StockRow[] | null>(null)
   const [sucursales, setSucursales] = useState<Sucursal[]>([])
@@ -175,6 +178,11 @@ export default function StockPage() {
     setNuevoCatalogo(await buscarProductoMaestroPorCodigo(c))
     setNuevoCodigo(c)
     setNuevoOpen(true)
+  }
+
+  function abrirAdmin(linea: StockRow) {
+    setAdminLinea(linea)
+    setAdminOpen(true)
   }
 
   useKeyboardScanner((code) => manejarCodigoEscaneado(code))
@@ -419,13 +427,18 @@ export default function StockPage() {
                 <TableHead>Precio</TableHead>
                 {esDuenoActivo && <TableHead>Costo</TableHead>}
                 <TableHead>Actualizado</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((row) => {
                 const estado = estadoStock(row.cantidad)
                 return (
-                  <TableRow key={row.id}>
+                  <TableRow
+                    key={row.id}
+                    onClick={() => abrirAdmin(row)}
+                    className="cursor-pointer"
+                  >
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="font-medium">{row.producto?.nombre}</span>
@@ -466,6 +479,34 @@ export default function StockPage() {
                     )}
                     <TableCell className="text-muted-foreground">
                       {formatFecha(row.updated_at)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div
+                        className="flex items-center justify-end gap-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Button
+                          variant="outline"
+                          size="icon-sm"
+                          onClick={() => abrirAdmin(row)}
+                          aria-label={`Editar ${row.producto?.nombre ?? 'producto'}`}
+                          title="Editar"
+                        >
+                          <Pencil />
+                        </Button>
+                        {esDuenoUser && (
+                          <Button
+                            variant="outline"
+                            size="icon-sm"
+                            onClick={() => abrirAdmin(row)}
+                            aria-label={`Borrar ${row.producto?.nombre ?? 'producto'}`}
+                            title="Borrar"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 )
