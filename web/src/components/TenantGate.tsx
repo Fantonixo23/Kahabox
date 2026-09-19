@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { Hourglass, RefreshCw, ShieldX } from 'lucide-react'
 
@@ -16,6 +16,7 @@ export default function TenantGate({ children }: { children: ReactNode }) {
   const { session } = useAuth()
   const [estado, setEstado] = useState<EstadoAcceso>('verificando')
   const [motivo, setMotivo] = useState<MotivoBloqueo>('tenant')
+  const refrescoHecho = useRef(false)
 
   const tenantId = session?.user?.app_metadata?.tenant_id as string | undefined
 
@@ -37,9 +38,19 @@ export default function TenantGate({ children }: { children: ReactNode }) {
 
       if (!tenantId) {
         // Sin claim de tienda: o es un invitado ya cubierto arriba
-        // (pendiente/rechazado) o le revocaron el acceso (lo quitaron). Un
-        // miembro activo sin claim todavía puede entrar; el resto no.
+        // (pendiente/rechazado) o le revocaron el acceso (lo quitaron).
         if (miembroEstado === 'activo') {
+          // Ya es miembro activo (el dueño lo confirmó) pero su JWT todavía es
+          // viejo, sin los claims tenant_id/rol. Se refresca una vez el token
+          // para que aparezcan los módulos; si no cambia, igual se entra.
+          if (!refrescoHecho.current) {
+            refrescoHecho.current = true
+            try {
+              await supabase.auth.refreshSession()
+            } catch {
+              // Sin red: se entra igual; el próximo refresh traerá los claims.
+            }
+          }
           setEstado('ok')
           return
         }
