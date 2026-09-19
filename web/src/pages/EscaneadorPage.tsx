@@ -375,6 +375,7 @@ function NuevoProductoRemotoDialog({
             form={form}
             set={set}
             onCodigoEscaneado={handleCodigoEscaneado}
+            mostrarCosto={false}
           />
 
           {error && (
@@ -954,6 +955,7 @@ export default function EscaneadorPage() {
         linea={adminLinea}
         onDone={administrarHecho}
         onDeleted={() => recargarStockRemoto()}
+        mostrarCosto={false}
       />
 
       <NuevoProductoRemotoDialog

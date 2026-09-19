@@ -92,12 +92,14 @@ export default function AdministrarProductoDialog({
   linea,
   onDone,
   onDeleted,
+  mostrarCosto = true,
 }: {
   open: boolean
   onOpenChange: (next: boolean) => void
   linea: StockRemotoRow | null
   onDone: () => void | Promise<void>
   onDeleted?: () => void | Promise<void>
+  mostrarCosto?: boolean
 }) {
   const { user } = useAuth()
   const puedeBorrar = esDueno(user)
@@ -357,7 +359,11 @@ export default function AdministrarProductoDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div
+            className={
+              mostrarCosto ? 'grid grid-cols-2 gap-3' : 'space-y-1.5'
+            }
+          >
             <div className="space-y-1.5">
               <Label htmlFor="ap-precio">Precio *</Label>
               <MoneyInput
@@ -367,14 +373,16 @@ export default function AdministrarProductoDialog({
                 required
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="ap-costo">Costo</Label>
-              <MoneyInput
-                id="ap-costo"
-                value={form.costo}
-                onChange={(v) => set('costo', v)}
-              />
-            </div>
+            {mostrarCosto && (
+              <div className="space-y-1.5">
+                <Label htmlFor="ap-costo">Costo</Label>
+                <MoneyInput
+                  id="ap-costo"
+                  value={form.costo}
+                  onChange={(v) => set('costo', v)}
+                />
+              </div>
+            )}
           </div>
 
           <div className="space-y-1.5">

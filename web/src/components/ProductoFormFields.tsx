@@ -42,6 +42,7 @@ export function ProductoFormFields({
   form,
   set,
   onCodigoEscaneado,
+  mostrarCosto = true,
 }: {
   form: ProductoFormValues
   set: <K extends keyof ProductoFormValues>(
@@ -49,6 +50,7 @@ export function ProductoFormFields({
     value: ProductoFormValues[K],
   ) => void
   onCodigoEscaneado?: (codigo: string) => void
+  mostrarCosto?: boolean
 }) {
   const { monedasActivas } = useConfig()
   const activas =
@@ -120,7 +122,11 @@ export function ProductoFormFields({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div
+        className={
+          mostrarCosto ? 'grid grid-cols-2 gap-3' : 'space-y-1.5'
+        }
+      >
         <div className="space-y-1.5">
           <Label htmlFor="pf-precio">Precio *</Label>
           <MoneyInput
@@ -131,15 +137,17 @@ export function ProductoFormFields({
             required
           />
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="pf-costo">Costo</Label>
-          <MoneyInput
-            id="pf-costo"
-            value={form.costo}
-            onChange={(v) => set('costo', v)}
-            placeholder="0"
-          />
-        </div>
+        {mostrarCosto && (
+          <div className="space-y-1.5">
+            <Label htmlFor="pf-costo">Costo</Label>
+            <MoneyInput
+              id="pf-costo"
+              value={form.costo}
+              onChange={(v) => set('costo', v)}
+              placeholder="0"
+            />
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
