@@ -1,12 +1,12 @@
 /**
  * Auto-update de la app Android.
  *
- * La web (PC) se actualiza sola porque Netlify sirve siempre el último build.
+ * La web (PC) se actualiza sola porque Vercel sirve siempre el último build.
  * La app de Android lleva la web adentro (bundle compilado), así que para
  * actualizarla se descarga el APK nuevo desde la URL fija y se instala solo.
  *
  * El APK y este metadata (kahabox-caja.json) se publican juntos en el último
- * GitHub Release; Netlify los expone en URLs fijas.
+ * GitHub Release; Vercel los expone en URLs fijas.
  */
 
 import { CapacitorHttp } from '@capacitor/core'
@@ -20,7 +20,7 @@ export type InfoActualizacion = {
   url: string
 }
 
-const URL_METADATA = 'https://kahabox.netlify.app/kahabox-caja.json'
+const URL_METADATA = 'https://kahabox-web.vercel.app/kahabox-caja.json'
 
 export async function versionInstalada(): Promise<string | null> {
   if (!esNativo()) return null

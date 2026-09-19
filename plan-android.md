@@ -1,7 +1,7 @@
 # Kahabox — Plan Android (compilar, publicar e instalar la app)
 
 Objetivo: compilar el APK de la app Android (Capacitor) desde GitHub, publicarlo
-en una URL fija (`https://kahabox.netlify.app/kahabox-caja.apk`) e instalarlo en
+en una URL fija (`https://kahabox-web.vercel.app/kahabox-caja.apk`) e instalarlo en
 el celular/tablet que va a imprimir los tickets por Bluetooth.
 
 Todo se hace desde el navegador. No hace falta Android Studio ni instalar nada
@@ -16,7 +16,7 @@ en la PC del local.
       (Bluetooth Classic SPP) y el servicio en primer plano `PrinterService`.
 - [x] Workflow `.github/workflows/android.yml` que compila el APK y lo publica
       en un Release.
-- [x] Redirección en `netlify.toml`: `/kahabox-caja.apk` → último Release.
+- [x] Redirección en `vercel.json`: `/kahabox-caja.apk` → último Release.
 - [x] Migración `supabase/migrations/20260917170000_trabajos_impresion.sql`
       aplicada en el proyecto remoto.
 
@@ -69,10 +69,10 @@ git tag apk-v1 && git push origin apk-v1
 Abrir en el navegador:
 
 ```
-https://kahabox.netlify.app/kahabox-caja.apk
+https://kahabox-web.vercel.app/kahabox-caja.apk
 ```
 
-Debe descargar el APK (Netlify redirige al último Release). En el sitio, la
+Debe descargar el APK (Vercel redirige al último Release). En el sitio, la
 sección **Instalar app** (al pie del sidebar) muestra el QR y el botón de
 descarga.
 
@@ -104,9 +104,9 @@ descarga.
 
 ## Actualizaciones
 
-El APK lleva la web **adentro** (no la carga de Netlify), así que cada vez que
+El APK lleva la web **adentro** (no la carga del sitio), así que cada vez que
 cambie la web hay que volver a correr el workflow (**Paso 2**) y reinstalar el
-APK en el dispositivo. Netlify sirve siempre el último Release.
+APK en el dispositivo. Vercel sirve siempre el último Release.
 
 ## Problemas comunes
 
@@ -122,7 +122,7 @@ APK en el dispositivo. Netlify sirve siempre el último Release.
 ## Archivos relacionados
 
 - `.github/workflows/android.yml` — compila y publica el APK.
-- `netlify.toml` — redirección `/kahabox-caja.apk`.
+- `vercel.json` — redirección `/kahabox-caja.apk`.
 - `web/android/` — proyecto Android (plugin `KahaboxPrinter` + `PrinterService`).
 - `web/src/pages/InstalarPage.tsx` — página "Instalar app" con el QR.
 - `web/src/lib/impresion/` — `escpos.ts`, `ticket.ts`, `nativo.ts`, `estacion.ts`.

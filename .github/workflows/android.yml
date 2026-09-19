@@ -1,13 +1,13 @@
 name: APK Android
 
 # Compila la app Android (Capacitor) y publica el APK en un Release.
-# Netlify expone el último en https://kahabox.netlify.app/kahabox-caja.apk
+# Vercel expone el último en https://kahabox-web.vercel.app/kahabox-caja.apk
 #
 # Requisitos (Settings → Secrets and variables → Actions):
 #   VITE_SUPABASE_URL
 #   VITE_SUPABASE_ANON_KEY
 #
-# Nota: el APK incluye el bundle web compilado dentro (no carga de Netlify),
+# Nota: el APK incluye el bundle web compilado dentro (no carga del sitio),
 # así que hay que recompilarlo cada vez que cambie la web.
 
 on:
@@ -63,7 +63,7 @@ jobs:
 
       - name: Metadatos de versión
         run: |
-          echo "{\"versionCode\": ${{ github.run_number }}, \"versionName\": \"1.${{ github.run_number }}\", \"fecha\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"url\": \"https://kahabox.netlify.app/kahabox-caja.apk\"}" > web/kahabox-caja.json
+          echo "{\"versionCode\": ${{ github.run_number }}, \"versionName\": \"1.${{ github.run_number }}\", \"fecha\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"url\": \"https://kahabox-web.vercel.app/kahabox-caja.apk\"}" > web/kahabox-caja.json
 
       - name: Subir artefacto
         uses: actions/upload-artifact@v4
@@ -78,7 +78,7 @@ jobs:
           name: Kahabox Caja (APK)
           body: |
             APK compilado desde ${{ github.sha }} (versión 1.${{ github.run_number }}).
-            Descarga: https://kahabox.netlify.app/kahabox-caja.apk
+            Descarga: https://kahabox-web.vercel.app/kahabox-caja.apk
           files: |
             web/kahabox-caja.apk
             web/kahabox-caja.json

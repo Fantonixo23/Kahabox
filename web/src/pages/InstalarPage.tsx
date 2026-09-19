@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 
-const APK_CANONICA = 'https://kahabox.netlify.app/kahabox-caja.apk'
+const APK_CANONICA = 'https://kahabox-web.vercel.app/kahabox-caja.apk'
 
 function urlApk(): string {
   if (typeof window === 'undefined') return APK_CANONICA

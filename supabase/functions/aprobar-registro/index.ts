@@ -3,7 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 const APPROVAL_SECRET = Deno.env.get('APPROVAL_SECRET')
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-const APP_BASE_URL = (Deno.env.get('APP_BASE_URL') ?? 'https://kahabox.netlify.app').replace(
+const APP_BASE_URL = (Deno.env.get('APP_BASE_URL') ?? 'https://kahabox-web.vercel.app').replace(
   /\/$/,
   '',
 )
