@@ -2,9 +2,8 @@
  * Codificador ESC/POS puro (sin dependencias ni DOM).
  *
  * Devuelve bytes (Uint8Array) listos para mandar tal cual al puerto de la
- * impresora: Bluetooth SPP desde la app Android (plugin KahaboxPrinter) o TCP
- * 9100 si algún día se usa una impresora de red. La PC usa el mismo generador
- * para previsualizar y para empaquetar el trabajo que viaja a la estación.
+ * impresora: Bluetooth SPP desde la app Android (plugin KahaboxPrinter) o el
+ * diálogo del navegador en la PC.
  */
 
 export type Alineacion = 'izq' | 'centro' | 'der'
@@ -133,6 +132,32 @@ export function nuevaLinea(): Uint8Array {
 
 export function cortar(): Uint8Array {
   return Uint8Array.of(0x1d, 0x56, 0x42, 0x00)
+}
+
+/**
+ * Imagen rasterizada (GS v 0, modo normal): dibuja una matriz de puntos 1bpp
+ * de `ancho` × `alto`. `ancho` debe ser múltiplo de 8 y `datos` traer
+ * `ancho / 8` bytes por fila; en cada byte, el bit de menor peso corresponde
+ * al punto de más a la izquierda (convención ESC/POS).
+ */
+export function imagenRaster(
+  ancho: number,
+  alto: number,
+  datos: Uint8Array,
+): Uint8Array {
+  const x = Math.max(8, Math.trunc(ancho))
+  const y = Math.max(1, Math.trunc(alto))
+  const bytesPorFila = Math.trunc(Math.ceil(x / 8))
+  const esperados = bytesPorFila * y
+  const fila = datos.length >= esperados ? datos : concatenar([datos, new Uint8Array(esperados - datos.length)])
+  const xL = (bytesPorFila * 8) & 0xff
+  const xH = ((bytesPorFila * 8) >> 8) & 0xff
+  const yL = y & 0xff
+  const yH = (y >> 8) & 0xff
+  return concatenar([
+    Uint8Array.of(0x1d, 0x76, 0x30, 0x00, xL, xH, yL, yH),
+    fila,
+  ])
 }
 
 export function codificarTexto(texto: string): Uint8Array {

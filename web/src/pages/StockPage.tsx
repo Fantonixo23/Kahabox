@@ -59,7 +59,6 @@ import {
   type ProductoMaestroCatalogo,
 } from '@/lib/stockRemoto'
 import {
-  SUCURSAL,
   crearProductoMock,
   getMockMovimientos,
   getMockStock,
@@ -160,7 +159,9 @@ export default function StockPage() {
   const navigate = useNavigate()
   const config = useConfig()
   const globalId = config.sucursalId ?? sucursalIdDeClaim(user)
-  const [sucursalId, setSucursalId] = useState(SUCURSAL)
+  const [sucursalId, setSucursalId] = useState<string>(() => globalId ?? '')
+  const sucursalValida =
+    sucursalId !== '' && sucursales.some((s) => s.id === sucursalId)
   const [reponerOpen, setReponerOpen] = useState(false)
   const [moverOpen, setMoverOpen] = useState(false)
   const [histOpen, setHistOpen] = useState(false)
@@ -211,7 +212,10 @@ export default function StockPage() {
   }, [loadSucursales])
 
   useEffect(() => {
-    if (sucursales.length === 0) return
+    if (sucursales.length === 0) {
+      setSucursalId('')
+      return
+    }
     const objetivo: string =
       globalId !== null && sucursales.some((s) => s.id === globalId)
         ? globalId
@@ -354,7 +358,7 @@ export default function StockPage() {
             <ArrowRightLeft />
             Mover
           </Button>
-          {esDuenoActivo && (
+          {esDuenoActivo && sucursalValida && (
             <Button variant="outline" onClick={() => setImportarOpen(true)}>
               <FileUp />
               Importar Excel

@@ -690,8 +690,8 @@ export default function ConfiguracionPage() {
             Impresión del ticket
           </CardTitle>
           <CardDescription>
-            Impresión directa por Bluetooth desde un celular/tablet que hace de
-            estación. La PC le manda el ticket por internet, sin instalar nada.
+            En el celular con la app: impresión directa por Bluetooth. En la PC:
+            ventana de impresión del navegador.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -707,9 +707,11 @@ export default function ConfiguracionPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="estacion">
-                  Estación de impresión (celular/tablet)
-                </SelectItem>
+                {esNativo() && (
+                  <SelectItem value="bluetooth">
+                    Bluetooth directo (este celular)
+                  </SelectItem>
+                )}
                 <SelectItem value="navegador">
                   PC / navegador (ventana de impresión)
                 </SelectItem>
@@ -737,9 +739,9 @@ export default function ConfiguracionPage() {
 
           <div className="flex flex-wrap items-center gap-2 rounded-md border px-3 py-2.5">
             <span className="text-sm">
-              {config.estacionImpresion.activa && config.estacionImpresion.impresoraDireccion
-                ? `Estación activa · ${config.estacionImpresion.impresoraNombre || config.estacionImpresion.impresoraDireccion}`
-                : 'Este dispositivo no está configurado como estación'}
+              {config.impresoraBluetooth.impresoraDireccion
+                ? `Impresora Bluetooth · ${config.impresoraBluetooth.impresoraNombre || config.impresoraBluetooth.impresoraDireccion}`
+                : 'Sin impresora Bluetooth configurada'}
             </span>
             <Button
               type="button"

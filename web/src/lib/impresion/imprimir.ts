@@ -8,11 +8,7 @@ import {
   columnasPorAnchoMm,
   type TicketVenta,
 } from './ticket'
-import { enviarTrabajoAEstacion } from './estacion'
-import {
-  impresoraNativaDisponible,
-  KahaboxPrinter,
-} from './nativo'
+import { impresoraNativaDisponible, KahaboxPrinter } from './nativo'
 import { leerConfig } from '@/lib/config'
 
 export type ResultadoImpresion = {
@@ -69,25 +65,6 @@ export async function copiarTicket(texto: string): Promise<boolean> {
 }
 
 /**
- * Imprime mandando el trabajo a la estación (celular/tablet con la app).
- * La PC solo inserta la fila en Supabase; la estación imprime por Bluetooth.
- */
-export async function imprimirPorEstacion(
-  ticket: TicketVenta,
-  anchoMm: number,
-): Promise<ResultadoImpresion> {
-  const ancho = columnasPorAnchoMm(anchoMm)
-  const texto = armarTextoPlano(ticket, ancho)
-  const res = await enviarTrabajoAEstacion(ticket, ancho)
-  return {
-    texto,
-    nativo: true,
-    compartido: false,
-    ...(res.ok ? {} : { error: res.error }),
-  }
-}
-
-/**
  * Imprime directo por Bluetooth clásico desde la app nativa (celular/tablet
  * Android). Manda los bytes ESC/POS a la impresora configurada en
  * Configuración → Impresora, igual que lo haría la PC con su diálogo.
@@ -109,7 +86,7 @@ export async function imprimirBluetooth(
     }
   }
 
-  const direccion = leerConfig().estacionImpresion.impresoraDireccion
+  const direccion = leerConfig().impresoraBluetooth.impresoraDireccion
   if (!direccion) {
     return {
       texto,

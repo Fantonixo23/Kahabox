@@ -11,7 +11,7 @@ export type CertificadoSifen = {
 
 export type AnchoTicketPc = 88 | 58
 
-export type MetodoImpresion = 'estacion' | 'navegador' | 'bluetooth'
+export type MetodoImpresion = 'navegador' | 'bluetooth'
 
 export type CajaNumero = 1 | 2 | 3
 
@@ -29,12 +29,9 @@ export const TASAS_INICIALES: Tasas = {
   BRL: 1420,
 }
 
-export type EstacionImpresion = {
-  activa: boolean
-  dispositivoId: string
+export type ImpresoraBluetooth = {
   impresoraNombre: string
   impresoraDireccion: string
-  sucursalId: string | null
 }
 
 export type ConfigApp = {
@@ -51,7 +48,7 @@ export type ConfigApp = {
   anchoTicketPc: AnchoTicketPc
   cajaNumero: CajaNumero
   metodoImpresion: MetodoImpresion
-  estacionImpresion: EstacionImpresion
+  impresoraBluetooth: ImpresoraBluetooth
   modulosOcultos: string[]
   sucursalId: string | null
   monedasActivas: Moneda[]
@@ -121,27 +118,21 @@ export const MODULOS: Modulo[] = [
 const CLAVE = 'kahabox:config'
 const CLAVE_MODULOS_OCULTOS = 'kahabox:modulos-ocultos'
 
-function nuevoDispositivoId(): string {
-  try {
-    return crypto.randomUUID()
-  } catch {
-    return `est-${Date.now().toString(36)}`
-  }
-}
-
-function estacionInicial(): EstacionImpresion {
+function impresoraInicial(): ImpresoraBluetooth {
   return {
-    activa: false,
-    dispositivoId: nuevoDispositivoId(),
     impresoraNombre: '',
     impresoraDireccion: '',
-    sucursalId: null,
   }
 }
 
 function configInicial(): ConfigApp {
   const guardada = leerConfigGuardada()
-  const { estacionImpresion: estacionGuardada, ...resto } = guardada
+  const { impresoraBluetooth: impresoraGuardada, ...resto } = guardada
+  const legadoImpresora = (
+    guardada as unknown as {
+      estacionImpresion?: { impresoraNombre?: string; impresoraDireccion?: string }
+    }
+  ).estacionImpresion
   const config: ConfigApp = {
     nombreNegocio: '',
     ruc: '',
@@ -164,10 +155,10 @@ function configInicial(): ConfigApp {
     cotizacionesManuales: TASAS_INICIALES,
     tema: 'claro',
     ...resto,
-    estacionImpresion: {
-      ...estacionInicial(),
-      ...(estacionGuardada ?? {}),
-      dispositivoId: estacionGuardada?.dispositivoId || nuevoDispositivoId(),
+    impresoraBluetooth: {
+      ...impresoraInicial(),
+      ...(impresoraGuardada ?? {}),
+      ...(legadoImpresora ?? {}),
     },
   }
   aplicarTema(config.tema)
@@ -247,7 +238,7 @@ function guardar() {
         anchoTicketPc: config.anchoTicketPc,
         cajaNumero: config.cajaNumero,
         metodoImpresion: config.metodoImpresion,
-        estacionImpresion: config.estacionImpresion,
+        impresoraBluetooth: config.impresoraBluetooth,
         sucursalId: config.sucursalId,
         monedasActivas: config.monedasActivas,
         monedaPrincipal: config.monedaPrincipal,
@@ -281,11 +272,11 @@ export function actualizarConfig(patch: Partial<ConfigApp>) {
   listeners.forEach((l) => l())
 }
 
-export function actualizarEstacionImpresion(
-  patch: Partial<EstacionImpresion>,
+export function actualizarImpresoraBluetooth(
+  patch: Partial<ImpresoraBluetooth>,
 ) {
   actualizarConfig({
-    estacionImpresion: { ...config.estacionImpresion, ...patch },
+    impresoraBluetooth: { ...config.impresoraBluetooth, ...patch },
   })
 }
 

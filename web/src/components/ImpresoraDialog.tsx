@@ -6,7 +6,6 @@ import {
   Monitor,
   Printer,
   RotateCw,
-  Smartphone,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -21,15 +20,15 @@ import {
 import { Label } from '@/components/ui/label'
 import {
   actualizarConfig,
-  actualizarEstacionImpresion,
+  actualizarImpresoraBluetooth,
   useConfig,
 } from '@/lib/config'
-import { listarImpresorasDisponibles } from '@/lib/impresion/estacion'
-import { imprimirPorEstacion } from '@/lib/impresion/imprimir'
+import { imprimirTicketPC } from '@/lib/impresion/imprimir'
 import {
   esNativo,
   impresoraNativaDisponible,
   KahaboxPrinter,
+  listarImpresoras,
   type DispositivoBluetooth,
 } from '@/lib/impresion/nativo'
 import { armarEscPosBase64, type TicketVenta } from '@/lib/impresion/ticket'
@@ -86,7 +85,7 @@ export default function ImpresoraDialog({
   const [probando, setProbando] = useState(false)
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null)
 
-  const estacion = config.estacionImpresion
+  const impresora = config.impresoraBluetooth
 
   const selectorMetodo = (
     <div className="space-y-2">
@@ -101,19 +100,9 @@ export default function ImpresoraDialog({
             onClick={() => actualizarConfig({ metodoImpresion: 'bluetooth' })}
           >
             <Bluetooth />
-            Bluetooth
+            Bluetooth directo
           </Button>
         )}
-        <Button
-          type="button"
-          variant={
-            config.metodoImpresion === 'estacion' ? 'default' : 'outline'
-          }
-          onClick={() => actualizarConfig({ metodoImpresion: 'estacion' })}
-        >
-          <Smartphone />
-          Estación
-        </Button>
         <Button
           type="button"
           variant={
@@ -128,9 +117,7 @@ export default function ImpresoraDialog({
       <p className="text-xs text-muted-foreground">
         {config.metodoImpresion === 'bluetooth'
           ? 'Al cobrar, este celular imprime el ticket directo por Bluetooth.'
-          : config.metodoImpresion === 'estacion'
-            ? 'Al cobrar, se encola el ticket y la estación elegida lo imprime.'
-            : 'Al cobrar se muestra el ticket para imprimir desde la PC, la estación o compartirlo.'}
+          : 'Al cobrar se muestra el ticket para imprimir desde la PC, por Bluetooth o copiarlo.'}
       </p>
     </div>
   )
@@ -140,7 +127,7 @@ export default function ImpresoraDialog({
     setAviso(null)
     if (nativo) {
       setBuscando(true)
-      listarImpresorasDisponibles()
+      listarImpresoras()
         .then(setDispositivos)
         .catch(() =>
           setAviso({ ok: false, texto: 'No se pudieron listar los dispositivos.' }),
@@ -154,20 +141,20 @@ export default function ImpresoraDialog({
     setProbando(true)
     try {
       if (nativo) {
-        if (!estacion.impresoraDireccion) {
+        if (!impresora.impresoraDireccion) {
           setAviso({ ok: false, texto: 'Elegí una impresora primero.' })
           return
         }
         const base64 = armarEscPosBase64(ticketPrueba(), 32)
-        await KahaboxPrinter.connect({ address: estacion.impresoraDireccion })
+        await KahaboxPrinter.connect({ address: impresora.impresoraDireccion })
         await KahaboxPrinter.print({ data: base64 })
         setAviso({ ok: true, texto: 'Ticket de prueba enviado a la impresora.' })
       } else {
-        const res = await imprimirPorEstacion(ticketPrueba(), config.anchoTicketPc)
+        const res = await imprimirTicketPC(ticketPrueba(), config.anchoTicketPc)
         setAviso(
           res.error
             ? { ok: false, texto: res.error }
-            : { ok: true, texto: 'Trabajo enviado a la estación de impresión.' },
+            : { ok: true, texto: 'Se abrió la ventana de impresión del navegador.' },
         )
       }
     } catch (e) {
@@ -184,11 +171,11 @@ export default function ImpresoraDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-svh overflow-y-auto sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Impresora · Estación de impresión</DialogTitle>
+          <DialogTitle>Impresora</DialogTitle>
           <DialogDescription>
             {nativo
-              ? 'Este dispositivo puede imprimir los tickets directo por Bluetooth.'
-              : 'La impresora se configura en el celular/tablet que hace de estación.'}
+              ? 'Elegí la impresora Bluetooth y la app imprime el ticket directo.'
+              : 'La impresora Bluetooth se configura desde la app del celular. En la PC se imprime con el diálogo del navegador.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -201,19 +188,19 @@ export default function ImpresoraDialog({
               )}
               {!buscando && dispositivos.length === 0 && (
                 <p className="text-sm text-muted-foreground">
-                  No hay dispositivos. Vinculá la impresora en Ajustes → Bluetooth
-                  del celular y volvé a abrir.
+                  No hay dispositivos. Vinculá la impresora en Ajustes →
+                  Bluetooth del celular y volvé a abrir.
                 </p>
               )}
               <div className="grid gap-1.5">
                 {dispositivos.map((d) => {
-                  const activo = d.address === estacion.impresoraDireccion
+                  const activo = d.address === impresora.impresoraDireccion
                   return (
                     <button
                       key={d.address}
                       type="button"
                       onClick={() =>
-                        actualizarEstacionImpresion({
+                        actualizarImpresoraBluetooth({
                           impresoraNombre: d.name || d.address,
                           impresoraDireccion: d.address,
                         })
@@ -234,38 +221,20 @@ export default function ImpresoraDialog({
               </div>
             </div>
 
-            <label className="flex items-start gap-3 rounded-md border p-3">
-              <input
-                type="checkbox"
-                className="mt-0.5 size-4"
-                checked={estacion.activa}
-                onChange={(e) =>
-                  actualizarEstacionImpresion({ activa: e.target.checked })
-                }
-              />
-              <span className="text-sm">
-                <b>Usar este dispositivo como estación de impresión</b>
-                <span className="mt-1 block text-muted-foreground">
-                  Se queda escuchando los tickets de la caja con la pantalla
-                  apagada. Conviene dejarlo enchufado.
-                </span>
-              </span>
-            </label>
-
             {selectorMetodo}
           </div>
         ) : (
           <div className="space-y-4">
             <ol className="space-y-1.5 text-sm text-muted-foreground">
               <li>
-                1. En el celular/tablet, entrá con el mismo usuario y abrí{' '}
+                1. En el celular, entrá con el mismo usuario y abrí{' '}
                 <b>Configuración → Impresora</b>.
               </li>
               <li>
-                2. Elegí la impresora Bluetooth y activá{' '}
-                <b>“Usar este dispositivo como estación”</b>.
+                2. Elegí la impresora Bluetooth y el método{' '}
+                <b>“Bluetooth directo”</b>.
               </li>
-              <li>3. Acá elegí imprimir en la estación.</li>
+              <li>3. Acá elegí imprimir en la PC o copiar el ticket.</li>
             </ol>
             {selectorMetodo}
           </div>

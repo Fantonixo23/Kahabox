@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import {
   ArrowLeft,
@@ -62,18 +62,32 @@ export default function ImportarStockDialog({
   const [paso, setPaso] = useState<Paso>('archivo')
   const [tabla, setTabla] = useState<TablaExcel | null>(null)
   const [mapeo, setMapeo] = useState<MapeoColumnas>(mapeoSinAsignar())
-  const [sucursal, setSucursal] = useState(sucursalId)
+  const [sucursal, setSucursal] = useState(() =>
+    sucursales.some((s) => s.id === sucursalId)
+      ? sucursalId
+      : (sucursales[0]?.id ?? ''),
+  )
   const [precioDefault, setPrecioDefault] = useState('')
   const [monedaDefault, setMonedaDefault] = useState<'PYG' | 'USD'>('PYG')
   const [resultado, setResultado] = useState<ResultadoImportacion | null>(null)
   const [progreso, setProgreso] = useState({ hecho: 0, total: 0 })
   const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    if (!sucursales.some((s) => s.id === sucursal)) {
+      setSucursal(sucursales[0]?.id ?? '')
+    }
+  }, [sucursal, sucursales])
+
   function reiniciar() {
     setPaso('archivo')
     setTabla(null)
     setMapeo(mapeoSinAsignar())
-    setSucursal(sucursalId)
+    setSucursal(
+      sucursales.some((s) => s.id === sucursalId)
+        ? sucursalId
+        : (sucursales[0]?.id ?? ''),
+    )
     setPrecioDefault('')
     setMonedaDefault('PYG')
     setResultado(null)
@@ -122,6 +136,10 @@ export default function ImportarStockDialog({
     if (!tabla || !preparado) return
     if (preparado.filas.length === 0) {
       setError('No hay filas válidas para importar.')
+      return
+    }
+    if (!sucursales.some((s) => s.id === sucursal)) {
+      setError('Elegí la sucursal destino antes de importar.')
       return
     }
     setError(null)
@@ -193,18 +211,25 @@ export default function ImportarStockDialog({
 
             <div className="space-y-1.5">
               <Label>Sucursal destino</Label>
-              <Select value={sucursal} onValueChange={setSucursal}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {sucursales.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {sucursales.length === 0 ? (
+                <p className="rounded-md border border-amber-300/50 bg-amber-50 p-3 text-sm text-amber-700">
+                  Todavía no hay sucursales creadas. Creá una en el módulo
+                  Sucursales y volvé a importar.
+                </p>
+              ) : (
+                <Select value={sucursal} onValueChange={setSucursal}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sucursales.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
         )}

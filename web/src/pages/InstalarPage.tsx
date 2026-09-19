@@ -26,7 +26,7 @@ const PASOS = [
   'Descargá el archivo kahabox-caja.apk.',
   'Si Android lo pide, permití "Instalar apps de origen desconocido" para Chrome.',
   'Abrí Kahabox, iniciá sesión con tu usuario de siempre.',
-  'En Configuración → Impresora, elegí la térmica Bluetooth y activá "Usar este dispositivo como estación".',
+  'En Configuración → Impresora, elegí la térmica Bluetooth y probá una impresión.',
 ]
 
 export default function InstalarPage() {
@@ -40,7 +40,7 @@ export default function InstalarPage() {
         </h1>
         <p className="text-sm text-muted-foreground">
           Instalá la app para imprimir los tickets por Bluetooth y usar el
-          celular o tablet como caja y estación de impresión.
+          celular o tablet como caja.
         </p>
       </div>
 
@@ -90,12 +90,12 @@ export default function InstalarPage() {
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
           <p>
-            · Imprime los tickets en una impresora térmica Bluetooth (ESC/POS),
-            sin instalar nada en la PC.
+            · Imprime el ticket automáticamente al cobrar en una impresora
+            térmica Bluetooth (ESC/POS), sin instalar nada en la PC.
           </p>
           <p>
-            · Con la pantalla apagada sigue escuchando los tickets que manda la
-            caja; conviene dejarla enchufada.
+            · También imprime etiquetas de códigos de barras desde el módulo
+            Códigos, directo por Bluetooth.
           </p>
           <p>
             · Si tu dispositivo no es Android, podés agregar Kahabox a la

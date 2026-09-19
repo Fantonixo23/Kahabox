@@ -4,7 +4,6 @@ import {
   Printer,
   RotateCw,
   Smartphone,
-  Wifi,
 } from 'lucide-react'
 
 import type { ResultadoImpresion } from '@/lib/impresion/imprimir'
@@ -22,9 +21,7 @@ export default function ResultadoImpresionDialog({
   resultado,
   puedeImprimir,
   reimprimiendo,
-  estacionActiva,
   bluetoothActivo,
-  onImprimirEstacion,
   onImprimirBluetooth,
   onImprimirPC,
   onImprimir,
@@ -34,9 +31,7 @@ export default function ResultadoImpresionDialog({
   resultado: ResultadoImpresion | null
   puedeImprimir: boolean
   reimprimiendo: boolean
-  estacionActiva?: boolean
   bluetoothActivo?: boolean
-  onImprimirEstacion?: () => void
   onImprimirBluetooth?: () => void
   onImprimirPC: () => void
   onImprimir: () => void
@@ -52,7 +47,7 @@ export default function ResultadoImpresionDialog({
           <DialogDescription>
             {error
               ? 'La venta quedó guardada. Elegí cómo imprimir o copiar el ticket.'
-              : 'Elegí por dónde imprimir: Bluetooth, estación, PC o el menú Compartir del celular.'}
+              : 'Elegí por dónde imprimir: Bluetooth, la PC o copiarlo.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -88,21 +83,6 @@ export default function ResultadoImpresionDialog({
                   <Printer />
                 )}
                 Imprimir
-              </Button>
-            )}
-            {estacionActiva && onImprimirEstacion && (
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!puedeImprimir || reimprimiendo}
-                onClick={onImprimirEstacion}
-              >
-                {reimprimiendo ? (
-                  <RotateCw className="animate-spin" />
-                ) : (
-                  <Wifi />
-                )}
-                Estación
               </Button>
             )}
             <Button

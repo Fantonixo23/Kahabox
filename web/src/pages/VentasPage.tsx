@@ -45,7 +45,6 @@ import { formatFecha, formatMoney, type Moneda } from '@/lib/format'
 import {
   copiarTicket,
   imprimirBluetooth,
-  imprimirPorEstacion,
   imprimirTicket,
   imprimirTicketPC,
   type ResultadoImpresion,
@@ -273,17 +272,6 @@ export default function VentasPage() {
     setResultado({ texto: armarTextoPlano(ticket), nativo: false, compartido: false })
   }
 
-  async function imprimirActual() {
-    const ticket = ticketActual.current
-    if (!ticket) return
-    setReimprimiendo(true)
-    try {
-      setResultado(await imprimirTicket(ticket))
-    } finally {
-      setReimprimiendo(false)
-    }
-  }
-
   async function imprimirActualPC() {
     const ticket = ticketActual.current
     if (!ticket) return
@@ -295,12 +283,12 @@ export default function VentasPage() {
     }
   }
 
-  async function imprimirActualEstacion() {
+  async function imprimirActual() {
     const ticket = ticketActual.current
     if (!ticket) return
     setReimprimiendo(true)
     try {
-      setResultado(await imprimirPorEstacion(ticket, config.anchoTicketPc))
+      setResultado(await imprimirTicket(ticket))
     } finally {
       setReimprimiendo(false)
     }
@@ -521,12 +509,10 @@ export default function VentasPage() {
         resultado={resultado}
         puedeImprimir
         reimprimiendo={reimprimiendo}
-        estacionActiva={config.metodoImpresion === 'estacion' && isSupabaseConfigured}
         bluetoothActivo={
           impresoraNativaDisponible() &&
-          Boolean(config.estacionImpresion.impresoraDireccion)
+          Boolean(config.impresoraBluetooth.impresoraDireccion)
         }
-        onImprimirEstacion={() => void imprimirActualEstacion()}
         onImprimirBluetooth={() => void imprimirActualBluetooth()}
         onImprimirPC={() => void imprimirActualPC()}
         onImprimir={() => void imprimirActual()}

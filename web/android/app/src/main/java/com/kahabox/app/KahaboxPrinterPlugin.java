@@ -24,8 +24,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Impresión ESC/POS por Bluetooth Classic (SPP) y servicio en primer plano para
- * que la estación de impresión siga viva con la pantalla apagada.
+ * Impresión ESC/POS por Bluetooth Classic (SPP).
  */
 @CapacitorPlugin(name = "KahaboxPrinter")
 public class KahaboxPrinterPlugin extends Plugin {
@@ -173,42 +172,6 @@ public class KahaboxPrinterPlugin extends Plugin {
         JSObject ret = new JSObject();
         ret.put("connected", socket != null && socket.isConnected());
         ret.put("address", address);
-        call.resolve(ret);
-    }
-
-    @PluginMethod
-    public void startService(PluginCall call) {
-        String titulo = call.getString("titulo", "Kahabox");
-        String texto = call.getString("texto", "Impresora activa");
-        Intent intent = new Intent(getContext(), PrinterService.class);
-        intent.putExtra("titulo", titulo);
-        intent.putExtra("texto", texto);
-        intent.putExtra("supabaseUrl", call.getString("supabaseUrl", ""));
-        intent.putExtra("supabaseKey", call.getString("supabaseKey", ""));
-        intent.putExtra("accessToken", call.getString("accessToken", ""));
-        intent.putExtra("refreshToken", call.getString("refreshToken", ""));
-        intent.putExtra("dispositivoId", call.getString("dispositivoId", ""));
-        intent.putExtra("sucursalId", call.getString("sucursalId", ""));
-        intent.putExtra(
-                "impresoraDireccion", call.getString("impresoraDireccion", ""));
-        ContextCompat.startForegroundService(getContext(), intent);
-        call.resolve();
-    }
-
-    @PluginMethod
-    public void stopService(PluginCall call) {
-        Intent intent = new Intent(getContext(), PrinterService.class);
-        getContext().stopService(intent);
-        call.resolve();
-    }
-
-    @PluginMethod
-    public void estadoServicio(PluginCall call) {
-        JSObject ret = new JSObject();
-        ret.put("corriendo", PrinterService.enServicio());
-        ret.put("conectada", PrinterService.btConectada());
-        ret.put("impresos", PrinterService.impresos());
-        ret.put("ultimoError", PrinterService.ultimoError());
         call.resolve(ret);
     }
 

@@ -85,7 +85,6 @@ import {
 import {
   copiarTicket,
   imprimirBluetooth,
-  imprimirPorEstacion,
   imprimirTicket,
   imprimirTicketPC,
   type ResultadoImpresion,
@@ -756,17 +755,6 @@ export default function CajaPage() {
     }
   }
 
-  async function imprimirUltimoEstacion() {
-    if (!ultimoTicket) return
-    setReimprimiendo(true)
-    try {
-      const res = await imprimirPorEstacion(ultimoTicket, config.anchoTicketPc)
-      setResultadoImpresion(res)
-    } finally {
-      setReimprimiendo(false)
-    }
-  }
-
   async function imprimirUltimoBluetooth() {
     if (!ultimoTicket) return
     setReimprimiendo(true)
@@ -930,11 +918,7 @@ export default function CajaPage() {
         guardarTicketVentaMock(ventaId, ticket)
         guardarUltimoTicket(ticket)
         setUltimoTicket(ticket)
-        if (config.metodoImpresion === 'estacion' && isSupabaseConfigured) {
-          setResultadoImpresion(
-            await imprimirPorEstacion(ticket, config.anchoTicketPc),
-          )
-        } else if (config.metodoImpresion === 'bluetooth') {
+        if (config.metodoImpresion === 'bluetooth') {
           setResultadoImpresion(
             await imprimirBluetooth(ticket, config.anchoTicketPc),
           )
@@ -1539,12 +1523,10 @@ export default function CajaPage() {
         resultado={resultadoImpresion}
         puedeImprimir={Boolean(ultimoTicket)}
         reimprimiendo={reimprimiendo}
-        estacionActiva={config.metodoImpresion === 'estacion' && isSupabaseConfigured}
         bluetoothActivo={
           impresoraNativaDisponible() &&
-          Boolean(config.estacionImpresion.impresoraDireccion)
+          Boolean(config.impresoraBluetooth.impresoraDireccion)
         }
-        onImprimirEstacion={() => void imprimirUltimoEstacion()}
         onImprimirBluetooth={() => void imprimirUltimoBluetooth()}
         onImprimirPC={() => void imprimirUltimoPC()}
         onImprimir={() => void imprimirUltimo()}

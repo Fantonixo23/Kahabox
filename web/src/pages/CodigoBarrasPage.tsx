@@ -24,6 +24,8 @@ import { getMockStock } from '@/lib/mock'
 import { cargarStockRemoto } from '@/lib/stockRemoto'
 import { useAuth } from '@/components/auth/AuthContext'
 import { vistaStock } from '@/lib/vistaStock'
+import { esNativo } from '@/lib/impresion/nativo'
+import { imprimirEtiquetasBluetooth } from '@/lib/impresion/etiqueta'
 import { cn } from 'cn'
 
 type LineaStock = {
@@ -136,6 +138,20 @@ export default function CodigoBarrasPage() {
     )
     void imprimirDocumento(armarDocumentoEtiquetas(lista)).then((err) => {
       if (err) setError(err)
+    })
+  }
+
+  function imprimirPorBluetooth() {
+    if (etiquetas.length === 0) {
+      setError('Todavía no generaste ninguna etiqueta.')
+      return
+    }
+    setError(null)
+    const lista = etiquetas.flatMap((e) =>
+      Array.from({ length: cantidad }, () => e),
+    )
+    void imprimirEtiquetasBluetooth(lista).then((res) => {
+      if (!res.ok && res.error) setError(res.error)
     })
   }
 
@@ -351,9 +367,19 @@ export default function CodigoBarrasPage() {
                 <Printer />
                 Imprimir etiquetas
               </Button>
+              <Button
+                type="button"
+                variant={esNativo() ? 'default' : 'outline'}
+                onClick={imprimirPorBluetooth}
+                className="w-full"
+              >
+                <Printer />
+                Imprimir por Bluetooth
+              </Button>
               <p className="text-xs text-muted-foreground">
-                Se abre el diálogo de impresión del navegador. Usá una hoja de
-                etiquetas o pegatinas (medida 52 × 24 mm por etiqueta).
+                {esNativo()
+                  ? 'Imprimí por Bluetooth en la térmica configurada (58 mm). También podés usar el diálogo del navegador.'
+                  : 'Se abre el diálogo de impresión del navegador. En el celular podés imprimir por Bluetooth. Usá una hoja de etiquetas o pegatinas (medida 52 × 24 mm por etiqueta).'}
               </p>
             </CardContent>
           </Card>

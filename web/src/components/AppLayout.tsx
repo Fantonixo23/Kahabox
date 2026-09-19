@@ -24,7 +24,6 @@ import SyncBar from '@/components/SyncBar'
 import { Button } from '@/components/ui/button'
 import { cn } from 'cn'
 import { MODULOS, puedeVerRuta, useConfig } from '@/lib/config'
-import { useEstacionImpresion } from '@/lib/impresion/estacion'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { rolUsuario } from '@/lib/vistaStock'
 
@@ -57,7 +56,6 @@ export default function AppLayout() {
   const navigate = useNavigate()
   const { user, salirDemo } = useAuth()
   const { modulosOcultos } = useConfig()
-  const estacion = useEstacionImpresion()
 
   const nav = useMemo(
     () =>
@@ -95,18 +93,6 @@ export default function AppLayout() {
             {!isSupabaseConfigured && (
               <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
                 demo
-              </span>
-            )}
-            {estacion.activa && (
-              <span
-                className={cn(
-                  'rounded px-1.5 py-0.5 text-[10px] font-medium',
-                  estacion.conectada
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-amber-100 text-amber-700',
-                )}
-              >
-                {estacion.ultimoError ? 'impresora ⚠' : 'impresora'}
               </span>
             )}
           </div>
@@ -172,18 +158,6 @@ export default function AppLayout() {
           {!isSupabaseConfigured && (
             <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
               demo
-            </span>
-          )}
-          {estacion.activa && (
-            <span
-              className={cn(
-                'rounded px-1.5 py-0.5 text-[10px] font-medium',
-                estacion.conectada
-                  ? 'bg-emerald-100 text-emerald-700'
-                  : 'bg-amber-100 text-amber-700',
-              )}
-            >
-              {estacion.ultimoError ? 'impresora ⚠' : 'impresora'}
             </span>
           )}
           <div className="ml-auto flex items-center gap-2">

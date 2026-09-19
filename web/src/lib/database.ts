@@ -792,66 +792,6 @@ Relationships: [
           },
         ]
       }
-      trabajos_impresion: {
-        Row: {
-          id: string
-          tenant_id: string
-          sucursal_id: string | null
-          estacion_id: string | null
-          ancho: number
-          payload: string
-          estado: 'pendiente' | 'imprimiendo' | 'impreso' | 'error'
-          intentos: number
-          error: string | null
-          creado_por: string | null
-          created_at: string
-          impreso_en: string | null
-        }
-        Insert: {
-          id?: string
-          tenant_id?: string
-          sucursal_id?: string | null
-          estacion_id?: string | null
-          ancho?: number
-          payload: string
-          estado?: 'pendiente' | 'imprimiendo' | 'impreso' | 'error'
-          intentos?: number
-          error?: string | null
-          creado_por?: string | null
-          created_at?: string
-          impreso_en?: string | null
-        }
-        Update: {
-          id?: string
-          tenant_id?: string
-          sucursal_id?: string | null
-          estacion_id?: string | null
-          ancho?: number
-          payload?: string
-          estado?: 'pendiente' | 'imprimiendo' | 'impreso' | 'error'
-          intentos?: number
-          error?: string | null
-          creado_por?: string | null
-          created_at?: string
-          impreso_en?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'trabajos_impresion_tenant_id_fkey'
-            columns: ['tenant_id']
-            isOneToOne: false
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'trabajos_impresion_sucursal_id_fkey'
-            columns: ['sucursal_id']
-            isOneToOne: false
-            referencedRelation: 'sucursales'
-            referencedColumns: ['id']
-          },
-        ]
-      }
     }
     Views: {
       stock_tienda_vendedor: {
@@ -1104,21 +1044,6 @@ Relationships: [
         Returns: {
           estado: 'activo' | 'pendiente' | 'rechazado'
         }[]
-      }
-      tomar_trabajo_impresion: {
-        Args: {
-          p_estacion: string
-          p_sucursal?: string | null
-        }
-        Returns: Record<string, unknown> | null
-      }
-      finalizar_trabajo_impresion: {
-        Args: {
-          p_id: string
-          p_ok: boolean
-          p_error?: string | null
-        }
-        Returns: Record<string, unknown>
       }
     }
     Enums: {}
