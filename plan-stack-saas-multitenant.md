@@ -36,7 +36,7 @@ Supabase
  ├─ Realtime (stock en vivo entre dispositivos)
  └─ Edge Functions (lógica sensible: cierre de venta, invitaciones, webhooks)
       │
-Servicios externos: Bancard (cobros) · SIFEN (facturación electrónica) · Barcode lookup API · Hosting (Netlify)
+Servicios externos: Bancard (cobros) · Barcode lookup API · Hosting (Netlify)
 ```
 
 Regla de oro del modelo: **todas las tablas operativas llevan `tenant_id`**, excepto el catálogo maestro de productos, que es compartido entre todos los tenants (de solo lectura para ellos).
@@ -237,15 +237,7 @@ Una sección aparte (o app chica separada) para vos:
 
 ---
 
-## 8. Facturación electrónica (SIFEN)
-
-- Tratarlo como sub-proyecto aparte, no como una función más.
-- Evaluar primero un proveedor intermediario de facturación electrónica paraguayo antes de integrar directo contra los servidores de la DNIT — ahorra semanas de trabajo de certificados, firma XML y manejo de contingencias.
-- Se conecta al flujo de `ventas`: al confirmarse una venta, se dispara una Edge Function que arma el comprobante y lo manda al proveedor/SIFEN.
-
----
-
-## 9. Infraestructura y despliegue
+## 8. Infraestructura y despliegue
 
 - **Repo único** (monorepo): frontend + Edge Functions + migraciones.
 - **Hosting frontend**: **Netlify** — deploy automático en cada push a `main`. Se eligió sobre Vercel porque el plan gratuito de Vercel no permite uso comercial (solo proyectos personales/de aprendizaje), mientras que Netlify sí permite cobrar a clientes en su plan free. Render no aplica acá: es para backends con servidor persistente (Node/Python/Docker), y ese rol ya lo cubre Supabase.
@@ -280,12 +272,11 @@ El frontend se diseña priorizando velocidad de uso diario y facilidad de encont
 
 ## 11. Roadmap sugerido (de MVP a plataforma completa)
 
-1. **Fase 0 — Fundaciones**: tablas + RLS + Auth + CRUD de productos/stock, sin offline ni SIFEN. Probar con 1 tenant (vos mismo o un cliente amigo).
+1. **Fase 0 — Fundaciones**: tablas + RLS + Auth + CRUD de productos/stock, sin offline. Probar con 1 tenant (vos mismo o un cliente amigo).
 2. **Fase 1 — Piloto**: sumar escaneo de código de barras, ventas básicas, 3-5 clientes reales, cobro manual.
 3. **Fase 2 — Offline real**: RxDB + sincronización, Realtime entre tablets.
 4. **Fase 3 — Multi-tenant a escala**: panel de superadmin, onboarding de nuevos tenants sin intervención tuya, cobro automatizado con Bancard.
-5. **Fase 4 — Cumplimiento**: integración SIFEN.
-6. **Fase 5 — Producto de descubrimiento** (opcional, largo plazo): catálogo público por tienda y, más adelante, buscador agregado multi-tienda.
+5. **Fase 4 — Producto de descubrimiento** (opcional, largo plazo): catálogo público por tienda y, más adelante, buscador agregado multi-tienda.
 
 No arranques la Fase 2 en paralelo con la Fase 0. El orden importa: primero validar que el negocio resuelve un dolor real con el mínimo posible, después invertir en robustez técnica.
 

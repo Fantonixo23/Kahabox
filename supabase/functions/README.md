@@ -10,7 +10,6 @@ Lógica que no debe vivir en el cliente. Se ejecutan en Supabase con runtime Den
 - **Fase 1**: invitación de vendedor (magic link + alta en `usuarios_tenant`).
 - **Fase 2**: `confirmar_venta` — valida stock con `UPDATE` atómico
   (`where cantidad >= :n`, rechazo si rowCount = 0) y dispara Realtime.
-- **Fase 4**: comprobante SIFEN al confirmar una venta.
 
 ## Funciones existentes
 
