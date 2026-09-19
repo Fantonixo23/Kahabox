@@ -6,7 +6,9 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
+import android.provider.Settings;
 import android.util.Base64;
 
 import androidx.core.app.ActivityCompat;
@@ -188,6 +190,20 @@ public class KahaboxPrinterPlugin extends Plugin {
         String url = call.getString("url");
         if (url == null || url.isEmpty()) {
             call.reject("Falta la URL del APK.");
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                && !getContext().getPackageManager().canRequestPackageInstalls()) {
+            Intent ajustes = new Intent(
+                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:" + getContext().getPackageName()));
+            ajustes.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            try {
+                getContext().startActivity(ajustes);
+            } catch (Exception ignored) {
+                // Algún fabricante no ofrece esa pantalla; igual se avisa abajo.
+            }
+            call.reject("Activá 'Instalar apps de origen desconocido' para Kahabox y toca Actualizar de nuevo.");
             return;
         }
         new Thread(() -> {

@@ -20,6 +20,7 @@ import {
 export function AvisoActualizacion() {
   const [info, setInfo] = useState<InfoActualizacion | null>(null)
   const [abierto, setAbierto] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let activo = true
@@ -38,6 +39,17 @@ export function AvisoActualizacion() {
     }
   }, [])
 
+  async function instalar() {
+    if (!info) return
+    setError(null)
+    try {
+      await actualizarApp(info.url)
+      setAbierto(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo descargar el APK.')
+    }
+  }
+
   return (
     <Dialog open={abierto} onOpenChange={setAbierto}>
       <DialogContent>
@@ -48,17 +60,16 @@ export function AvisoActualizacion() {
             descarga e instala automáticamente, sin perder la configuración.
           </DialogDescription>
         </DialogHeader>
+        {error && (
+          <p className="rounded-md border border-amber-300/50 bg-amber-50 p-3 text-sm text-amber-700">
+            {error}
+          </p>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={() => setAbierto(false)}>
             Ahora no
           </Button>
-          <Button
-            onClick={() => {
-              if (!info) return
-              setAbierto(false)
-              void actualizarApp(info.url)
-            }}
-          >
+          <Button onClick={() => void instalar()}>
             <Download />
             Actualizar ahora
           </Button>

@@ -81,6 +81,7 @@ export default function ConfiguracionPage() {
     'inicial' | 'buscando' | 'ok' | 'al-dia' | 'error'
   >('inicial')
   const [mensajeActualizacion, setMensajeActualizacion] = useState('')
+  const [errorActualizacion, setErrorActualizacion] = useState(false)
   const [tasaUsd, setTasaUsd] = useState(String(config.cotizacionesManuales.USD))
   const [tasaBrl, setTasaBrl] = useState(String(config.cotizacionesManuales.BRL))
   const [tasaArs, setTasaArs] = useState(String(config.cotizacionesManuales.ARS))
@@ -108,11 +109,19 @@ export default function ConfiguracionPage() {
   async function instalarActualizacionApp() {
     if (!actualizacion) return
     setMensajeActualizacion('')
+    setErrorActualizacion(false)
     try {
       await actualizarApp(actualizacion.url)
-      setMensajeActualizacion('Se abrió el instalador de Android. Confirmá la instalación.')
-    } catch {
-      setMensajeActualizacion('No se pudo descargar el APK. Revisá la conexión.')
+      setMensajeActualizacion(
+        'Se abrió el instalador de Android. Confirmá la instalación.',
+      )
+    } catch (e) {
+      setMensajeActualizacion(
+        e instanceof Error
+          ? e.message
+          : 'No se pudo descargar el APK. Revisá la conexión.',
+      )
+      setErrorActualizacion(true)
     }
   }
 
@@ -869,7 +878,13 @@ export default function ConfiguracionPage() {
                 )}
               </div>
               {mensajeActualizacion && (
-                <p className="text-xs font-medium text-emerald-600">
+                <p
+                  className={
+                    errorActualizacion
+                      ? 'text-xs font-medium text-red-600'
+                      : 'text-xs font-medium text-emerald-600'
+                  }
+                >
                   {mensajeActualizacion}
                 </p>
               )}
