@@ -36,7 +36,15 @@ export default function TenantGate({ children }: { children: ReactNode }) {
       }
 
       if (!tenantId) {
-        setEstado('ok')
+        // Sin claim de tienda: o es un invitado ya cubierto arriba
+        // (pendiente/rechazado) o le revocaron el acceso (lo quitaron). Un
+        // miembro activo sin claim todavía puede entrar; el resto no.
+        if (miembroEstado === 'activo') {
+          setEstado('ok')
+          return
+        }
+        setMotivo('miembro')
+        setEstado('rechazado')
         return
       }
 
