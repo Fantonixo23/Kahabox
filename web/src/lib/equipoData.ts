@@ -5,6 +5,7 @@ import {
   crearInvitacionMock,
   getMockInvitaciones,
   getMockMiembros,
+  getSucursalNombre,
   miEstadoEquipoMock,
   obtenerInvitacionMock,
   quitarMiembroMock,
@@ -22,6 +23,8 @@ export type MiembroDetalle = {
   nombre: string | null
   email: string | null
   alta: string
+  sucursalId: string | null
+  sucursalNombre: string | null
 }
 
 export type InvitacionDetalle = {
@@ -51,6 +54,8 @@ export async function listarMiembros(): Promise<MiembroDetalle[]> {
       nombre: m.nombre,
       email: m.user_id === '99999999-9999-4999-9999-999999999999' ? 'demo@kahabox.com' : null,
       alta: m.created_at,
+      sucursalId: m.sucursal_id ?? null,
+      sucursalNombre: m.sucursal_id ? getSucursalNombre(m.sucursal_id) : null,
     }))
   }
   const { data, error } = await supabase.rpc('listar_miembros')
@@ -63,6 +68,8 @@ export async function listarMiembros(): Promise<MiembroDetalle[]> {
     nombre: fila.nombre,
     email: fila.email,
     alta: fila.created_at,
+    sucursalId: fila.sucursal_id ?? null,
+    sucursalNombre: fila.sucursal_nombre ?? null,
   }))
 }
 

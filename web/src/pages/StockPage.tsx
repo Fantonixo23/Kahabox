@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import {
   ArrowRightLeft,
@@ -9,6 +10,7 @@ import {
   Plus,
   ScanBarcode,
   Search,
+  Store,
   Trash2,
 } from 'lucide-react'
 
@@ -48,6 +50,8 @@ import { ejecutarEscritura } from '@/lib/ejecutar'
 import { esErrorDeRed } from '@/lib/red'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { dispositivoActual } from '@/lib/auditoriaData'
+import { useConfig } from '@/lib/config'
+import { sucursalIdDeClaim } from '@/lib/sucursal'
 import { esJefe, vistaStock, esDueno, type VistaStock } from '@/lib/vistaStock'
 import { useKeyboardScanner } from '@/lib/useKeyboardScanner'
 import {
@@ -153,6 +157,9 @@ export default function StockPage() {
   const [movimientos, setMovimientos] = useState<MovimientoStock[]>([])
   const [error, setError] = useState<string | null>(null)
   const [q, setQ] = useState('')
+  const navigate = useNavigate()
+  const config = useConfig()
+  const globalId = config.sucursalId ?? sucursalIdDeClaim(user)
   const [sucursalId, setSucursalId] = useState(SUCURSAL)
   const [reponerOpen, setReponerOpen] = useState(false)
   const [moverOpen, setMoverOpen] = useState(false)
@@ -204,10 +211,13 @@ export default function StockPage() {
   }, [loadSucursales])
 
   useEffect(() => {
-    if (sucursales.length > 0 && !sucursales.some((s) => s.id === sucursalId)) {
-      setSucursalId(sucursales[0].id)
-    }
-  }, [sucursales, sucursalId])
+    if (sucursales.length === 0) return
+    const objetivo: string =
+      globalId !== null && sucursales.some((s) => s.id === globalId)
+        ? globalId
+        : sucursales[0].id
+    setSucursalId((prev) => (prev === objetivo ? prev : objetivo))
+  }, [sucursales, globalId])
 
   const sucursalNombre = useCallback(
     (id: string | null | undefined) =>
@@ -373,21 +383,18 @@ export default function StockPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {sucursales.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => setSucursalId(s.id)}
-            className={cn(
-              'h-9 rounded-lg border px-3 text-sm font-semibold',
-              sucursalId === s.id
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'bg-background text-muted-foreground hover:text-foreground',
-            )}
+        <Badge variant="outline">{sucursalNombre(sucursalId)}</Badge>
+        {esDuenoUser && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/app/sucursal')}
+            className="h-7 gap-1.5 px-2 text-muted-foreground hover:text-foreground"
           >
-            {s.nombre}
-          </button>
-        ))}
+            <Store className="size-4" />
+            Cambiar sucursal
+          </Button>
+        )}
       </div>
 
       <Input

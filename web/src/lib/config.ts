@@ -53,6 +53,7 @@ export type ConfigApp = {
   metodoImpresion: MetodoImpresion
   estacionImpresion: EstacionImpresion
   modulosOcultos: string[]
+  sucursalId: string | null
   monedasActivas: Moneda[]
   monedaPrincipal: Moneda
   cotizacionesModo: ModoCotizaciones
@@ -77,6 +78,7 @@ export const MODULOS_POR_ROL: Record<string, RolApp[]> = {
   '/app/reportes': ['dueño', 'administrador'],
   '/app/auditoria': ['dueño', 'administrador'],
   '/app/equipo': ['dueño'],
+  '/app/sucursal': ['dueño'],
   '/app/configuracion': ['dueño'],
   '/app/instalar': ['dueño'],
 }
@@ -105,6 +107,7 @@ export const MODULOS: Modulo[] = [
     corto: 'Pagos',
   },
   { ruta: '/app/equipo', label: 'Mi equipo', corto: 'Equipo' },
+  { ruta: '/app/sucursal', label: 'Sucursales', corto: 'Sucursal' },
   { ruta: '/app/auditoria', label: 'Auditoría', corto: 'Audit.' },
   { ruta: '/app/reportes', label: 'Reportes', corto: 'Reportes' },
 ]
@@ -148,6 +151,7 @@ function configInicial(): ConfigApp {
     cajaNumero: 1,
     metodoImpresion: 'navegador',
     modulosOcultos: leerModulosOcultos(),
+    sucursalId: null,
     monedasActivas: MONEDAS_DEFAULT,
     monedaPrincipal: 'PYG',
     cotizacionesModo: 'manual',
@@ -238,6 +242,7 @@ function guardar() {
         cajaNumero: config.cajaNumero,
         metodoImpresion: config.metodoImpresion,
         estacionImpresion: config.estacionImpresion,
+        sucursalId: config.sucursalId,
         monedasActivas: config.monedasActivas,
         monedaPrincipal: config.monedaPrincipal,
         cotizacionesModo: config.cotizacionesModo,

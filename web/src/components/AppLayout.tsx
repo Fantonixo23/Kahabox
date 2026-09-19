@@ -12,6 +12,7 @@ import {
   Settings,
   ShieldCheck,
   Smartphone,
+  Store,
   Truck,
   Users,
 } from 'lucide-react'
@@ -34,6 +35,7 @@ const ICONOS = {
   '/app/proveedores': Truck,
   '/app/pagos-proveedores': HandCoins,
   '/app/equipo': Users,
+  '/app/sucursal': Store,
   '/app/auditoria': ShieldCheck,
   '/app/reportes': BarChart3,
 } as const

@@ -22,6 +22,7 @@ import RecoveryPage from '@/pages/RecoveryPage'
 import RegisterPage from '@/pages/RegisterPage'
 import ReportesPage from '@/pages/ReportesPage'
 import StockPage from '@/pages/StockPage'
+import SucursalesPage from '@/pages/SucursalesPage'
 import UnirsePage from '@/pages/UnirsePage'
 import VentasPage from '@/pages/VentasPage'
 
@@ -99,6 +100,14 @@ export default function App() {
           element={
             <RequiereRol ruta="/app/equipo">
               <EquipoPage />
+            </RequiereRol>
+          }
+        />
+        <Route
+          path="sucursal"
+          element={
+            <RequiereRol ruta="/app/sucursal">
+              <SucursalesPage />
             </RequiereRol>
           }
         />

@@ -2029,6 +2029,7 @@ export const demoUser = {
     providers: ['demo'],
     tenant_id: TENANT,
     rol: 'dueño',
+    sucursal_id: SUCURSAL,
   },
   user_metadata: { nombre: 'Kaha Demo', nombre_tienda: 'Kaha Demo' },
   identities: [],

@@ -102,6 +102,7 @@ import {
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { dispositivoActual } from '@/lib/auditoriaData'
 import { esErrorDeRed } from '@/lib/red'
+import { sucursalIdDeClaim } from '@/lib/sucursal'
 import { vistaStock } from '@/lib/vistaStock'
 import { useKeyboardScanner } from '@/lib/useKeyboardScanner'
 import { cn } from 'cn'
@@ -243,6 +244,7 @@ export default function CajaPage() {
   const config = useConfig()
   const { user } = useAuth()
   const vista = vistaStock(user)
+  const sucursalFiltro = config.sucursalId ?? sucursalIdDeClaim(user)
   const monedasDisponibles =
     config.monedasActivas.length > 0
       ? MONEDAS.filter((m) => config.monedasActivas.includes(m.codigo))
@@ -305,8 +307,13 @@ export default function CajaPage() {
   })
 
   const recargarStock = useCallback(async () => {
+    const claveStock = sucursalFiltro ? `${vista}:${sucursalFiltro}` : vista
+    const soloSucursal = (filas: StockRow[]): StockRow[] =>
+      sucursalFiltro
+        ? filas.filter((r) => r.sucursal_id === sucursalFiltro)
+        : filas
     if (!isSupabaseConfigured) {
-      setStock(getMockStock())
+      setStock(soloSucursal(getMockStock()))
       return
     }
     try {
@@ -316,17 +323,17 @@ export default function CajaPage() {
         .order('updated_at', { ascending: false })
         .limit(500)
       if (error) throw error
-      const filas = (data as StockRow[] | null) ?? []
+      const filas = soloSucursal((data as StockRow[] | null) ?? [])
       setStock(filas)
-      guardarCacheStock(vista, filas)
+      guardarCacheStock(claveStock, filas)
     } catch (e) {
       if (!esErrorDeRed(e)) throw e
       // Sin conexión: no pisamos la lista en memoria y usamos la última
       // carga exitosa si no hay nada aún (el SyncBar avisa el estado).
-      const cache = leerCacheStock<StockRow>(vista)
-      setStock((prev) => (prev !== null ? prev : (cache ?? [])))
+      const cache = soloSucursal(leerCacheStock<StockRow>(claveStock) ?? [])
+      setStock((prev) => (prev !== null ? prev : cache))
     }
-  }, [vista])
+  }, [vista, sucursalFiltro])
 
   useEffect(() => {
     let activo = true
