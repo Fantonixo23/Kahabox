@@ -8,6 +8,10 @@ import { useAuth } from '@/components/auth/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  esErrorEmailNoConfirmado,
+  mensajeErrorSupabase,
+} from '@/lib/mensajesError'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 
 type Modo = 'entrar' | 'recuperar'
@@ -21,9 +25,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-
-  // Error típico cuando el email no fue confirmado.
-  const requiereVerificacion = error?.toLowerCase().includes('email not confirmed')
+  const [requiereVerificacion, setRequiereVerificacion] = useState(false)
 
   async function reenviarVerificacion() {
     if (!email.trim()) {
@@ -36,7 +38,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.resend({ type: 'signup', email })
     setSubmitting(false)
     if (error) {
-      setError(error.message)
+      setError(mensajeErrorSupabase(error.message))
     } else {
       setInfo(`Te volvimos a enviar el link de verificación a ${email}.`)
     }
@@ -51,7 +53,8 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
-      setError(error.message)
+      setRequiereVerificacion(esErrorEmailNoConfirmado(error.message))
+      setError(mensajeErrorSupabase(error.message))
       setSubmitting(false)
     }
   }
@@ -68,7 +71,7 @@ export default function LoginPage() {
 
     setSubmitting(false)
     if (error) {
-      setError(error.message)
+      setError(mensajeErrorSupabase(error.message))
     } else {
       setInfo(
         `Te enviamos un link para recuperar la contraseña a ${email}. Revisá también el spam.`,
@@ -183,7 +186,12 @@ export default function LoginPage() {
             <button
               type="button"
               className="underline underline-offset-4 hover:text-foreground"
-              onClick={() => setModo('recuperar')}
+              onClick={() => {
+                setModo('recuperar')
+                setError(null)
+                setInfo(null)
+                setRequiereVerificacion(false)
+              }}
             >
               Haga click aquí
             </button>
@@ -226,6 +234,7 @@ export default function LoginPage() {
               setModo('entrar')
               setError(null)
               setInfo(null)
+              setRequiereVerificacion(false)
             }}
           >
             Volver a entrar

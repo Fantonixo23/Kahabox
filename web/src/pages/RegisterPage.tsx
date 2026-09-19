@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { mensajeErrorSupabase } from '@/lib/mensajesError'
 
 export default function RegisterPage() {
   const [nombreTienda, setNombreTienda] = useState('')
@@ -39,7 +40,7 @@ export default function RegisterPage() {
         setEmailEnUso(email)
         return
       }
-      setError(error.message)
+      setError(mensajeErrorSupabase(error.message))
       return
     }
 
