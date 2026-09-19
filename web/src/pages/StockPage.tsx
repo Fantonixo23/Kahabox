@@ -263,6 +263,11 @@ export default function StockPage() {
 
   const load = useCallback(async () => {
     setError(null)
+    if (sucursalId === '') {
+      setRows(null)
+      setMovimientos([])
+      return
+    }
     if (!isSupabaseConfigured) {
       setRows(getMockStock().filter((r) => r.sucursal_id === sucursalId))
       setMovimientos(getMockMovimientos())
