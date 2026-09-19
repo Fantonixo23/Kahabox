@@ -50,6 +50,27 @@ export async function imprimirEscPos(base64: string): Promise<void> {
   await KahaboxPrinter.print({ data: base64 })
 }
 
+/**
+ * Imprime reconectando siempre a la impresora (como hace la prueba de
+ * Configuración): evita el socket "fantasma" que queda de una conexión
+ * anterior y que el print manda al vacío. Si el primer print falla, reconecta
+ * y reintenta una vez.
+ */
+export async function imprimirConReintento(
+  direccion: string,
+  base64: string,
+): Promise<void> {
+  const conectarEImprimir = async () => {
+    await KahaboxPrinter.connect({ address: direccion })
+    await imprimirEscPos(base64)
+  }
+  try {
+    await conectarEImprimir()
+  } catch {
+    await conectarEImprimir()
+  }
+}
+
 export async function versionApp(): Promise<{ build: number; version: string }> {
   if (!esNativo()) return { build: 0, version: '' }
   return await KahaboxPrinter.version()

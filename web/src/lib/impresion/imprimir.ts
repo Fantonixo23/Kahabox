@@ -8,7 +8,7 @@ import {
   columnasPorAnchoMm,
   type TicketVenta,
 } from './ticket'
-import { impresoraNativaDisponible, KahaboxPrinter } from './nativo'
+import { impresoraNativaDisponible, imprimirConReintento } from './nativo'
 import { leerConfig } from '@/lib/config'
 
 export type ResultadoImpresion = {
@@ -98,11 +98,7 @@ export async function imprimirBluetooth(
   }
 
   try {
-    const { connected, address } = await KahaboxPrinter.estado()
-    if (!connected || address !== direccion) {
-      await KahaboxPrinter.connect({ address: direccion })
-    }
-    await KahaboxPrinter.print({ data: armarEscPosBase64(ticket, ancho) })
+    await imprimirConReintento(direccion, armarEscPosBase64(ticket, ancho))
     return { texto, nativo: true, compartido: false }
   } catch (e) {
     return {

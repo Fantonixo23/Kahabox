@@ -137,8 +137,8 @@ export function cortar(): Uint8Array {
 /**
  * Imagen rasterizada (GS v 0, modo normal): dibuja una matriz de puntos 1bpp
  * de `ancho` × `alto`. `ancho` debe ser múltiplo de 8 y `datos` traer
- * `ancho / 8` bytes por fila; en cada byte, el bit de menor peso corresponde
- * al punto de más a la izquierda (convención ESC/POS).
+ * `ancho / 8` bytes por fila; en cada byte, el bit de mayor peso (MSB)
+ * corresponde al punto de más a la izquierda (convención de GS v 0).
  */
 export function imagenRaster(
   ancho: number,

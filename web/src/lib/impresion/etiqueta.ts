@@ -11,9 +11,8 @@ import JsBarcode from 'jsbarcode'
 
 import * as escpos from './escpos'
 import {
-  imprimirEscPos,
+  imprimirConReintento,
   impresoraNativaDisponible,
-  KahaboxPrinter,
 } from './nativo'
 import { leerConfig } from '@/lib/config'
 
@@ -133,7 +132,9 @@ export async function rasterizarEtiqueta(
       const i = (py * ancho + px) * 4
       const luminancia = (imagen[i] + imagen[i + 1] + imagen[i + 2]) / 3
       if (luminancia < 128) {
-        bits[py * bytesPorFila + (px >> 3)] |= 1 << (px & 7)
+        // GS v 0 empaqueta cada fila con el bit de mayor peso (MSB)
+        // como el punto más a la izquierda.
+        bits[py * bytesPorFila + (px >> 3)] |= 0x80 >> (px & 7)
       }
     }
   }
@@ -191,11 +192,10 @@ export async function imprimirEtiquetasBluetooth(
   }
 
   try {
-    const { connected, address } = await KahaboxPrinter.estado()
-    if (!connected || address !== direccion) {
-      await KahaboxPrinter.connect({ address: direccion })
-    }
-    await imprimirEscPos(await armarEtiquetasEscPosBase64(etiquetas))
+    await imprimirConReintento(
+      direccion,
+      await armarEtiquetasEscPosBase64(etiquetas),
+    )
     return { ok: true }
   } catch (e) {
     return {
