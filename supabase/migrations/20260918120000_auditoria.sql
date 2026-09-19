@@ -108,7 +108,7 @@ begin
 
   v_usuario := auth.uid();
 
-  select coalesce(user_metadata ->> 'nombre', email) into v_nombre
+  select coalesce(raw_user_meta_data ->> 'nombre', email) into v_nombre
     from auth.users
    where id = v_usuario;
 
@@ -349,13 +349,13 @@ begin
       v_nombre := null;
       if tg_op in ('insert', 'update') then
         v_despues := jsonb_build_object('rol', new.rol);
-        select coalesce(user_metadata ->> 'nombre', email) into v_nombre
+        select coalesce(raw_user_meta_data ->> 'nombre', email) into v_nombre
           from auth.users where id = new.user_id;
       end if;
       if tg_op in ('update', 'delete') then
         v_antes := jsonb_build_object('rol', old.rol);
         if v_nombre is null then
-          select coalesce(user_metadata ->> 'nombre', email) into v_nombre
+          select coalesce(raw_user_meta_data ->> 'nombre', email) into v_nombre
             from auth.users where id = old.user_id;
         end if;
       end if;
