@@ -23,7 +23,7 @@ export type VentaItemDetalle = {
 }
 
 export type VentaPagoDetalle = {
-  metodo: 'efectivo' | 'pos' | 'transferencia' | 'fiado'
+  metodo: 'efectivo' | 'pos' | 'tarjeta' | 'transferencia' | 'fiado'
   moneda: Moneda
   monto: number
   detalle: string | null
@@ -1207,7 +1207,7 @@ export type Cobro = {
   concepto: string | null
   monto: number
   moneda: Moneda
-  metodo: 'efectivo' | 'pos' | 'transferencia'
+  metodo: 'efectivo' | 'pos' | 'tarjeta' | 'transferencia'
   created_by: string | null
   created_at: string
 }
@@ -1898,7 +1898,7 @@ export function registrarCobroMock(entrada: {
   concepto?: string
   monto: number
   moneda: Moneda
-  metodo: 'efectivo' | 'pos' | 'transferencia'
+  metodo: 'efectivo' | 'pos' | 'tarjeta' | 'transferencia'
 }): Cobro {
   const ahora = new Date().toISOString()
   const cobro: Cobro = {

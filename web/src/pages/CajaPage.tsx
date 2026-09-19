@@ -113,21 +113,15 @@ type StockRow = Database['public']['Views']['stock_tienda_dueno']['Row'] & {
 
 type CarritoItem = { linea: StockRow; cantidad: number }
 
-type MetodoPago = 'efectivo' | 'pos' | 'transferencia' | 'fiado'
+type MetodoPago = 'efectivo' | 'pos' | 'tarjeta' | 'transferencia' | 'fiado'
 
 const METODOS: Record<MetodoPago, { nombre: string; Icono: LucideIcon }> = {
   efectivo: { nombre: 'Efectivo', Icono: Banknote },
   pos: { nombre: 'POS Bancard', Icono: CreditCard },
+  tarjeta: { nombre: 'Tarjeta', Icono: CreditCard },
   transferencia: { nombre: 'Transferencia', Icono: HandCoins },
   fiado: { nombre: 'Crédito / Fiado', Icono: Wallet },
 }
-
-const METODOS_ACTIVOS: MetodoPago[] = [
-  'efectivo',
-  'pos',
-  'transferencia',
-  'fiado',
-]
 
 type Pago = {
   id: string
@@ -959,6 +953,15 @@ export default function CajaPage() {
 
   const esFiado = pagos.some((p) => p.metodo === 'fiado')
 
+  // Con POS Bancard habilitado la Caja cobra por el terminal; sin él, el botón
+  // de tarjeta registra el pago directo (metodo 'tarjeta').
+  const metodosActivos: MetodoPago[] = [
+    'efectivo',
+    config.bancardActivo ? 'pos' : 'tarjeta',
+    'transferencia',
+    'fiado',
+  ]
+
   return (
     <>
       <div className="grid min-w-0 gap-4 pb-36 md:pb-28 lg:grid-cols-[minmax(0,1fr)_360px] lg:pb-0">
@@ -1179,7 +1182,7 @@ export default function CajaPage() {
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-2">
-              {METODOS_ACTIVOS.map((metodo) => {
+              {metodosActivos.map((metodo) => {
                 const activo = pagos.some((p) => p.metodo === metodo)
                 const meta = METODOS[metodo]
                 return (

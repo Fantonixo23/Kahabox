@@ -43,7 +43,7 @@ import {
   listarDeudas,
   registrarCobro,
 } from '@/lib/clientesData'
-import { monedasActivas } from '@/lib/config'
+import { monedasActivas, useConfig } from '@/lib/config'
 import { aGs, obtenerCotizaciones, tasasBase, type Tasas } from '@/lib/cotizaciones'
 import {
   consultarEntidadPublicaDnit,
@@ -69,14 +69,12 @@ type FormCliente = {
   notas: string
 }
 
-const METODOS_COBRO: Array<{
-  valor: Cobro['metodo']
-  etiqueta: string
-}> = [
-  { valor: 'efectivo', etiqueta: 'Efectivo' },
-  { valor: 'pos', etiqueta: 'POS Bancard' },
-  { valor: 'transferencia', etiqueta: 'Transferencia' },
-]
+const OPCIONES_METODO_COBRO: Record<Cobro['metodo'], string> = {
+  efectivo: 'Efectivo',
+  pos: 'POS Bancard',
+  tarjeta: 'Tarjeta',
+  transferencia: 'Transferencia',
+}
 
 function formDesde(c: Cliente): FormCliente {
   return {
@@ -168,6 +166,7 @@ export default function ClientesPage() {
   const [cobros, setCobros] = useState<Cobro[]>([])
   const [tasas, setTasas] = useState<Tasas>(() => tasasBase())
   const monedas = monedasActivas()
+  const config = useConfig()
 
   const [dialog, setDialog] = useState<EstadoDialog>(null)
   const [aEliminar, setAEliminar] = useState<Cliente | null>(null)
@@ -196,6 +195,20 @@ export default function ClientesPage() {
     moneda: 'PYG' as Moneda,
     metodo: 'efectivo' as Cobro['metodo'],
   })
+
+  // Con POS Bancard habilitado el cobro es por el terminal; sin él, la opción
+  // pasa a "Tarjeta" (registro directo). Se conserva el método elegido aunque
+  // el switch esté en la otra posición.
+  const metodosCobro: Array<{ valor: Cobro['metodo']; etiqueta: string }> = [
+    ...new Set<Cobro['metodo']>([
+      'efectivo',
+      'transferencia',
+      config.bancardActivo ? 'pos' : 'tarjeta',
+      ...(cobroForm.metodo === 'pos' || cobroForm.metodo === 'tarjeta'
+        ? [cobroForm.metodo]
+        : []),
+    ]),
+  ].map((valor) => ({ valor, etiqueta: OPCIONES_METODO_COBRO[valor] }))
 
   const recargar = useCallback(async () => {
     try {
@@ -1058,7 +1071,7 @@ export default function ClientesPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {METODOS_COBRO.map((m) => (
+                    {metodosCobro.map((m) => (
                       <SelectItem key={m.valor} value={m.valor}>
                         {m.etiqueta}
                       </SelectItem>

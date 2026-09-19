@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
+  Barcode,
   BarChart3,
   Boxes,
   CircleDollarSign,
@@ -30,6 +31,7 @@ import { rolUsuario } from '@/lib/vistaStock'
 const ICONOS = {
   '/app/caja': CircleDollarSign,
   '/app/stock': Boxes,
+  '/app/codigodebarras': Barcode,
   '/app/ventas': Receipt,
   '/app/clientes': Contact,
   '/app/proveedores': Truck,

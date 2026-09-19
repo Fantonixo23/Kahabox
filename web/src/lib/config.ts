@@ -71,6 +71,7 @@ export type RolApp = 'dueño' | 'administrador' | 'vendedor'
 export const MODULOS_POR_ROL: Record<string, RolApp[]> = {
   '/app/caja': ['dueño', 'administrador', 'vendedor'],
   '/app/stock': ['dueño', 'administrador', 'vendedor'],
+  '/app/codigodebarras': ['dueño', 'administrador', 'vendedor'],
   '/app/ventas': ['dueño', 'administrador', 'vendedor'],
   '/app/clientes': ['dueño', 'administrador', 'vendedor'],
   '/app/proveedores': ['dueño', 'administrador'],
@@ -98,6 +99,11 @@ export const ETIQUETA_ROL: Record<RolApp, string> = {
 export const MODULOS: Modulo[] = [
   { ruta: '/app/caja', label: 'Caja', corto: 'Caja' },
   { ruta: '/app/stock', label: 'Stock', corto: 'Stock' },
+  {
+    ruta: '/app/codigodebarras',
+    label: 'Códigos de barras',
+    corto: 'Códigos',
+  },
   { ruta: '/app/ventas', label: 'Ventas', corto: 'Ventas' },
   { ruta: '/app/clientes', label: 'Clientes', corto: 'Client.' },
   { ruta: '/app/proveedores', label: 'Proveedores', corto: 'Prov.' },

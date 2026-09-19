@@ -89,6 +89,7 @@ function numeroVenta(id: string): string {
 const metodoVentaLabel: Record<VentaPagoDetalle['metodo'], string> = {
   efectivo: 'Efectivo',
   pos: 'POS Bancard',
+  tarjeta: 'Tarjeta',
   transferencia: 'Transferencia',
   fiado: 'Crédito / Fiado',
 }

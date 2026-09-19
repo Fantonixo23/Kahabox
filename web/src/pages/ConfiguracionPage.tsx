@@ -547,12 +547,12 @@ export default function ConfiguracionPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CreditCard className="size-4" />
-            POS Bancard
+            Pos/tarjeta
           </CardTitle>
           <CardDescription>
-            Cobrás con el terminal físico Bancard (SmartPOS / CajaPOS Android)
-            desde la Caja: QR, débito y contado. El terminal recibe el monto
-            automáticamente por la red local.
+            Apagado: cobrás con el botón "Tarjeta" y registrás el pago directo,
+            sin terminal. Encendido: cobrás con el terminal físico Bancard
+            (SmartPOS / CajaPOS Android) desde la Caja: QR, débito y contado.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -560,7 +560,8 @@ export default function ConfiguracionPage() {
             <div className="space-y-0.5">
               <p className="text-sm font-medium">Habilitar POS Bancard</p>
               <p className="text-xs text-muted-foreground">
-                Aparece el botón "POS Bancard" en la Caja.
+                Apagado: en la Caja dice "Tarjeta". Encendido: dice "POS
+                Bancard" y usa el terminal.
               </p>
             </div>
             <button

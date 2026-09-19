@@ -11,6 +11,7 @@ import AuditoriaPage from '@/pages/AuditoriaPage'
 import CajaPage from '@/pages/CajaPage'
 import AprobacionPage from '@/pages/AprobacionPage'
 import ClientesPage from '@/pages/ClientesPage'
+import CodigoBarrasPage from '@/pages/CodigoBarrasPage'
 import ConfiguracionPage from '@/pages/ConfiguracionPage'
 import EquipoPage from '@/pages/EquipoPage'
 import EscaneadorPage from '@/pages/EscaneadorPage'
@@ -77,6 +78,14 @@ export default function App() {
         <Route index element={<Navigate to="stock" replace />} />
         <Route path="caja" element={<CajaPage />} />
         <Route path="stock" element={<StockPage />} />
+        <Route
+          path="codigodebarras"
+          element={
+            <RequiereRol ruta="/app/codigodebarras">
+              <CodigoBarrasPage />
+            </RequiereRol>
+          }
+        />
         <Route path="ventas" element={<VentasPage />} />
         <Route path="clientes" element={<ClientesPage />} />
         <Route

@@ -44,7 +44,7 @@ export type EntradaCobro = {
   concepto?: string
   monto: number
   moneda: Moneda
-  metodo: 'efectivo' | 'pos' | 'transferencia'
+  metodo: 'efectivo' | 'pos' | 'tarjeta' | 'transferencia'
 }
 
 function datosDe(entrada: EntradaCliente) {

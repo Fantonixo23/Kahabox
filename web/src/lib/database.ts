@@ -188,7 +188,7 @@ export type Database = {
           id: string
           tenant_id: string
           venta_id: string
-          metodo: 'efectivo' | 'pos' | 'transferencia' | 'fiado'
+          metodo: 'efectivo' | 'pos' | 'tarjeta' | 'transferencia' | 'fiado'
           moneda: 'PYG' | 'USD' | 'ARS' | 'BRL'
           monto: number
           detalle: string | null
@@ -198,7 +198,7 @@ export type Database = {
           id?: string
           tenant_id?: string
           venta_id: string
-          metodo: 'efectivo' | 'pos' | 'transferencia' | 'fiado'
+          metodo: 'efectivo' | 'pos' | 'tarjeta' | 'transferencia' | 'fiado'
           moneda?: 'PYG' | 'USD' | 'ARS' | 'BRL'
           monto: number
           detalle?: string | null
@@ -208,7 +208,7 @@ export type Database = {
           id?: string
           tenant_id?: string
           venta_id?: string
-          metodo?: 'efectivo' | 'pos' | 'transferencia' | 'fiado'
+          metodo?: 'efectivo' | 'pos' | 'tarjeta' | 'transferencia' | 'fiado'
           moneda?: 'PYG' | 'USD' | 'ARS' | 'BRL'
           monto?: number
           detalle?: string | null
@@ -434,7 +434,7 @@ export type Database = {
           concepto: string | null
           monto: number
           moneda: 'PYG' | 'USD' | 'ARS' | 'BRL'
-          metodo: 'efectivo' | 'pos' | 'transferencia'
+          metodo: 'efectivo' | 'pos' | 'tarjeta' | 'transferencia'
           created_by: string | null
           created_at: string
         }
@@ -446,7 +446,7 @@ export type Database = {
           concepto?: string | null
           monto: number
           moneda?: 'PYG' | 'USD' | 'ARS' | 'BRL'
-          metodo?: 'efectivo' | 'pos' | 'transferencia'
+          metodo?: 'efectivo' | 'pos' | 'tarjeta' | 'transferencia'
           created_by?: string | null
           created_at?: string
         }
@@ -458,7 +458,7 @@ export type Database = {
           concepto?: string | null
           monto?: number
           moneda?: 'PYG' | 'USD' | 'ARS' | 'BRL'
-          metodo?: 'efectivo' | 'pos' | 'transferencia'
+          metodo?: 'efectivo' | 'pos' | 'tarjeta' | 'transferencia'
           created_by?: string | null
           created_at?: string
         }

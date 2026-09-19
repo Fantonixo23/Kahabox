@@ -5,6 +5,7 @@ import type { Moneda } from '@/lib/format'
 export type MetodoPagoVenta =
   | 'efectivo'
   | 'pos'
+  | 'tarjeta'
   | 'transferencia'
   | 'fiado'
 
@@ -131,7 +132,7 @@ export type ItemCobroCola = {
     concepto: string | null
     monto: number
     moneda: Moneda
-    metodo: 'efectivo' | 'pos' | 'transferencia'
+    metodo: 'efectivo' | 'pos' | 'tarjeta' | 'transferencia'
   } | null
   creadoEn: string
 }
