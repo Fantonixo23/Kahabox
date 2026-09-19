@@ -120,9 +120,9 @@ export default function UnirsePage() {
           <CheckCircle2 className="size-10 text-emerald-600" />
           <p className="text-sm font-medium">¡Listo, {pendiente.nombre}!</p>
           <p className="text-sm text-muted-foreground">
-            Quedamos pendientes a la confirmación de {pendiente.empresa}. Confirmá
-            también el link que te enviamos a tu correo, y aguardá mientras el
-            dueño habilita tu cuenta.
+            Quedamos pendientes a la confirmación de {pendiente.empresa}. Ahora
+            solo falta que el dueño habilite tu cuenta; podés volver a intentar
+            entrar cuando quieras.
           </p>
           <Button variant="outline" className="mt-2 w-full" asChild>
             <Link to="/login">Volver al inicio de sesión</Link>
