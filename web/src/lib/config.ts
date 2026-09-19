@@ -76,6 +76,7 @@ export const MODULOS: Modulo[] = [
     corto: 'Pagos',
   },
   { ruta: '/app/equipo', label: 'Mi equipo', corto: 'Equipo' },
+  { ruta: '/app/auditoria', label: 'Auditoría', corto: 'Audit.' },
   { ruta: '/app/reportes', label: 'Reportes', corto: 'Reportes' },
 ]
 

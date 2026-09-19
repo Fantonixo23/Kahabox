@@ -6,6 +6,7 @@ import AppLayout from '@/components/AppLayout'
 import { FullscreenLoader } from '@/components/FullscreenLoader'
 import TenantGate from '@/components/TenantGate'
 import { useAuth } from '@/components/auth/AuthContext'
+import AuditoriaPage from '@/pages/AuditoriaPage'
 import CajaPage from '@/pages/CajaPage'
 import AprobacionPage from '@/pages/AprobacionPage'
 import ClientesPage from '@/pages/ClientesPage'
@@ -78,6 +79,7 @@ export default function App() {
         <Route path="pagos-proveedores" element={<PagosProveedoresPage />} />
         <Route path="equipo" element={<EquipoPage />} />
         <Route path="configuracion" element={<ConfiguracionPage />} />
+        <Route path="auditoria" element={<AuditoriaPage />} />
         <Route path="reportes" element={<ReportesPage />} />
         <Route path="instalar" element={<InstalarPage />} />
       </Route>

@@ -55,6 +55,7 @@ import {
   type StockRemotoRow,
 } from '@/lib/stockRemoto'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { dispositivoActual } from '@/lib/auditoriaData'
 import { useKeyboardScanner } from '@/lib/useKeyboardScanner'
 import { vistaStock } from '@/lib/vistaStock'
 import { cn } from 'cn'
@@ -676,6 +677,7 @@ export default function EscaneadorPage() {
             p_codigo_barras: linea.producto?.codigo_barras ?? null,
             p_sku: linea.sku,
             p_created_at: ahora,
+            p_dispositivo: dispositivoActual(),
           })
           if (error) throw error
           return { movimientoId }

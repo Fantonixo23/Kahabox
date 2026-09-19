@@ -25,6 +25,7 @@ import { MONEDAS, type Moneda } from '@/lib/format'
 import { actualizarProductoMock, reponerStockMock } from '@/lib/mock'
 import { esErrorDeRed } from '@/lib/red'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { dispositivoActual } from '@/lib/auditoriaData'
 import type { StockRemotoRow } from '@/lib/stockRemoto'
 import { useConfig } from '@/lib/config'
 import { cn } from 'cn'
@@ -177,6 +178,7 @@ export default function AdministrarProductoDialog({
             p_precio: precio,
             p_costo: form.costo ? Number(form.costo) : null,
             p_moneda: form.moneda === 'USD' ? 'USD' : 'PYG',
+            p_dispositivo: dispositivoActual(),
           },
         )
         if (errActualizar) {
@@ -215,6 +217,7 @@ export default function AdministrarProductoDialog({
                 p_codigo_barras: codigoBarras,
                 p_sku: sku,
                 p_created_at: ahora,
+                p_dispositivo: dispositivoActual(),
               })
               if (errAjuste) throw errAjuste
               return { movimientoId }

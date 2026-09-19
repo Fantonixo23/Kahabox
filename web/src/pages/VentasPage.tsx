@@ -63,6 +63,7 @@ import {
   type VentaPagoDetalle,
 } from '@/lib/mock'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { dispositivoActual } from '@/lib/auditoriaData'
 import { vistaStock, type VistaStock } from '@/lib/vistaStock'
 
 type VentaRow = Database['public']['Tables']['ventas']['Row']
@@ -148,7 +149,10 @@ export default function VentasPage() {
     setAnulando(true)
     setAnularError(null)
     try {
-      const { error } = await supabase.rpc('anular_venta', { p_venta_id: venta.id })
+      const { error } = await supabase.rpc('anular_venta', {
+        p_venta_id: venta.id,
+        p_dispositivo: dispositivoActual(),
+      })
       if (error) throw new Error(error.message)
       setAAnular(null)
       await load()

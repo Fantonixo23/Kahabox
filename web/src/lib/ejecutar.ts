@@ -10,6 +10,7 @@ import {
 } from '@/lib/cola'
 import { esErrorDeRed, navegadorEnLinea } from '@/lib/red'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { dispositivoActual } from '@/lib/auditoriaData'
 
 export type ResultadoEscritura<T> =
   | { remoto: true; resultado: T }
@@ -74,6 +75,7 @@ async function ejecutarOperacion(item: ItemCola): Promise<void> {
         p_pagos: op.pagos as unknown as Record<string, unknown>[],
         p_estado: op.estado,
         p_created_at: op.creadoEn,
+        p_dispositivo: dispositivoActual(),
       })
       if (error) throw new Error(error.message)
       return
@@ -112,6 +114,7 @@ async function ejecutarOperacion(item: ItemCola): Promise<void> {
         p_codigo_barras: op.codigoBarras,
         p_sku: op.sku,
         p_created_at: op.creadoEn,
+        p_dispositivo: dispositivoActual(),
       })
       if (error) throw new Error(error.message)
       return

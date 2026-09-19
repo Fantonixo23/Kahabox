@@ -410,6 +410,88 @@ export type Database = {
           },
         ]
       }
+      auditoria: {
+        Row: {
+          id: string
+          tenant_id: string
+          usuario_id: string | null
+          usuario_nombre: string | null
+          rol: 'dueño' | 'vendedor' | null
+          sucursal_id: string | null
+          entidad: string
+          entidad_id: string | null
+          entidad_nombre: string | null
+          comando: string
+          descripcion: string | null
+          antes: Record<string, unknown> | null
+          despues: Record<string, unknown> | null
+          lote_id: string | null
+          ip: string | null
+          dispositivo: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id?: string
+          usuario_id?: string | null
+          usuario_nombre?: string | null
+          rol?: 'dueño' | 'vendedor' | null
+          sucursal_id?: string | null
+          entidad: string
+          entidad_id?: string | null
+          entidad_nombre?: string | null
+          comando: string
+          descripcion?: string | null
+          antes?: Record<string, unknown> | null
+          despues?: Record<string, unknown> | null
+          lote_id?: string | null
+          ip?: string | null
+          dispositivo?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          usuario_id?: string | null
+          usuario_nombre?: string | null
+          rol?: 'dueño' | 'vendedor' | null
+          sucursal_id?: string | null
+          entidad?: string
+          entidad_id?: string | null
+          entidad_nombre?: string | null
+          comando?: string
+          descripcion?: string | null
+          antes?: Record<string, unknown> | null
+          despues?: Record<string, unknown> | null
+          lote_id?: string | null
+          ip?: string | null
+          dispositivo?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'auditoria_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'tenants'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'auditoria_usuario_id_fkey'
+            columns: ['usuario_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'auditoria_sucursal_id_fkey'
+            columns: ['sucursal_id']
+            isOneToOne: false
+            referencedRelation: 'sucursales'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       sucursales: {
         Row: {
           id: string
@@ -762,12 +844,14 @@ Relationships: [
           p_pagos?: Record<string, unknown>[]
           p_estado?: 'pendiente_sync' | 'confirmada' | 'anulada'
           p_created_at?: string | null
+          p_dispositivo?: string | null
         }
         Returns: Record<string, unknown>
       }
       anular_venta: {
         Args: {
           p_venta_id: string
+          p_dispositivo?: string | null
         }
         Returns: Record<string, unknown>
       }
@@ -802,6 +886,7 @@ Relationships: [
           p_codigo_barras: string | null
           p_sku: string | null
           p_created_at?: string | null
+          p_dispositivo?: string | null
         }
         Returns: Record<string, unknown>
       }
@@ -816,6 +901,7 @@ Relationships: [
           p_precio: number
           p_costo: number | null
           p_moneda: 'PYG' | 'USD'
+          p_dispositivo?: string | null
         }
         Returns: Record<string, unknown>
       }
@@ -823,6 +909,8 @@ Relationships: [
         Args: {
           p_sucursal_id: string | null
           p_filas: Record<string, unknown>[]
+          p_lote_id?: string | null
+          p_dispositivo?: string | null
         }
         Returns: Record<string, unknown>
       }

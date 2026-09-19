@@ -100,6 +100,7 @@ import {
   reponerStockMock,
 } from '@/lib/mock'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { dispositivoActual } from '@/lib/auditoriaData'
 import { esErrorDeRed } from '@/lib/red'
 import { vistaStock } from '@/lib/vistaStock'
 import { useKeyboardScanner } from '@/lib/useKeyboardScanner'
@@ -858,6 +859,7 @@ export default function CajaPage() {
               p_venta_id: ventaIdUUID,
               p_sucursal_id: carrito[0].linea.sucursal_id,
               p_total: Math.round(totalGs),
+              p_dispositivo: dispositivoActual(),
               p_items: carrito.map((c) => ({
                 id: crypto.randomUUID(),
                 stock_id: c.linea.id,

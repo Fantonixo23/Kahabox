@@ -10,6 +10,7 @@ import {
   Package,
   Receipt,
   Settings,
+  ShieldCheck,
   Smartphone,
   Truck,
   Users,
@@ -23,6 +24,7 @@ import { cn } from 'cn'
 import { MODULOS, useConfig } from '@/lib/config'
 import { useEstacionImpresion } from '@/lib/impresion/estacion'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { esDueno } from '@/lib/vistaStock'
 
 const ICONOS = {
   '/app/caja': CircleDollarSign,
@@ -32,6 +34,7 @@ const ICONOS = {
   '/app/proveedores': Truck,
   '/app/pagos-proveedores': HandCoins,
   '/app/equipo': Users,
+  '/app/auditoria': ShieldCheck,
   '/app/reportes': BarChart3,
 } as const
 
@@ -54,10 +57,12 @@ export default function AppLayout() {
 
   const nav = useMemo(
     () =>
-      MODULOS_CON_CONFIGURACION.filter((m) => !modulosOcultos.includes(m.ruta)).map(
+      MODULOS_CON_CONFIGURACION.filter(
+        (m) => !modulosOcultos.includes(m.ruta) && (m.ruta !== '/app/auditoria' || esDueno(user)),
+      ).map(
         (m) => ({ to: m.ruta, label: m.label, corto: m.corto, icon: ICONOS[m.ruta as keyof typeof ICONOS] ?? Settings }),
       ),
-    [modulosOcultos],
+    [modulosOcultos, user],
   )
 
   async function handleLogout() {

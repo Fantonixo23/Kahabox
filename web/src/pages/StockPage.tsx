@@ -45,6 +45,7 @@ import {
 import { ejecutarEscritura } from '@/lib/ejecutar'
 import { esErrorDeRed } from '@/lib/red'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { dispositivoActual } from '@/lib/auditoriaData'
 import { esDueno, vistaStock, type VistaStock } from '@/lib/vistaStock'
 import { useKeyboardScanner } from '@/lib/useKeyboardScanner'
 import {
@@ -697,6 +698,7 @@ function ReponerStockDialog({
               p_codigo_barras: fila.producto?.codigo_barras ?? null,
               p_sku: fila.sku,
               p_created_at: ahora,
+              p_dispositivo: dispositivoActual(),
             })
             if (error) throw error
           },

@@ -981,6 +981,26 @@ export type Cobro = {
   created_at: string
 }
 
+export type Auditoria = {
+  id: string
+  tenant_id: string
+  usuario_id: string | null
+  usuario_nombre: string | null
+  rol: 'dueño' | 'vendedor' | null
+  sucursal_id: string | null
+  entidad: string
+  entidad_id: string | null
+  entidad_nombre: string | null
+  comando: string
+  descripcion: string | null
+  antes: Record<string, unknown> | null
+  despues: Record<string, unknown> | null
+  lote_id: string | null
+  ip: string | null
+  dispositivo: string | null
+  created_at: string
+}
+
 const proveedores: Proveedor[] = [
   {
     id: 'eeee0001-0000-0000-0000-000000000001',
@@ -1201,6 +1221,161 @@ const cobros: Cobro[] = [
   },
 ]
 
+const auditorias: Auditoria[] = [
+  {
+    id: 'aaee0001-0000-0000-0000-000000000001',
+    tenant_id: TENANT,
+    usuario_id: DEMO_USER_ID,
+    usuario_nombre: 'Marcelo',
+    rol: 'vendedor',
+    sucursal_id: SUCURSAL,
+    entidad: 'ventas',
+    entidad_id: '99990001-0000-0000-0000-000000000001',
+    entidad_nombre: 'Venta',
+    comando: 'venta',
+    descripcion: 'Venta por Gs 450.000',
+    antes: null,
+    despues: { total: 450000, items: 3, pagos: 1, estado: 'confirmada', sucursal_id: SUCURSAL },
+    lote_id: null,
+    ip: null,
+    dispositivo: 'Android · Chrome Mobile',
+    created_at: hace(2),
+  },
+  {
+    id: 'aaee0002-0000-0000-0000-000000000002',
+    tenant_id: TENANT,
+    usuario_id: DEMO_USER_ID,
+    usuario_nombre: 'Marcelo',
+    rol: 'vendedor',
+    sucursal_id: SUCURSAL,
+    entidad: 'ventas',
+    entidad_id: '99990002-0000-0000-0000-000000000002',
+    entidad_nombre: 'Venta',
+    comando: 'anular',
+    descripcion: 'Anuló la venta de Gs 180.000',
+    antes: { total: 180000, estado: 'confirmada' },
+    despues: { total: 180000, estado: 'anulada' },
+    lote_id: null,
+    ip: null,
+    dispositivo: 'Windows · Chrome',
+    created_at: hace(5),
+  },
+  {
+    id: 'aaee0003-0000-0000-0000-000000000003',
+    tenant_id: TENANT,
+    usuario_id: DEMO_USER_ID,
+    usuario_nombre: 'Marcelo',
+    rol: 'vendedor',
+    sucursal_id: SUCURSAL,
+    entidad: 'stock_tienda',
+    entidad_id: '99990003-0000-0000-0000-000000000003',
+    entidad_nombre: 'Auriculares BT inalámbricos',
+    comando: 'ajuste',
+    descripcion: 'Ajuste de stock (entrada)',
+    antes: { cantidad: 5 },
+    despues: { cantidad: 17, tipo: 'entrada' },
+    lote_id: null,
+    ip: null,
+    dispositivo: 'Android · Chrome Mobile',
+    created_at: hace(26),
+  },
+  {
+    id: 'aaee0004-0000-0000-0000-000000000004',
+    tenant_id: TENANT,
+    usuario_id: DEMO_USER_ID,
+    usuario_nombre: 'Kaha Demo',
+    rol: 'dueño',
+    sucursal_id: SUCURSAL,
+    entidad: 'stock_tienda',
+    entidad_id: '99990004-0000-0000-0000-000000000004',
+    entidad_nombre: 'Auriculares BT inalámbricos',
+    comando: 'editar',
+    descripcion: 'Editó el producto «Auriculares BT inalámbricos»',
+    antes: { precio: 150000, costo: 90000, moneda: 'PYG' },
+    despues: { precio: 180000, costo: 90000, moneda: 'PYG' },
+    lote_id: null,
+    ip: null,
+    dispositivo: 'Windows · Chrome',
+    created_at: hace(72),
+  },
+  {
+    id: 'aaee0005-0000-0000-0000-000000000005',
+    tenant_id: TENANT,
+    usuario_id: DEMO_USER_ID,
+    usuario_nombre: 'Marcelo',
+    rol: 'vendedor',
+    sucursal_id: SUCURSAL,
+    entidad: 'deudas',
+    entidad_id: '99990005-0000-0000-0000-000000000005',
+    entidad_nombre: 'Deuda',
+    comando: 'eliminar',
+    descripcion: null,
+    antes: { monto: 250000, moneda: 'PYG', fecha: hace(90).slice(0, 10), vencimiento: null },
+    despues: null,
+    lote_id: null,
+    ip: null,
+    dispositivo: 'Android · Chrome Mobile',
+    created_at: hace(96),
+  },
+  {
+    id: 'aaee0006-0000-0000-0000-000000000006',
+    tenant_id: TENANT,
+    usuario_id: DEMO_USER_ID,
+    usuario_nombre: 'Kaha Demo',
+    rol: 'dueño',
+    sucursal_id: SUCURSAL,
+    entidad: 'stock_tienda',
+    entidad_id: null,
+    entidad_nombre: 'Importación de stock',
+    comando: 'importar',
+    descripcion: 'Importó 320 productos desde Excel',
+    antes: null,
+    despues: { creados: 214, actualizados: 106, sin_cambios: 0, errores: 0, filas: 320 },
+    lote_id: '33330000-0000-0000-0000-000000000001',
+    ip: null,
+    dispositivo: 'Windows · Chrome',
+    created_at: hace(144),
+  },
+  {
+    id: 'aaee0007-0000-0000-0000-000000000007',
+    tenant_id: TENANT,
+    usuario_id: DEMO_USER_ID,
+    usuario_nombre: 'Marcelo',
+    rol: 'vendedor',
+    sucursal_id: SUCURSAL,
+    entidad: 'stock_tienda',
+    entidad_id: '99990006-0000-0000-0000-000000000006',
+    entidad_nombre: 'Funda de celular',
+    comando: 'editar_stock_directo',
+    descripcion: null,
+    antes: { cantidad: 50, precio: 45000, costo: 20000, moneda: 'PYG' },
+    despues: { cantidad: 42, precio: 45000, costo: 20000, moneda: 'PYG' },
+    lote_id: null,
+    ip: null,
+    dispositivo: 'Android · Chrome Mobile',
+    created_at: hace(150),
+  },
+  {
+    id: 'aaee0008-0000-0000-0000-000000000008',
+    tenant_id: TENANT,
+    usuario_id: null,
+    usuario_nombre: 'Lucía',
+    rol: 'vendedor',
+    sucursal_id: SUCURSAL_2,
+    entidad: 'cobros',
+    entidad_id: '99990007-0000-0000-0000-000000000007',
+    entidad_nombre: 'Cobro',
+    comando: 'crear',
+    descripcion: null,
+    antes: null,
+    despues: { monto: 100000, moneda: 'PYG', metodo: 'efectivo', fecha: hace(20).slice(0, 10) },
+    lote_id: null,
+    ip: null,
+    dispositivo: 'Android · Chrome Mobile',
+    created_at: hace(20),
+  },
+]
+
 type DemoSnapshot = {
   productos: Producto[]
   stock: StockRow[]
@@ -1215,6 +1390,7 @@ type DemoSnapshot = {
   clientes: Cliente[]
   deudas: Deuda[]
   cobros: Cobro[]
+  auditorias: Auditoria[]
 }
 
 const DEMO_KEY = 'kahabox_demo_v1'
@@ -1241,6 +1417,7 @@ function cargarPersistido() {
     if (Array.isArray(data.clientes)) reemplazar(clientes, data.clientes)
     if (Array.isArray(data.deudas)) reemplazar(deudas, data.deudas)
     if (Array.isArray(data.cobros)) reemplazar(cobros, data.cobros)
+    if (Array.isArray(data.auditorias)) reemplazar(auditorias, data.auditorias)
   } catch {
     // Snapshot dañado: se mantiene el seed demo.
   }
@@ -1262,6 +1439,7 @@ function guardar() {
       clientes,
       deudas,
       cobros,
+      auditorias,
     }
     localStorage.setItem(DEMO_KEY, JSON.stringify(snapshot))
   } catch {
@@ -1373,6 +1551,10 @@ export function getMockDeudas(): Deuda[] {
 
 export function getMockCobros(): Cobro[] {
   return [...cobros].sort((a, b) => b.fecha.localeCompare(a.fecha))
+}
+
+export function getMockAuditorias(): Auditoria[] {
+  return [...auditorias].sort((a, b) => b.created_at.localeCompare(a.created_at))
 }
 
 export function crearClienteMock(entrada: {

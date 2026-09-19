@@ -1,6 +1,7 @@
 import { desformatearMonto } from '@/lib/format'
 import { importarStockMock, type FilaImportacion } from '@/lib/mock'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { dispositivoActual } from '@/lib/auditoriaData'
 
 /** Campos que Kahabox sabe importar. */
 export type CampoExcel =
@@ -337,11 +338,14 @@ export async function importarStockExcel(
   }
 
   const acumulado: ResultadoImportacion = { creados: 0, actualizados: 0, sinCambios: 0, errores: [] }
+  const loteId = crypto.randomUUID()
   for (let desde = 0; desde < filas.length; desde += LOTE) {
     const lote = filas.slice(desde, desde + LOTE)
     const { data, error } = await supabase.rpc('importar_stock', {
       p_sucursal_id: sucursalId,
       p_filas: lote as unknown as Record<string, unknown>[],
+      p_lote_id: loteId,
+      p_dispositivo: dispositivoActual(),
     })
     if (error) throw error
     const r = (data ?? {}) as {
