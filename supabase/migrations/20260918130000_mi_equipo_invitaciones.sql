@@ -246,7 +246,7 @@ begin
 
   select nombre_comercial into v_empresa
   from public.tenants
-  where id = v_tenant;
+  where tenants.id = v_tenant;
 
   return query
   insert into public.invitaciones (
@@ -257,7 +257,7 @@ begin
     coalesce(v_empresa, 'Mi tienda'),
     btrim(p_nombre),
     v_rol,
-    encode(gen_random_bytes(24), 'hex'),
+    replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''),
     auth.uid()
   )
   returning public.invitaciones.id, public.invitaciones.token,
@@ -319,7 +319,7 @@ begin
 
   return query
   select ut.id, ut.user_id, ut.tenant_id, ut.rol, ut.estado, ut.nombre,
-         u.email, ut.created_at
+         u.email::text, ut.created_at
   from public.usuarios_tenant ut
   left join auth.users u on u.id = ut.user_id
   where ut.tenant_id = public.tenant_id_activo()
