@@ -653,6 +653,21 @@ export default function CajaPage() {
     )
   }
 
+  function cambiarMonedaPago(id: string, nueva: Moneda) {
+    setPagos((prev) =>
+      prev.map((p) => {
+        if (p.id !== id || p.moneda === nueva) return p
+        const gs = aGs(parseMonto(p.monto), p.moneda, tasas)
+        const convertido = desdeGs(gs, nueva, tasas)
+        return {
+          ...p,
+          moneda: nueva,
+          monto: (nueva === 'PYG' ? convertido.toFixed(0) : convertido.toFixed(2)),
+        }
+      }),
+    )
+  }
+
   function desdectar(gs: number): number {
     return desdeGs(gs, monedaCobro, tasas)
   }
@@ -1227,7 +1242,9 @@ export default function CajaPage() {
                         />
                         <Select
                           value={p.moneda}
-                          onValueChange={(m) => actualizarPago(p.id, { moneda: m as Moneda })}
+                          onValueChange={(m) =>
+                            cambiarMonedaPago(p.id, m as Moneda)
+                          }
                         >
                           <SelectTrigger className="h-11 w-24">
                             <SelectValue />
