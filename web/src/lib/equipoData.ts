@@ -12,7 +12,7 @@ import {
   setRolMiembroMock,
   type InvitacionPublica,
 } from '@/lib/mock'
-import { isSupabaseConfigured, supabase, supabaseAnonKey, supabaseUrl } from '@/lib/supabase'
+import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 
 export type MiembroDetalle = {
   id: string
@@ -35,7 +35,9 @@ export type InvitacionDetalle = {
   token: string
 }
 
-export type ResultadoUnirse = { empresa: string; nombre: string }
+export type ResultadoUnirse =
+  | { estado: 'registrado'; empresa: string; nombre: string }
+  | { estado: 'email_en_uso' }
 
 // ---------- listado e invitación ----------
 
@@ -137,32 +139,52 @@ export async function unirseInvitacion(
   token: string,
   email: string,
   password: string,
+  nombre?: string,
 ): Promise<ResultadoUnirse> {
   if (!isSupabaseConfigured) {
     // Demo: simulamos el alta pendiente.
     await new Promise((r) => setTimeout(r, 600))
     const invitacion = obtenerInvitacionMock(token)
     if (!invitacion) throw new Error('La invitación no es válida.')
-    return { empresa: invitacion.empresa_nombre ?? 'Kaha Demo', nombre: invitacion.nombre_invitado ?? '' }
+    return {
+      estado: 'registrado',
+      empresa: invitacion.empresa_nombre ?? 'Kaha Demo',
+      nombre: invitacion.nombre_invitado ?? '',
+    }
   }
 
-  const respuesta = await fetch(`${supabaseUrl}/functions/v1/unirse-invitacion`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: supabaseAnonKey,
-      Authorization: `Bearer ${supabaseAnonKey}`,
+  // Revalidamos el token a último momento: puede vencer entre el load y el submit.
+  const vigente = await obtenerInvitacion(token)
+  if (!vigente) {
+    throw new Error('La invitación venció o ya fue usada. Pedile al dueño que te envíe un link nuevo.')
+  }
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { invitacion: token, nombre: nombre?.trim() || vigente.nombre_invitado },
     },
-    body: JSON.stringify({ token, email, password }),
   })
 
-  const cuerpo: { ok?: boolean; error?: string; empresa?: string; nombre?: string } =
-    await respuesta.json().catch(() => ({}))
-
-  if (!respuesta.ok || !cuerpo.ok) {
-    throw new Error(cuerpo.error ?? 'No pudimos completar el alta. Intentá de nuevo.')
+  if (error) {
+    if (/already\s+registered|already\s+exists|user\s+already/i.test(error.message)) {
+      return { estado: 'email_en_uso' }
+    }
+    throw new Error(error.message)
   }
-  return { empresa: cuerpo.empresa ?? '', nombre: cuerpo.nombre ?? '' }
+
+  // Con confirmación por email habilitada, Supabase NO devuelve sesión ni error
+  // para el caso "email ya existe": devuelve un usuario con identidades vacías.
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    return { estado: 'email_en_uso' }
+  }
+
+  return {
+    estado: 'registrado',
+    empresa: vigente.empresa_nombre ?? '',
+    nombre: vigente.nombre_invitado ?? '',
+  }
 }
 
 // ---------- confirmación / roles ----------

@@ -69,16 +69,16 @@ export default function UnirsePage() {
     setEmailEnUso(null)
     try {
       const resultado = await unirseInvitacion(token, email, password)
+      if (resultado.estado === 'email_en_uso') {
+        setEmailEnUso(email)
+        setPantalla('email_en_uso')
+        return
+      }
       setPendiente(resultado)
       setPantalla('pendiente')
     } catch (err) {
       const mensaje = err instanceof Error ? err.message : 'Ocurrió un error inesperado.'
-      if (/ya tiene una cuenta|already/i.test(mensaje)) {
-        setEmailEnUso(email)
-        setPantalla('email_en_uso')
-      } else {
-        setError(mensaje)
-      }
+      setError(mensaje)
     } finally {
       setSubmitting(false)
     }
@@ -120,8 +120,9 @@ export default function UnirsePage() {
           <CheckCircle2 className="size-10 text-emerald-600" />
           <p className="text-sm font-medium">¡Listo, {pendiente.nombre}!</p>
           <p className="text-sm text-muted-foreground">
-            Quedamos pendientes a la confirmación de {pendiente.empresa}. Aguardá
-            un momento mientras el dueño habilita tu cuenta.
+            Quedamos pendientes a la confirmación de {pendiente.empresa}. Confirmá
+            también el link que te enviamos a tu correo, y aguardá mientras el
+            dueño habilita tu cuenta.
           </p>
           <Button variant="outline" className="mt-2 w-full" asChild>
             <Link to="/login">Volver al inicio de sesión</Link>
