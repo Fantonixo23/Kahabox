@@ -185,8 +185,9 @@ export default function ImportarStockDialog({
               <FileUp className="size-8 text-muted-foreground" />
               <div className="text-sm font-semibold">Elegir archivo Excel</div>
               <div className="text-xs text-muted-foreground">
-                .xlsx o .csv · detecta nombre, código, precio, cantidad… y podés
-                corregir el mapeo en el próximo paso.
+                .xlsx o .csv · hasta 5 MB y 10.000 filas · detecta nombre,
+                código, precio, cantidad… y podés corregir el mapeo en el
+                próximo paso.
               </div>
             </button>
 

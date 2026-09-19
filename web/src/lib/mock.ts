@@ -37,6 +37,7 @@ export type VentaConItems = Venta & {
 const TENANT = '11111111-1111-1111-1111-111111111111'
 export const SUCURSAL = '22222222-2222-2222-2222-222222222222'
 export const SUCURSAL_2 = '33333333-3333-4333-8333-333333333333'
+export const SUCURSAL_3 = '44444444-4444-4444-8444-444444444444'
 export const DEMO_USER_ID = '99999999-9999-4999-9999-999999999999'
 
 export type Sucursal = {
@@ -61,6 +62,13 @@ const sucursales: Sucursal[] = [
     nombre: 'Sucursal Shopping',
     direccion: 'Paseo La Galería, Local 45',
     telefono: '021 555 789',
+  },
+  {
+    id: SUCURSAL_3,
+    tenant_id: TENANT,
+    nombre: 'Sucursal Mercado',
+    direccion: 'Mercado 4, Pasillo 12',
+    telefono: '021 444 123',
   },
 ]
 
@@ -398,6 +406,7 @@ const miembros: Miembro[] = [
     id: 'dddd0001-0000-0000-0000-000000000001',
     user_id: DEMO_USER_ID,
     tenant_id: TENANT,
+    sucursal_id: SUCURSAL,
     rol: 'dueño',
     estado: 'activo',
     nombre: 'Kaha Demo',
@@ -407,6 +416,7 @@ const miembros: Miembro[] = [
     id: 'dddd0002-0000-0000-0000-000000000002',
     user_id: '88888888-8888-4888-8888-888888888888',
     tenant_id: TENANT,
+    sucursal_id: SUCURSAL,
     rol: 'administrador',
     estado: 'activo',
     nombre: 'Marcelo',
@@ -416,6 +426,7 @@ const miembros: Miembro[] = [
     id: 'dddd0003-0000-0000-0000-000000000003',
     user_id: '77777777-7777-4777-7777-777777777777',
     tenant_id: TENANT,
+    sucursal_id: SUCURSAL_2,
     rol: 'vendedor',
     estado: 'activo',
     nombre: 'Lucía',
@@ -425,6 +436,7 @@ const miembros: Miembro[] = [
     id: 'dddd0004-0000-0000-0000-000000000004',
     user_id: '66666666-6666-4666-6666-666666666666',
     tenant_id: TENANT,
+    sucursal_id: SUCURSAL_2,
     rol: 'vendedor',
     estado: 'pendiente',
     nombre: 'Marcos',
@@ -434,6 +446,12 @@ const miembros: Miembro[] = [
 
 export function getMockStock(): StockRow[] {
   return [...stock].sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+}
+
+export function buscarProductoMaestroMock(codigo: string): Producto | null {
+  const c = (codigo ?? '').trim()
+  if (!c) return null
+  return productos.find((p) => p.codigo_barras === c) ?? null
 }
 
 export function getMockVentas(): Venta[] {
@@ -491,6 +509,7 @@ const invitaciones: Invitacion[] = [
   {
     id: 'ffff0001-0000-0000-0000-000000000001',
     tenant_id: TENANT,
+    sucursal_id: SUCURSAL_2,
     empresa_nombre: 'Kaha Demo',
     nombre_invitado: 'Marcos',
     rol: 'vendedor',
@@ -504,6 +523,7 @@ const invitaciones: Invitacion[] = [
   {
     id: 'ffff0002-0000-0000-0000-000000000002',
     tenant_id: TENANT,
+    sucursal_id: SUCURSAL,
     empresa_nombre: 'Kaha Demo',
     nombre_invitado: 'Nadia',
     rol: 'administrador',
@@ -529,10 +549,12 @@ export function getMockInvitaciones(): Invitacion[] {
 export function crearInvitacionMock(entrada: {
   nombre: string
   rol: 'administrador' | 'vendedor'
+  sucursalId?: string | null
 }): { id: string; token: string; expira_at: string } {
   const invitacion: Invitacion = {
     id: crypto.randomUUID(),
     tenant_id: TENANT,
+    sucursal_id: entrada.sucursalId ?? null,
     empresa_nombre: 'Kaha Demo',
     nombre_invitado: entrada.nombre.trim(),
     rol: entrada.rol,
@@ -574,10 +596,11 @@ export function cancelarInvitacionMock(id: string): void {
   if (invitacion) invitacion.estado = 'cancelada'
 }
 
-export function confirmarMiembroMock(id: string): void {
+export function confirmarMiembroMock(id: string, sucursalId?: string | null): void {
   const miembro = miembros.find((m) => m.id === id)
   if (miembro) {
     miembro.estado = 'activo'
+    if (sucursalId !== undefined) miembro.sucursal_id = sucursalId
     invitaciones.forEach((inv) => {
       if (inv.nombre_invitado === miembro.nombre && inv.estado === 'registrado') {
         inv.estado = 'cancelada'
@@ -694,6 +717,64 @@ function registrarMovimiento(entrada: {
 
 export function getMockSucursales(): Sucursal[] {
   return [...sucursales]
+}
+
+export function getSucursalMock(id: string): Sucursal | null {
+  return sucursales.find((s) => s.id === id) ?? null
+}
+
+export function crearSucursalMock(entrada: {
+  nombre: string
+  direccion?: string | null
+  telefono?: string | null
+}): string {
+  if (sucursales.length >= 3) {
+    throw new Error('Kahabox admite hasta 3 sucursales por comercio.')
+  }
+  const sucursal: Sucursal = {
+    id: crypto.randomUUID(),
+    tenant_id: TENANT,
+    nombre: entrada.nombre.trim(),
+    direccion: entrada.direccion?.trim() || null,
+    telefono: entrada.telefono?.trim() || null,
+  }
+  sucursales.push(sucursal)
+  return sucursal.id
+}
+
+export function actualizarSucursalMock(
+  id: string,
+  entrada: { nombre: string; direccion?: string | null; telefono?: string | null },
+): void {
+  const sucursal = sucursales.find((s) => s.id === id)
+  if (!sucursal) throw new Error('La sucursal no existe.')
+  sucursal.nombre = entrada.nombre.trim()
+  sucursal.direccion = entrada.direccion?.trim() || null
+  sucursal.telefono = entrada.telefono?.trim() || null
+}
+
+export function eliminarSucursalMock(id: string): { ok: boolean; error?: string } {
+  const idx = sucursales.findIndex((s) => s.id === id)
+  if (idx < 0) return { ok: false, error: 'La sucursal no existe.' }
+  if (sucursales.length <= 1) {
+    return { ok: false, error: 'No podés eliminar la única sucursal del comercio.' }
+  }
+  const conStock = stock.some((s) => s.sucursal_id === id)
+  const conVentas = ventas.some((v) => v.sucursal_id === id)
+  const conMiembros = miembros.some((m) => m.sucursal_id === id)
+  if (conStock || conVentas || conMiembros) {
+    return {
+      ok: false,
+      error: 'La sucursal tiene stock, ventas o miembros asignados. Reasignalos antes de eliminarla.',
+    }
+  }
+  sucursales.splice(idx, 1)
+  return { ok: true }
+}
+
+export function setSucursalMiembroMock(id: string, sucursalId: string | null): void {
+  const miembro = miembros.find((m) => m.id === id)
+  if (miembro) miembro.sucursal_id = sucursalId
 }
 
 export type FilaImportacion = {
@@ -1000,7 +1081,7 @@ export function registrarVentaMock(stockId: string, cantidad: number): Venta {
   const venta: Venta = {
     id: crypto.randomUUID(),
     tenant_id: TENANT,
-    sucursal_id: SUCURSAL,
+    sucursal_id: linea.sucursal_id ?? SUCURSAL,
     vendedor_id: DEMO_USER_ID,
     total: linea.precio * cantidad,
     estado: 'confirmada',

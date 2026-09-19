@@ -33,6 +33,7 @@ export type Database = {
           id: string
           user_id: string
           tenant_id: string
+          sucursal_id: string | null
           rol: 'dueño' | 'administrador' | 'vendedor'
           estado: 'activo' | 'pendiente' | 'rechazado'
           nombre: string | null
@@ -42,6 +43,7 @@ export type Database = {
           id?: string
           user_id: string
           tenant_id?: string
+          sucursal_id?: string | null
           rol?: 'dueño' | 'administrador' | 'vendedor'
           estado?: 'activo' | 'pendiente' | 'rechazado'
           nombre?: string | null
@@ -51,6 +53,7 @@ export type Database = {
           id?: string
           user_id?: string
           tenant_id?: string
+          sucursal_id?: string | null
           rol?: 'dueño' | 'administrador' | 'vendedor'
           estado?: 'activo' | 'pendiente' | 'rechazado'
           nombre?: string | null
@@ -70,6 +73,7 @@ export type Database = {
         Row: {
           id: string
           tenant_id: string
+          sucursal_id: string | null
           empresa_nombre: string
           nombre_invitado: string
           rol: 'administrador' | 'vendedor'
@@ -83,6 +87,7 @@ export type Database = {
         Insert: {
           id?: string
           tenant_id?: string
+          sucursal_id?: string | null
           empresa_nombre: string
           nombre_invitado: string
           rol: 'administrador' | 'vendedor'
@@ -96,6 +101,7 @@ export type Database = {
         Update: {
           id?: string
           tenant_id?: string
+          sucursal_id?: string | null
           empresa_nombre?: string
           nombre_invitado?: string
           rol?: 'administrador' | 'vendedor'
@@ -561,6 +567,7 @@ export type Database = {
           tenant_id: string
           nombre: string
           direccion: string | null
+          telefono: string | null
           created_at: string
         }
         Insert: {
@@ -568,6 +575,7 @@ export type Database = {
           tenant_id?: string
           nombre: string
           direccion?: string | null
+          telefono?: string | null
           created_at?: string
         }
         Update: {
@@ -575,6 +583,7 @@ export type Database = {
           tenant_id?: string
           nombre?: string
           direccion?: string | null
+          telefono?: string | null
           created_at?: string
         }
         Relationships: [
@@ -981,11 +990,53 @@ Relationships: [
         Args: {
           p_nombre: string
           p_rol: 'administrador' | 'vendedor'
+          p_sucursal_id?: string | null
         }
         Returns: {
           id: string
           token: string
           expira_at: string
+        }[]
+      }
+      crear_sucursal: {
+        Args: {
+          p_nombre: string
+          p_direccion?: string | null
+          p_telefono?: string | null
+        }
+        Returns: {
+          id: string
+          nombre: string
+          direccion: string | null
+          telefono: string | null
+        }[]
+      }
+      actualizar_sucursal: {
+        Args: {
+          p_id: string
+          p_nombre: string
+          p_direccion?: string | null
+          p_telefono?: string | null
+        }
+        Returns: undefined
+      }
+      eliminar_sucursal: {
+        Args: {
+          p_id: string
+        }
+        Returns: undefined
+      }
+      set_sucursal_miembro: {
+        Args: {
+          p_miembro_id: string
+          p_sucursal_id: string | null
+        }
+        Returns: undefined
+      }
+      mi_sucursal: {
+        Args: Record<string, never>
+        Returns: {
+          sucursal_id: string | null
         }[]
       }
       obtener_invitacion: {
@@ -1012,11 +1063,14 @@ Relationships: [
           nombre: string | null
           email: string | null
           created_at: string
+          sucursal_id: string | null
+          sucursal_nombre: string | null
         }[]
       }
       confirmar_miembro: {
         Args: {
           p_miembro_id: string
+          p_sucursal_id?: string | null
         }
         Returns: undefined
       }

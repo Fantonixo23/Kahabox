@@ -1,5 +1,6 @@
 import type { Database } from '@/lib/database'
-import { supabase } from '@/lib/supabase'
+import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { buscarProductoMaestroMock } from '@/lib/mock'
 import type { VistaStock } from '@/lib/vistaStock'
 
 /**
@@ -7,6 +8,32 @@ import type { VistaStock } from '@/lib/vistaStock'
  */
 export type StockRemotoRow = Database['public']['Views']['stock_tienda_dueno']['Row'] & {
   producto: Database['public']['Tables']['productos_maestro']['Row'] | null
+}
+
+/**
+ * Fila del catálogo maestro compartido (datos del producto, sin stock propio).
+ */
+export type ProductoMaestroCatalogo =
+  Database['public']['Tables']['productos_maestro']['Row']
+
+/**
+ * Busca un producto en el catálogo maestro compartido por código de barras.
+ * Es el respaldo del escáner cuando el código no está en el stock local: si lo
+ * cargó otra tienda, ya aparece con nombre/marca/categoría. En modo demo busca
+ * en el catálogo mock.
+ */
+export async function buscarProductoMaestroPorCodigo(
+  codigo: string,
+): Promise<ProductoMaestroCatalogo | null> {
+  const c = codigo.trim()
+  if (!c) return null
+  if (!isSupabaseConfigured) return buscarProductoMaestroMock(c)
+  const { data } = await supabase
+    .from('productos_maestro')
+    .select('*')
+    .eq('codigo_barras', c)
+    .maybeSingle()
+  return (data as ProductoMaestroCatalogo | null) ?? null
 }
 
 /**
@@ -20,7 +47,7 @@ export async function cargarStockRemoto(
     .from(vista)
     .select('*, producto:productos_maestro(*)')
     .order('updated_at', { ascending: false })
-    .limit(500)
+    .limit(2000)
   if (error) throw error
   return (data as StockRemotoRow[] | null) ?? []
 }

@@ -49,6 +49,10 @@ import { dispositivoActual } from '@/lib/auditoriaData'
 import { esJefe, vistaStock, type VistaStock } from '@/lib/vistaStock'
 import { useKeyboardScanner } from '@/lib/useKeyboardScanner'
 import {
+  buscarProductoMaestroPorCodigo,
+  type ProductoMaestroCatalogo,
+} from '@/lib/stockRemoto'
+import {
   SUCURSAL,
   crearProductoMock,
   getMockMovimientos,
@@ -154,9 +158,11 @@ export default function StockPage() {
   const [adminLinea, setAdminLinea] = useState<StockRow | null>(null)
   const [nuevoOpen, setNuevoOpen] = useState(false)
   const [nuevoCodigo, setNuevoCodigo] = useState('')
+  const [nuevoCatalogo, setNuevoCatalogo] =
+    useState<ProductoMaestroCatalogo | null>(null)
   const [importarOpen, setImportarOpen] = useState(false)
 
-  function manejarCodigoEscaneado(code: string) {
+  async function manejarCodigoEscaneado(code: string) {
     const c = code.trim()
     if (!c) return
     const linea =
@@ -166,6 +172,7 @@ export default function StockPage() {
       setAdminOpen(true)
       return
     }
+    setNuevoCatalogo(await buscarProductoMaestroPorCodigo(c))
     setNuevoCodigo(c)
     setNuevoOpen(true)
   }
@@ -244,7 +251,7 @@ export default function StockPage() {
       .select('*, producto:productos_maestro(*)')
       .eq('sucursal_id', sucursalId)
       .order('updated_at', { ascending: false })
-      .limit(500)
+      .limit(2000)
 
     if (error) {
       if (esErrorDeRed(error)) {
@@ -338,6 +345,7 @@ export default function StockPage() {
           <Button
             onClick={() => {
               setNuevoCodigo('')
+              setNuevoCatalogo(null)
               setNuevoOpen(true)
             }}
           >
@@ -560,6 +568,7 @@ export default function StockPage() {
         open={nuevoOpen}
         onOpenChange={setNuevoOpen}
         codigoInicial={nuevoCodigo}
+        catalogoExistente={nuevoCatalogo}
         onCreated={load}
         sucursalId={sucursalId}
         onLineaNueva={aplicarLineaNueva}
@@ -1072,6 +1081,7 @@ function NuevoProductoDialog({
   open,
   onOpenChange,
   codigoInicial,
+  catalogoExistente,
   onCreated,
   sucursalId,
   onLineaNueva,
@@ -1079,6 +1089,7 @@ function NuevoProductoDialog({
   open: boolean
   onOpenChange: (next: boolean) => void
   codigoInicial: string
+  catalogoExistente?: ProductoMaestroCatalogo | null
   onCreated: () => void | Promise<void>
   sucursalId: string
   onLineaNueva: (fila: StockRow) => void
@@ -1089,10 +1100,16 @@ function NuevoProductoDialog({
 
   useEffect(() => {
     if (!open) return
-    setForm({ ...formInicial, codigo_barras: codigoInicial })
+    setForm({
+      ...formInicial,
+      codigo_barras: codigoInicial,
+      nombre: catalogoExistente?.nombre ?? '',
+      marca: catalogoExistente?.marca ?? '',
+      categoria: catalogoExistente?.categoria ?? '',
+    })
     setError(null)
     setSubmitting(false)
-  }, [open, codigoInicial])
+  }, [open, codigoInicial, catalogoExistente])
 
   function set<K extends keyof ProductoFormValues>(key: K, value: ProductoFormValues[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -1105,30 +1122,12 @@ function NuevoProductoDialog({
 
   async function handleCodigoEscaneado(code: string) {
     set('codigo_barras', code)
-    try {
-      if (!isSupabaseConfigured) {
-        const encontrado = getMockStock().find(
-          (r) => r.producto?.codigo_barras === code,
-        )?.producto
-        if (encontrado) {
-          if (!form.nombre.trim()) set('nombre', encontrado.nombre)
-          if (!form.marca.trim() && encontrado.marca) set('marca', encontrado.marca)
-        }
-        return
-      }
-
-      const { data } = await supabase
-        .from('productos_maestro')
-        .select('nombre, marca')
-        .eq('codigo_barras', code)
-        .maybeSingle()
-
-      if (data) {
-        if (!form.nombre.trim()) set('nombre', data.nombre)
-        if (!form.marca.trim() && data.marca) set('marca', data.marca)
-      }
-    } catch {
-      // Si falla la búsqueda, igual queda el código cargado.
+    const maestro = await buscarProductoMaestroPorCodigo(code)
+    if (maestro) {
+      if (!form.nombre.trim()) set('nombre', maestro.nombre)
+      if (!form.marca.trim() && maestro.marca) set('marca', maestro.marca)
+      if (!form.categoria.trim() && maestro.categoria)
+        set('categoria', maestro.categoria)
     }
   }
 
@@ -1261,9 +1260,17 @@ function NuevoProductoDialog({
         <DialogHeader>
           <DialogTitle>Nuevo producto</DialogTitle>
           <DialogDescription>
-            Si es un artículo nuevo, se agrega al catálogo compartido.
+            {catalogoExistente
+              ? 'Este código ya existe en el catálogo compartido.'
+              : 'Si es un artículo nuevo, se agrega al catálogo compartido.'}
           </DialogDescription>
         </DialogHeader>
+
+        {catalogoExistente && (
+          <p className="rounded-md border border-amber-300/50 bg-amber-50 p-3 text-sm text-amber-700">
+            Ya viene con datos del catálogo: solo completá precio y cantidad.
+          </p>
+        )}
 
         <form id="nuevo-producto" onSubmit={handleSubmit}>
           <ProductoFormFields

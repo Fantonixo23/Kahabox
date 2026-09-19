@@ -181,6 +181,18 @@ function leerConfigGuardada(): Partial<ConfigApp> {
     delete datos.certificado
     // Migración: el ancho de ticket angosto pasó de 44mm a 58mm.
     if (Number(datos.anchoTicketPc) === 44) datos.anchoTicketPc = 58
+    // Migración: se retiró QZ Tray; lo que usaba QZ Tray imprime por navegador.
+    const legado = datos as unknown as {
+      metodoImpresion?: unknown
+      impresoraQzNombre?: unknown
+    }
+    if (legado.metodoImpresion === 'qztray') {
+      datos.metodoImpresion = 'navegador'
+    }
+    if (legado.impresoraQzNombre !== undefined) {
+      delete (datos as Partial<ConfigApp> & { impresoraQzNombre?: unknown })
+        .impresoraQzNombre
+    }
     if (Array.isArray(datos.monedasActivas)) {
       datos.monedasActivas = datos.monedasActivas.filter((m): m is Moneda =>
         MONEDAS_DEFAULT.includes(m as Moneda),

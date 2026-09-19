@@ -52,6 +52,8 @@ import { crearProductoMock, getMockStock, reponerStockMock } from '@/lib/mock'
 import {
   buscarLineaPorCodigo,
   cargarStockRemoto,
+  buscarProductoMaestroPorCodigo,
+  type ProductoMaestroCatalogo,
   type StockRemotoRow,
 } from '@/lib/stockRemoto'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
@@ -209,12 +211,14 @@ function NuevoProductoRemotoDialog({
   open,
   onOpenChange,
   codigoInicial,
+  catalogoExistente,
   sucursalId,
   onGuardado,
 }: {
   open: boolean
   onOpenChange: (next: boolean) => void
   codigoInicial: string
+  catalogoExistente?: ProductoMaestroCatalogo | null
   sucursalId: string | null
   onGuardado: (producto: PayloadNuevoProducto) => void | Promise<void>
 }) {
@@ -224,16 +228,33 @@ function NuevoProductoRemotoDialog({
 
   useEffect(() => {
     if (!open) return
-    setForm({ ...productoFormInicial, codigo_barras: codigoInicial })
+    setForm({
+      ...productoFormInicial,
+      codigo_barras: codigoInicial,
+      nombre: catalogoExistente?.nombre ?? '',
+      marca: catalogoExistente?.marca ?? '',
+      categoria: catalogoExistente?.categoria ?? '',
+    })
     setError(null)
     setSubmitting(false)
-  }, [open, codigoInicial])
+  }, [open, codigoInicial, catalogoExistente])
 
   function set<K extends keyof ProductoFormValues>(
     key: K,
     value: ProductoFormValues[K],
   ) {
     setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  async function handleCodigoEscaneado(code: string) {
+    set('codigo_barras', code)
+    const maestro = await buscarProductoMaestroPorCodigo(code)
+    if (maestro) {
+      if (!form.nombre.trim()) set('nombre', maestro.nombre)
+      if (!form.marca.trim() && maestro.marca) set('marca', maestro.marca)
+      if (!form.categoria.trim() && maestro.categoria)
+        set('categoria', maestro.categoria)
+    }
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -337,15 +358,23 @@ function NuevoProductoRemotoDialog({
         <DialogHeader>
           <DialogTitle>Nuevo producto</DialogTitle>
           <DialogDescription>
-            El código no está en tu stock: cargalo para empezar a venderlo.
+            {catalogoExistente
+              ? 'Este código ya existe en el catálogo compartido.'
+              : 'El código no está en tu stock: cargalo para empezar a venderlo.'}
           </DialogDescription>
         </DialogHeader>
+
+        {catalogoExistente && (
+          <p className="rounded-md border border-amber-300/50 bg-amber-50 p-3 text-sm text-amber-700">
+            Ya viene con datos del catálogo: solo completá precio y cantidad.
+          </p>
+        )}
 
         <form id="nuevo-producto-remoto" onSubmit={handleSubmit}>
           <ProductoFormFields
             form={form}
             set={set}
-            onCodigoEscaneado={(c) => set('codigo_barras', c)}
+            onCodigoEscaneado={handleCodigoEscaneado}
           />
 
           {error && (
@@ -395,6 +424,8 @@ export default function EscaneadorPage() {
   const [adminLinea, setAdminLinea] = useState<StockRemotoRow | null>(null)
   const [nuevoOpen, setNuevoOpen] = useState(false)
   const [nuevoCodigo, setNuevoCodigo] = useState('')
+  const [nuevoCatalogo, setNuevoCatalogo] =
+    useState<ProductoMaestroCatalogo | null>(null)
 
   const sala = modoStock ? salaDeStock() : salaDeCaja(caja)
 
@@ -545,7 +576,7 @@ export default function EscaneadorPage() {
     }
   }
 
-  function manejarCodigo(code: string) {
+  async function manejarCodigo(code: string) {
     const c = code.trim()
     if (!c) return
     const linea = buscarLineaPorCodigo(lineasConocidas(), c)
@@ -556,6 +587,7 @@ export default function EscaneadorPage() {
         setAdminOpen(true)
         return
       }
+      setNuevoCatalogo(await buscarProductoMaestroPorCodigo(c))
       setNuevoCodigo(c)
       setNuevoOpen(true)
       return
@@ -927,6 +959,7 @@ export default function EscaneadorPage() {
         open={nuevoOpen}
         onOpenChange={setNuevoOpen}
         codigoInicial={nuevoCodigo}
+        catalogoExistente={nuevoCatalogo}
         sucursalId={sucursal}
         onGuardado={guardarProductoStock}
       />

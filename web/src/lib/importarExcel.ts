@@ -3,6 +3,14 @@ import { importarStockMock, type FilaImportacion } from '@/lib/mock'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { dispositivoActual } from '@/lib/auditoriaData'
 
+// Fronteras de entrada: evitan que un archivo gigante, corrupto o malicioso
+// congele la pestaña o sature la base. Son topes amistosos, no de negocio.
+export const MAX_ARCHIVO_BYTES = 5 * 1024 * 1024 // 5 MB
+export const MAX_FILAS = 10_000
+export const MAX_COLUMNAS = 40
+export const MAX_LARGO_NOMBRE = 200
+export const MAX_LARGO_TEXTO = 100
+
 /** Campos que Kahabox sabe importar. */
 export type CampoExcel =
   | 'nombre'
@@ -184,6 +192,15 @@ export type TablaExcel = {
 
 /** Lee la primera hoja de un .xlsx/.xls/.csv y detecta la fila de encabezados. */
 export async function leerExcel(file: File): Promise<TablaExcel> {
+  if (!/\.(xlsx|xls|csv)$/i.test(file.name)) {
+    throw new Error('El archivo debe ser .xlsx, .xls o .csv.')
+  }
+  if (file.size > MAX_ARCHIVO_BYTES) {
+    throw new Error(
+      `El archivo pesa ${(file.size / 1024 / 1024).toFixed(1)} MB. Máximo ${MAX_ARCHIVO_BYTES / 1024 / 1024} MB.`,
+    )
+  }
+
   const XLSX = await import('xlsx')
   const esCsv = /\.csv$/i.test(file.name)
   const wb = esCsv
@@ -212,11 +229,11 @@ export async function leerExcel(file: File): Promise<TablaExcel> {
     }
   }
 
-  const headers = (aoa[filaHeader] ?? []).map((c) =>
-    c === null ? '' : String(c),
-  )
+  const headers = (aoa[filaHeader] ?? [])
+    .slice(0, MAX_COLUMNAS)
+    .map((c) => (c === null ? '' : String(c)))
   const filas = aoa
-    .slice(filaHeader + 1)
+    .slice(filaHeader + 1, filaHeader + 1 + MAX_FILAS)
     .filter((f) => (f ?? []).some((c) => c !== null && String(c).trim() !== ''))
 
   return { nombreArchivo: file.name, headers, filas }
@@ -254,9 +271,9 @@ export function construirFilas(opts: {
     return f[idx] ?? null
   }
 
-  const texto = (v: unknown): string | null => {
+  const texto = (v: unknown, largo: number): string | null => {
     const s = v === null || v === undefined ? '' : String(v).trim()
-    return s ? s : null
+    return s ? s.slice(0, largo) : null
   }
 
   const monedaDe = (v: unknown): 'PYG' | 'USD' => {
@@ -268,7 +285,7 @@ export function construirFilas(opts: {
   }
 
   tabla.filas.forEach((filaCruda, i) => {
-    const nombre = texto(celda(filaCruda, 'nombre'))
+    const nombre = texto(celda(filaCruda, 'nombre'), MAX_LARGO_NOMBRE)
     if (!nombre) {
       invalidas.push(i + 1)
       return
@@ -293,11 +310,11 @@ export function construirFilas(opts: {
 
     filas.push({
       nombre,
-      codigo: texto(celda(filaCruda, 'codigo')),
-      marca: texto(celda(filaCruda, 'marca')),
-      categoria: texto(celda(filaCruda, 'categoria')),
-      sku: texto(celda(filaCruda, 'sku')),
-      variante: texto(celda(filaCruda, 'variante')),
+      codigo: texto(celda(filaCruda, 'codigo'), MAX_LARGO_TEXTO),
+      marca: texto(celda(filaCruda, 'marca'), MAX_LARGO_TEXTO),
+      categoria: texto(celda(filaCruda, 'categoria'), MAX_LARGO_TEXTO),
+      sku: texto(celda(filaCruda, 'sku'), MAX_LARGO_TEXTO),
+      variante: texto(celda(filaCruda, 'variante'), MAX_LARGO_TEXTO),
       moneda: monedaDe(celda(filaCruda, 'moneda')),
       precio: precioValido,
       costo,
