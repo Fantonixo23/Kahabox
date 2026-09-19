@@ -7,7 +7,6 @@ import {
   Download,
   EyeOff,
   FileKey2,
-  Info,
   Loader2,
   MonitorSmartphone,
   Moon,
@@ -874,19 +873,6 @@ export default function ConfiguracionPage() {
             </>
           )}
         </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Info className="size-4" />
-            Datos de la demo
-          </CardTitle>
-          <CardDescription>
-            Trabajás con datos de demostración guardados en este navegador.
-            Conectá la base de datos real (Supabase) para producción.
-          </CardDescription>
-        </CardHeader>
       </Card>
 
       <p className="text-center text-xs text-muted-foreground">

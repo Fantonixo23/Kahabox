@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 
-import { CalendarClock, HandCoins, Pencil, Plus, Trash2, Users } from 'lucide-react'
+import {
+  CalendarClock,
+  HandCoins,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  Users,
+} from 'lucide-react'
 
+import BuscadorDnit from '@/components/BuscadorDnit'
 import MoneyInput from '@/components/MoneyInput'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -36,6 +45,10 @@ import {
 } from '@/lib/clientesData'
 import { monedasActivas } from '@/lib/config'
 import { aGs, obtenerCotizaciones, tasasBase, type Tasas } from '@/lib/cotizaciones'
+import {
+  consultarEntidadPublicaDnit,
+  type ContribuyenteDnit,
+} from '@/lib/dnit'
 import { formatMoney, type Moneda } from '@/lib/format'
 import type { Cliente, Cobro, Deuda } from '@/lib/mock'
 
@@ -117,6 +130,38 @@ function saldoPendienteGs(
   return Math.max(0, dado - pagado)
 }
 
+function normalizarTexto(valor: string): string {
+  return valor
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+function soloDigitos(valor: string): string {
+  return valor.replace(/\D/g, '')
+}
+
+function coincideCliente(cliente: Cliente, consulta: string): boolean {
+  const q = normalizarTexto(consulta)
+  const campos = [
+    cliente.nombre,
+    cliente.ruc,
+    cliente.cedula,
+    cliente.telefono,
+    cliente.email,
+    cliente.ciudad,
+  ]
+    .filter(Boolean)
+    .map((v) => normalizarTexto(String(v)))
+  if (campos.some((v) => v.includes(q))) return true
+
+  const digitos = soloDigitos(consulta)
+  if (!digitos) return false
+  return [cliente.ruc, cliente.cedula, cliente.telefono]
+    .filter(Boolean)
+    .some((v) => soloDigitos(String(v)).includes(digitos))
+}
+
 export default function ClientesPage() {
   const [clientes, setClientes] = useState<Cliente[] | null>(null)
   const [deudas, setDeudas] = useState<Deuda[]>([])
@@ -130,6 +175,7 @@ export default function ClientesPage() {
   const [error, setError] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
+  const [busqueda, setBusqueda] = useState('')
 
   const [cuentaId, setCuentaId] = useState<string | null>(null)
   const [deudaDialogCliente, setDeudaDialogCliente] = useState<Cliente | null>(null)
@@ -200,6 +246,29 @@ export default function ClientesPage() {
     setError(null)
     setForm(formDesde(c))
     setDialog({ modo: 'editar', cliente: c })
+  }
+
+  async function aplicarContribuyenteDnit(c: ContribuyenteDnit) {
+    setForm((f) => ({
+      ...f,
+      nombre: c.razonSocial,
+      ruc: c.ruc,
+      tipo: c.esPersonaJuridica ? 'juridica' : 'fisica',
+      cedula: c.esPersonaJuridica || !c.doc ? f.cedula : String(c.doc),
+    }))
+    if (!c.esEntidadPublica) return
+    try {
+      const entidad = await consultarEntidadPublicaDnit(c.ruc)
+      if (!entidad) return
+      setForm((f) => ({
+        ...f,
+        telefono: f.telefono || entidad.telefono,
+        email: f.email || entidad.correo,
+        direccion: f.direccion || entidad.direccion,
+      }))
+    } catch {
+      // Los datos de contacto son un extra: si fallan, igual queda el nombre/RUC.
+    }
   }
 
   async function handleSubmitCliente(event: FormEvent) {
@@ -356,6 +425,10 @@ export default function ClientesPage() {
   }
 
   const lista = clientes ?? []
+  const consulta = busqueda.trim()
+  const filtrados = consulta
+    ? lista.filter((c) => coincideCliente(c, consulta))
+    : lista
   const activos = lista.filter((c) => c.activo).length
   const deudaTotalGs = lista.reduce(
     (acc, c) => acc + saldoPendienteGs(c.id, deudas, cobros, tasas),
@@ -392,10 +465,27 @@ export default function ClientesPage() {
       )}
 
       <div className="flex flex-wrap gap-3 text-sm">
-        <Badge variant="secondary"> {lista.length} clientes</Badge>
+        <Badge variant="secondary">
+          {' '}
+          {consulta ? `${filtrados.length} de ${lista.length}` : lista.length}{' '}
+          clientes
+        </Badge>
         <Badge variant="outline"> {activos} activos</Badge>
         <Badge variant="outline"> Deuda total: {formatMoney(deudaTotalGs, 'PYG')}</Badge>
       </div>
+
+      {lista.length > 0 && (
+        <div className="relative max-w-sm">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar por nombre, RUC o teléfono…"
+            className="pl-8"
+            autoComplete="off"
+          />
+        </div>
+      )}
 
       {clientes === null ? (
         <p className="text-sm text-muted-foreground">Cargando…</p>
@@ -407,9 +497,17 @@ export default function ClientesPage() {
             Agregá tu primer cliente con el botón de arriba.
           </p>
         </div>
+      ) : filtrados.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 rounded-md border border-dashed p-10 text-center">
+          <Search className="size-6 text-muted-foreground" />
+          <p className="text-sm font-medium">Sin resultados</p>
+          <p className="text-sm text-muted-foreground">
+            Ningún cliente coincide con "{consulta}".
+          </p>
+        </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {lista.map((c) => {
+          {filtrados.map((c) => {
             const pendiente = saldoPendienteGs(c.id, deudas, cobros, tasas)
             return (
               <div key={c.id} className="rounded-lg border bg-card p-4">
@@ -529,6 +627,16 @@ export default function ClientesPage() {
           </DialogHeader>
 
           <form onSubmit={handleSubmitCliente} className="space-y-3">
+            <div className="rounded-lg border bg-muted/40 p-3">
+              <p className="mb-2 text-xs font-medium text-muted-foreground">
+                Autocompletar desde la DNIT
+              </p>
+              <BuscadorDnit onSeleccionar={aplicarContribuyenteDnit} />
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Buscá por RUC, cédula o nombre. Apretá Enter para elegir
+                directamente si hay un único resultado o una coincidencia exacta.
+              </p>
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="cli-nombre">Nombre *</Label>
               <Input
