@@ -46,7 +46,7 @@ import { ejecutarEscritura } from '@/lib/ejecutar'
 import { esErrorDeRed } from '@/lib/red'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { dispositivoActual } from '@/lib/auditoriaData'
-import { esDueno, vistaStock, type VistaStock } from '@/lib/vistaStock'
+import { esJefe, vistaStock, type VistaStock } from '@/lib/vistaStock'
 import { useKeyboardScanner } from '@/lib/useKeyboardScanner'
 import {
   SUCURSAL,
@@ -139,7 +139,7 @@ const estadoBadge = {
 
 export default function StockPage() {
   const { user } = useAuth()
-  const esDuenoActivo = esDueno(user)
+  const esDuenoActivo = esJefe(user)
   const vista = vistaStock(user)
   const [rows, setRows] = useState<StockRow[] | null>(null)
   const [sucursales, setSucursales] = useState<Sucursal[]>([])

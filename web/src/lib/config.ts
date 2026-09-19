@@ -64,6 +64,35 @@ const MONEDAS_DEFAULT: Moneda[] = ['PYG', 'USD', 'ARS', 'BRL']
 
 export type Modulo = { ruta: string; label: string; corto: string }
 
+export type RolApp = 'dueño' | 'administrador' | 'vendedor'
+
+/** Qué modulos ve cada rol. 'vendedor' es el empleado (solo lo operativo). */
+export const MODULOS_POR_ROL: Record<string, RolApp[]> = {
+  '/app/caja': ['dueño', 'administrador', 'vendedor'],
+  '/app/stock': ['dueño', 'administrador', 'vendedor'],
+  '/app/ventas': ['dueño', 'administrador', 'vendedor'],
+  '/app/clientes': ['dueño', 'administrador', 'vendedor'],
+  '/app/proveedores': ['dueño', 'administrador'],
+  '/app/pagos-proveedores': ['dueño', 'administrador'],
+  '/app/reportes': ['dueño', 'administrador'],
+  '/app/auditoria': ['dueño', 'administrador'],
+  '/app/equipo': ['dueño'],
+  '/app/configuracion': ['dueño'],
+  '/app/instalar': ['dueño'],
+}
+
+export function puedeVerRuta(ruta: string, rol: RolApp | null | undefined): boolean {
+  const permitidos = MODULOS_POR_ROL[ruta]
+  if (!permitidos) return true
+  return rol !== null && rol !== undefined && permitidos.includes(rol)
+}
+
+export const ETIQUETA_ROL: Record<RolApp, string> = {
+  dueño: 'Dueño',
+  administrador: 'Administrador',
+  vendedor: 'Empleado',
+}
+
 export const MODULOS: Modulo[] = [
   { ruta: '/app/caja', label: 'Caja', corto: 'Caja' },
   { ruta: '/app/stock', label: 'Stock', corto: 'Stock' },

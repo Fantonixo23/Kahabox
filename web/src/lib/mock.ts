@@ -399,13 +399,17 @@ const miembros: Miembro[] = [
     user_id: DEMO_USER_ID,
     tenant_id: TENANT,
     rol: 'dueño',
+    estado: 'activo',
+    nombre: 'Kaha Demo',
     created_at: hace(480),
   },
   {
     id: 'dddd0002-0000-0000-0000-000000000002',
     user_id: '88888888-8888-4888-8888-888888888888',
     tenant_id: TENANT,
-    rol: 'vendedor',
+    rol: 'administrador',
+    estado: 'activo',
+    nombre: 'Marcelo',
     created_at: hace(300),
   },
   {
@@ -413,7 +417,18 @@ const miembros: Miembro[] = [
     user_id: '77777777-7777-4777-7777-777777777777',
     tenant_id: TENANT,
     rol: 'vendedor',
+    estado: 'activo',
+    nombre: 'Lucía',
     created_at: hace(120),
+  },
+  {
+    id: 'dddd0004-0000-0000-0000-000000000004',
+    user_id: '66666666-6666-4666-6666-666666666666',
+    tenant_id: TENANT,
+    rol: 'vendedor',
+    estado: 'pendiente',
+    nombre: 'Marcos',
+    created_at: hace(3),
   },
 ]
 
@@ -468,6 +483,133 @@ function detalleDeLinea(
 
 export function getMockMiembros(): Miembro[] {
   return [...miembros].sort((a, b) => b.created_at.localeCompare(a.created_at))
+}
+
+type Invitacion = Database['public']['Tables']['invitaciones']['Row']
+
+const invitaciones: Invitacion[] = [
+  {
+    id: 'ffff0001-0000-0000-0000-000000000001',
+    tenant_id: TENANT,
+    empresa_nombre: 'Kaha Demo',
+    nombre_invitado: 'Marcos',
+    rol: 'vendedor',
+    token: 'token-demo-marcos',
+    estado: 'registrado',
+    creado_por: DEMO_USER_ID,
+    expira_at: hacemosExpira(2),
+    created_at: hace(3),
+    updated_at: hace(2),
+  },
+  {
+    id: 'ffff0002-0000-0000-0000-000000000002',
+    tenant_id: TENANT,
+    empresa_nombre: 'Kaha Demo',
+    nombre_invitado: 'Nadia',
+    rol: 'administrador',
+    token: 'token-demo-nadia',
+    estado: 'pendiente',
+    creado_por: DEMO_USER_ID,
+    expira_at: hacemosExpira(6),
+    created_at: hace(1),
+    updated_at: hace(1),
+  },
+]
+
+function hacemosExpira(dias: number): string {
+  const fecha = new Date()
+  fecha.setDate(fecha.getDate() + dias)
+  return fecha.toISOString()
+}
+
+export function getMockInvitaciones(): Invitacion[] {
+  return [...invitaciones].sort((a, b) => b.created_at.localeCompare(a.created_at))
+}
+
+export function crearInvitacionMock(entrada: {
+  nombre: string
+  rol: 'administrador' | 'vendedor'
+}): { id: string; token: string; expira_at: string } {
+  const invitacion: Invitacion = {
+    id: crypto.randomUUID(),
+    tenant_id: TENANT,
+    empresa_nombre: 'Kaha Demo',
+    nombre_invitado: entrada.nombre.trim(),
+    rol: entrada.rol,
+    token: `demo-${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`,
+    estado: 'pendiente',
+    creado_por: DEMO_USER_ID,
+    expira_at: hacemosExpira(7),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }
+  invitaciones.push(invitacion)
+  return { id: invitacion.id, token: invitacion.token, expira_at: invitacion.expira_at }
+}
+
+export type InvitacionPublica = {
+  valida: boolean | null
+  estado: string | null
+  empresa_nombre: string | null
+  nombre_invitado: string | null
+  rol: string | null
+  expira_at: string | null
+}
+
+export function obtenerInvitacionMock(token: string): InvitacionPublica | null {
+  const invitacion = invitaciones.find((inv) => inv.token === token)
+  if (!invitacion) return null
+  return {
+    valida: invitacion.estado === 'pendiente' && new Date(invitacion.expira_at).getTime() > Date.now(),
+    estado: invitacion.estado,
+    empresa_nombre: invitacion.empresa_nombre,
+    nombre_invitado: invitacion.nombre_invitado,
+    rol: invitacion.rol,
+    expira_at: invitacion.expira_at,
+  }
+}
+
+export function cancelarInvitacionMock(id: string): void {
+  const invitacion = invitaciones.find((inv) => inv.id === id)
+  if (invitacion) invitacion.estado = 'cancelada'
+}
+
+export function confirmarMiembroMock(id: string): void {
+  const miembro = miembros.find((m) => m.id === id)
+  if (miembro) {
+    miembro.estado = 'activo'
+    invitaciones.forEach((inv) => {
+      if (inv.nombre_invitado === miembro.nombre && inv.estado === 'registrado') {
+        inv.estado = 'cancelada'
+      }
+    })
+  }
+}
+
+export function rechazarMiembroMock(id: string): void {
+  const miembro = miembros.find((m) => m.id === id)
+  if (miembro) miembro.estado = 'rechazado'
+}
+
+export function setRolMiembroMock(id: string, rol: 'administrador' | 'vendedor'): void {
+  const miembro = miembros.find((m) => m.id === id)
+  if (miembro && miembro.rol !== 'dueño') miembro.rol = rol
+}
+
+export function quitarMiembroMock(id: string): void {
+  const idx = miembros.findIndex((m) => m.id === id)
+  if (idx >= 0 && miembros[idx].rol !== 'dueño') miembros.splice(idx, 1)
+}
+
+export async function miEstadoEquipoMock(): Promise<'activo' | 'pendiente' | 'rechazado' | null> {
+  const miembro = miembros.find((m) => m.user_id === DEMO_USER_ID)
+  return miembro?.estado ?? null
+}
+
+export function demoUserPorRol(rol: 'dueño' | 'administrador' | 'vendedor'): User {
+  const base = { ...demoUser }
+  base.app_metadata = { ...demoUser.app_metadata, rol }
+  return base
 }
 
 export function crearProductoMock(entrada: {

@@ -8,14 +8,15 @@ import {
 
 import type { Session, User } from '@supabase/supabase-js'
 
+import type { RolApp } from '@/lib/config'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
-import { demoSession, demoUser } from '@/lib/mock'
+import { demoSession, demoUser, demoUserPorRol } from '@/lib/mock'
 
 type AuthState = {
   session: Session | null
   user: User | null
   loading: boolean
-  entrarDemo: () => void
+  entrarDemo: (rol?: RolApp) => void
   salirDemo: () => void
 }
 
@@ -67,8 +68,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.subscription.unsubscribe()
   }, [])
 
-  function entrarDemo() {
-    setState((prev) => ({ ...prev, session: demoSession, user: demoUser, loading: false }))
+  function entrarDemo(rol: RolApp = 'dueño') {
+    const usuario = rol === 'dueño' ? demoUser : demoUserPorRol(rol)
+    setState((prev) => ({
+      ...prev,
+      session: { ...demoSession, user: usuario },
+      user: usuario,
+      loading: false,
+    }))
   }
 
   function salirDemo() {

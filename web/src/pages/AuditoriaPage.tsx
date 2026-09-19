@@ -43,7 +43,7 @@ import {
   type Sucursal,
 } from '@/lib/mock'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
-import { esDueno } from '@/lib/vistaStock'
+import { esJefe } from '@/lib/vistaStock'
 import { cn } from 'cn'
 
 const ETIQUETAS_ENTIDAD: Record<string, string> = {
@@ -264,7 +264,7 @@ export default function AuditoriaPage() {
     ventana.print()
   }
 
-  if (user && !esDueno(user)) {
+  if (user && !esJefe(user)) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-md border border-dashed p-10 text-center">
         <EyeOff className="size-8 text-muted-foreground" />

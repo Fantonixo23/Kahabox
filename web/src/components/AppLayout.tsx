@@ -21,10 +21,10 @@ import { AvisoActualizacion } from '@/components/AvisoActualizacion'
 import SyncBar from '@/components/SyncBar'
 import { Button } from '@/components/ui/button'
 import { cn } from 'cn'
-import { MODULOS, useConfig } from '@/lib/config'
+import { MODULOS, puedeVerRuta, useConfig } from '@/lib/config'
 import { useEstacionImpresion } from '@/lib/impresion/estacion'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
-import { esDueno } from '@/lib/vistaStock'
+import { rolUsuario } from '@/lib/vistaStock'
 
 const ICONOS = {
   '/app/caja': CircleDollarSign,
@@ -58,7 +58,9 @@ export default function AppLayout() {
   const nav = useMemo(
     () =>
       MODULOS_CON_CONFIGURACION.filter(
-        (m) => !modulosOcultos.includes(m.ruta) && (m.ruta !== '/app/auditoria' || esDueno(user)),
+        (m) =>
+          !modulosOcultos.includes(m.ruta) &&
+          puedeVerRuta(m.ruta, rolUsuario(user)),
       ).map(
         (m) => ({ to: m.ruta, label: m.label, corto: m.corto, icon: ICONOS[m.ruta as keyof typeof ICONOS] ?? Settings }),
       ),
@@ -123,18 +125,20 @@ export default function AppLayout() {
           ))}
         </nav>
         <div className="border-t p-2">
-          <NavLink
-            to="/app/instalar"
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground',
-                isActive && 'bg-muted font-medium text-foreground',
-              )
-            }
-          >
-            <Smartphone className="size-4" />
-            Instalar app
-          </NavLink>
+          {puedeVerRuta('/app/instalar', rolUsuario(user)) && (
+            <NavLink
+              to="/app/instalar"
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground',
+                  isActive && 'bg-muted font-medium text-foreground',
+                )
+              }
+            >
+              <Smartphone className="size-4" />
+              Instalar app
+            </NavLink>
+          )}
         </div>
         <div className="border-t p-3">
           <div className="mb-2 flex items-center gap-2 px-1">
@@ -205,18 +209,20 @@ export default function AppLayout() {
                 {item.corto}
               </NavLink>
             ))}
-            <NavLink
-              to="/app/instalar"
-              className={({ isActive }) =>
-                cn(
-                  'flex min-w-14 flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[10px] text-muted-foreground hover:bg-muted',
-                  isActive && 'font-semibold text-foreground',
-                )
-              }
-            >
-              <Smartphone className="size-5" />
-              Instalar
-            </NavLink>
+            {puedeVerRuta('/app/instalar', rolUsuario(user)) && (
+              <NavLink
+                to="/app/instalar"
+                className={({ isActive }) =>
+                  cn(
+                    'flex min-w-14 flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[10px] text-muted-foreground hover:bg-muted',
+                    isActive && 'font-semibold text-foreground',
+                  )
+                }
+              >
+                <Smartphone className="size-5" />
+                Instalar
+              </NavLink>
+            )}
           </div>
         </nav>
       </div>

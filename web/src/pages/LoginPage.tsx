@@ -126,14 +126,21 @@ export default function LoginPage() {
                 Supabase conectado, así que podés recorrer la app con datos de
                 ejemplo.
               </p>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={entrarDemo}
-              >
-                Entrar en modo demo
-              </Button>
+              <div className="grid grid-cols-3 gap-2">
+                <Button type="button" variant="outline" onClick={() => entrarDemo('dueño')}>
+                  Dueño
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => entrarDemo('administrador')}
+                >
+                  Admin
+                </Button>
+                <Button type="button" variant="outline" onClick={() => entrarDemo('vendedor')}>
+                  Empleado
+                </Button>
+              </div>
             </>
           )}
           {error && (

@@ -33,21 +33,27 @@ export type Database = {
           id: string
           user_id: string
           tenant_id: string
-          rol: 'dueño' | 'vendedor'
+          rol: 'dueño' | 'administrador' | 'vendedor'
+          estado: 'activo' | 'pendiente' | 'rechazado'
+          nombre: string | null
           created_at: string
         }
         Insert: {
           id?: string
           user_id: string
           tenant_id?: string
-          rol?: 'dueño' | 'vendedor'
+          rol?: 'dueño' | 'administrador' | 'vendedor'
+          estado?: 'activo' | 'pendiente' | 'rechazado'
+          nombre?: string | null
           created_at?: string
         }
         Update: {
           id?: string
           user_id?: string
           tenant_id?: string
-          rol?: 'dueño' | 'vendedor'
+          rol?: 'dueño' | 'administrador' | 'vendedor'
+          estado?: 'activo' | 'pendiente' | 'rechazado'
+          nombre?: string | null
           created_at?: string
         }
         Relationships: [
@@ -56,6 +62,63 @@ export type Database = {
             columns: ['tenant_id']
             isOneToOne: false
             referencedRelation: 'tenants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      invitaciones: {
+        Row: {
+          id: string
+          tenant_id: string
+          empresa_nombre: string
+          nombre_invitado: string
+          rol: 'administrador' | 'vendedor'
+          token: string
+          estado: 'pendiente' | 'registrado' | 'cancelada'
+          creado_por: string | null
+          expira_at: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id?: string
+          empresa_nombre: string
+          nombre_invitado: string
+          rol: 'administrador' | 'vendedor'
+          token: string
+          estado?: 'pendiente' | 'registrado' | 'cancelada'
+          creado_por?: string | null
+          expira_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          empresa_nombre?: string
+          nombre_invitado?: string
+          rol?: 'administrador' | 'vendedor'
+          token?: string
+          estado?: 'pendiente' | 'registrado' | 'cancelada'
+          creado_por?: string | null
+          expira_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'invitaciones_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'tenants'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'invitaciones_creado_por_fkey'
+            columns: ['creado_por']
+            isOneToOne: false
+            referencedRelation: 'auth_users'
             referencedColumns: ['id']
           },
         ]
@@ -913,6 +976,74 @@ Relationships: [
           p_dispositivo?: string | null
         }
         Returns: Record<string, unknown>
+      }
+      crear_invitacion: {
+        Args: {
+          p_nombre: string
+          p_rol: 'administrador' | 'vendedor'
+        }
+        Returns: {
+          id: string
+          token: string
+          expira_at: string
+        }[]
+      }
+      obtener_invitacion: {
+        Args: {
+          p_token: string
+        }
+        Returns: {
+          valida: boolean | null
+          estado: string | null
+          empresa_nombre: string | null
+          nombre_invitado: string | null
+          rol: string | null
+          expira_at: string | null
+        }[]
+      }
+      listar_miembros: {
+        Args: Record<string, never>
+        Returns: {
+          id: string
+          user_id: string
+          tenant_id: string
+          rol: 'dueño' | 'administrador' | 'vendedor'
+          estado: 'activo' | 'pendiente' | 'rechazado'
+          nombre: string | null
+          email: string | null
+          created_at: string
+        }[]
+      }
+      confirmar_miembro: {
+        Args: {
+          p_miembro_id: string
+        }
+        Returns: undefined
+      }
+      rechazar_miembro: {
+        Args: {
+          p_miembro_id: string
+        }
+        Returns: undefined
+      }
+      set_rol_miembro: {
+        Args: {
+          p_miembro_id: string
+          p_rol: 'administrador' | 'vendedor'
+        }
+        Returns: undefined
+      }
+      quitar_miembro: {
+        Args: {
+          p_miembro_id: string
+        }
+        Returns: undefined
+      }
+      mi_estado_equipo: {
+        Args: Record<string, never>
+        Returns: {
+          estado: 'activo' | 'pendiente' | 'rechazado'
+        }[]
       }
       tomar_trabajo_impresion: {
         Args: {

@@ -12,6 +12,21 @@ Lógica que no debe vivir en el cliente. Se ejecutan en Supabase con runtime Den
   (`where cantidad >= :n`, rechazo si rowCount = 0) y dispara Realtime.
 - **Fase 4**: comprobante SIFEN al confirmar una venta.
 
+## Funciones existentes
+
+- **`aprobar-registro`**: valida links firmados (HMAC con `APPROVAL_SECRET`) y
+  aprueba/rechaza un tenant nuevo (`GET` con query params).
+- **`notificar-registro`**: trigger de `tenants` → avisa por Discord + email con
+  los links firmados de aprobación.
+- **`unirse-invitacion`** (Fase 1, lista): alta de un empleado invitado por el
+  dueño. `POST { token, email, password }` con service role: crea el usuario
+  (`email_confirm: true`, `app_metadata.rol`, `user_metadata.invitacion='true'`
+  para que el trigger `alta_tenant_al_registrarse` NO cree un tenant nuevo),
+  lo vincula en `usuarios_tenant` con `estado='pendiente'` y marca la
+  invitación como `registrado`. El acceso real se activa cuando el dueño llama
+  `confirmar_miembro` (que carga los claims en `auth.users.app_metadata`).
+  Secrets requeridos: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+
 ## Convenciones
 
 - Nuevas funciones: `supabase functions new <nombre>` y `supabase functions deploy <nombre>`.
