@@ -67,6 +67,9 @@ export async function imprimirConReintento(
   try {
     await conectarEImprimir()
   } catch {
+    // Algunas térmicas rechazan la reconexión inmediata: darle un respiro
+    // antes del reintento para que suelte el enlace anterior.
+    await new Promise((r) => setTimeout(r, 1200))
     await conectarEImprimir()
   }
 }

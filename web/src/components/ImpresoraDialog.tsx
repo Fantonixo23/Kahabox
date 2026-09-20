@@ -27,7 +27,7 @@ import { imprimirTicketPC } from '@/lib/impresion/imprimir'
 import {
   esNativo,
   impresoraNativaDisponible,
-  KahaboxPrinter,
+  imprimirConReintento,
   listarImpresoras,
   type DispositivoBluetooth,
 } from '@/lib/impresion/nativo'
@@ -146,8 +146,7 @@ export default function ImpresoraDialog({
           return
         }
         const base64 = armarEscPosBase64(ticketPrueba(), 32)
-        await KahaboxPrinter.connect({ address: impresora.impresoraDireccion })
-        await KahaboxPrinter.print({ data: base64 })
+        await imprimirConReintento(impresora.impresoraDireccion, base64)
         setAviso({ ok: true, texto: 'Ticket de prueba enviado a la impresora.' })
       } else {
         const res = await imprimirTicketPC(ticketPrueba(), config.anchoTicketPc)

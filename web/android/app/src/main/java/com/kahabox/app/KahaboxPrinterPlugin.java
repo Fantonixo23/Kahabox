@@ -110,25 +110,41 @@ public class KahaboxPrinterPlugin extends Plugin {
             call.reject("Falta el permiso de Bluetooth.");
             return;
         }
-        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-        if (adapter == null || !adapter.isEnabled()) {
-            call.reject("El Bluetooth está apagado.");
-            return;
-        }
-        try {
-            cerrar();
-            adapter.cancelDiscovery();
-            BluetoothDevice device = adapter.getRemoteDevice(addr);
-            BluetoothSocket nuevo =
-                    device.createRfcommSocketToServiceRecord(SPP_UUID);
-            nuevo.connect();
-            socket = nuevo;
-            address = addr;
-            call.resolve();
-        } catch (Exception e) {
-            cerrar();
-            call.reject("No se pudo conectar: " + e.getMessage());
-        }
+        // La conexión RFCOMM es bloqueante: nunca en el hilo principal (UI).
+        new Thread(() -> {
+            try {
+                BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+                if (adapter == null || !adapter.isEnabled()) {
+                    call.reject("El Bluetooth está apagado.");
+                    return;
+                }
+                cerrar();
+                adapter.cancelDiscovery();
+                BluetoothDevice device = adapter.getRemoteDevice(addr);
+                BluetoothSocket nuevo = null;
+                try {
+                    nuevo = device.createRfcommSocketToServiceRecord(SPP_UUID);
+                    nuevo.connect();
+                } catch (Exception e) {
+                    // Muchas térmicas de 58 mm solo aceptan el socket "inseguro",
+                    // sobre todo si ya hubo una conexión reciente.
+                    if (nuevo != null) {
+                        try {
+                            nuevo.close();
+                        } catch (Exception ignored) {
+                        }
+                    }
+                    nuevo = device.createInsecureRfcommSocketToServiceRecord(SPP_UUID);
+                    nuevo.connect();
+                }
+                socket = nuevo;
+                address = addr;
+                call.resolve();
+            } catch (Exception e) {
+                cerrar();
+                call.reject("No se pudo conectar: " + e.getMessage());
+            }
+        }, "kahabox-conectar").start();
     }
 
     @PluginMethod
@@ -138,29 +154,32 @@ public class KahaboxPrinterPlugin extends Plugin {
             call.reject("No hay datos para imprimir.");
             return;
         }
-        if (socket == null || !socket.isConnected()) {
-            call.reject("La impresora no está conectada.");
-            return;
-        }
-        try {
-            byte[] bytes = Base64.decode(data, Base64.DEFAULT);
-            OutputStream out = socket.getOutputStream();
-            int chunk = 256;
-            for (int i = 0; i < bytes.length; i += chunk) {
-                int len = Math.min(chunk, bytes.length - i);
-                out.write(bytes, i, len);
-                out.flush();
-                try {
-                    Thread.sleep(20);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
+        // Escribir con pausas es bloqueante: nunca en el hilo principal (UI).
+        new Thread(() -> {
+            if (socket == null || !socket.isConnected()) {
+                call.reject("La impresora no está conectada.");
+                return;
             }
-            call.resolve();
-        } catch (Exception e) {
-            call.reject("No se pudo imprimir: " + e.getMessage());
-        }
+            try {
+                byte[] bytes = Base64.decode(data, Base64.DEFAULT);
+                OutputStream out = socket.getOutputStream();
+                int chunk = 256;
+                for (int i = 0; i < bytes.length; i += chunk) {
+                    int len = Math.min(chunk, bytes.length - i);
+                    out.write(bytes, i, len);
+                    out.flush();
+                    try {
+                        Thread.sleep(20);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+                call.resolve();
+            } catch (Exception e) {
+                call.reject("No se pudo imprimir: " + e.getMessage());
+            }
+        }, "kahabox-imprimir").start();
     }
 
     @PluginMethod
