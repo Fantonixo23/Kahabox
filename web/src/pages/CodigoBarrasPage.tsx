@@ -357,12 +357,14 @@ export default function CodigoBarrasPage() {
                 <Label htmlFor="cb-cantidad">Copias por etiqueta</Label>
                 <Input
                   id="cb-cantidad"
-                  type="number"
+                  type="text"
                   inputMode="numeric"
-                  min={1}
-                  max={100}
+                  pattern="[0-9]*"
+                  maxLength={3}
                   value={cantidadTexto}
-                  onChange={(e) => setCantidadTexto(e.target.value)}
+                  onChange={(e) =>
+                    setCantidadTexto(e.target.value.replace(/[^0-9]/g, ''))
+                  }
                   onBlur={() => setCantidadTexto(String(cantidad))}
                 />
               </div>
