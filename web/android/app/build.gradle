@@ -19,10 +19,33 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        // Firma estable para que las actualizaciones in-app se puedan instalar
+        // encima de la versión ya instalada (Android exige misma clave). El
+        // keystore llega por secreto de GitHub Actions y se exporta en estas
+        // variables; en local, sin variables, se usa el debug keystore normal.
+        estable {
+            def ks = System.getenv("KAHABOX_KEYSTORE")
+            if (ks) {
+                storeFile file(ks)
+                storePassword System.getenv("KAHABOX_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KAHABOX_KEY_ALIAS")
+                keyPassword System.getenv("KAHABOX_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
+        debug {
+            if (System.getenv("KAHABOX_KEYSTORE")) {
+                signingConfig signingConfigs.estable
+            }
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (System.getenv("KAHABOX_KEYSTORE")) {
+                signingConfig signingConfigs.estable
+            }
         }
     }
 }

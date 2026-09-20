@@ -38,6 +38,14 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
+      - name: Firma estable (keystore)
+        run: |
+          if [ -z "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "Falta el secreto ANDROID_KEYSTORE_BASE64" >&2
+            exit 1
+          fi
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$GITHUB_WORKSPACE/kahabox-signing.jks"
+
       - name: Compilar web
         run: npm run build -w web
         env:
@@ -52,6 +60,10 @@ jobs:
         env:
           APK_VERSION_CODE: ${{ github.run_number }}
           APK_VERSION_NAME: 1.${{ github.run_number }}
+          KAHABOX_KEYSTORE: ${{ github.workspace }}/kahabox-signing.jks
+          KAHABOX_KEYSTORE_PASSWORD: KHk9xT41qzWm2LpV
+          KAHABOX_KEY_ALIAS: kahobox
+          KAHABOX_KEY_PASSWORD: Nc8rYbE6zhQt5GdW
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
