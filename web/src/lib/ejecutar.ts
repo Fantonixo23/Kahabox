@@ -3,6 +3,7 @@ import { useSyncExternalStore } from 'react'
 import {
   encolar,
   leerCola,
+  limpiarSincronizados,
   marcarFallo,
   marcarSync,
   type ItemCola,
@@ -311,6 +312,9 @@ export async function sincronizar(opciones?: {
         fallos += 1
       }
     }
+    // Los items que ya sincronizaron se deben purgar, si no la cola crece hasta
+    // el tope con operaciones viejas que nadie vuelve a mirar.
+    limpiarSincronizados()
     return { ok, fallos }
   } finally {
     sincronizando = false

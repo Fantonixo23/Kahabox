@@ -183,9 +183,9 @@ function notificar() {
 
 function guardar() {
   try {
-    localStorage.setItem(CLAVE, JSON.stringify(cola.slice(0, MAX_ITEMS)))
+    localStorage.setItem(CLAVE, JSON.stringify(cola))
   } catch {
-    // Sin storage: la cola vive en memoria.
+    // Sin storage o cuota llena: la cola vive en memoria este turno.
   }
   notificar()
 }
@@ -199,6 +199,8 @@ export function pendientesCount(): number {
 }
 
 export function encolar(operacion: OperacionCola): ItemCola {
+  // No dejar que los items ya sincronizados ocupen lugar.
+  limpiarSincronizados()
   const item: ItemCola = {
     id: crypto.randomUUID(),
     estado: 'pendiente',
@@ -207,7 +209,10 @@ export function encolar(operacion: OperacionCola): ItemCola {
     creadoEn: new Date().toISOString(),
     operacion,
   }
-  cola = [...cola, item].slice(-MAX_ITEMS)
+  // NUNCA descartar operaciones pendiente/fallo: si la cola ya está en el tope
+  // con operaciones reales sin sincronizar, se deja crecer y se avisa fuerte
+  // (colaSaturo) en lugar de perder una venta callada.
+  cola = [...cola, item]
   guardar()
   return item
 }
@@ -246,8 +251,16 @@ export function eliminarItem(id: string) {
 }
 
 export function limpiarSincronizados() {
-  cola = cola.filter((i) => i.estado !== 'sync')
-  guardar()
+  const limpiada = cola.filter((i) => i.estado !== 'sync')
+  if (limpiada.length !== cola.length) {
+    cola = limpiada
+    guardar()
+  }
+}
+
+/** True cuando hay tantas operaciones pendientes como el tope (o más). */
+export function colaSaturo(): boolean {
+  return cola.filter((i) => i.estado !== 'sync').length >= MAX_ITEMS
 }
 
 export function useCola(): ItemCola[] {

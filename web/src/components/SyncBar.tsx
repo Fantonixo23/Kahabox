@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
+  colaSaturo,
   eliminarItem,
   etiquetaOperacion,
   etiquetaTipo,
@@ -119,11 +120,13 @@ export default function SyncBar() {
       >
         {enLinea ? <ListChecks className="size-4" /> : <WifiOff className="size-4" />}
         <span className="min-w-0 flex-1 truncate text-left">
-          {enLinea
-            ? fallos > 0
-              ? `${pendientes.length} pendientes de sincronización (${fallos} con error)`
-              : `${pendientes.length} operación${pendientes.length === 1 ? '' : 'es'} pendiente${pendientes.length === 1 ? '' : 's'} de sincronización`
-            : 'Sin conexión — se guarda todo de forma local'}
+          {colaSaturo()
+            ? `¡COLECTA LLENA! ${pendientes.length} operaciones sin sincronizar. Conectate ya para no perder ventas.`
+            : enLinea
+              ? fallos > 0
+                ? `${pendientes.length} pendientes de sincronización (${fallos} con error)`
+                : `${pendientes.length} operación${pendientes.length === 1 ? '' : 'es'} pendiente${pendientes.length === 1 ? '' : 's'} de sincronización`
+              : 'Sin conexión — se guarda todo de forma local'}
         </span>
         {enLinea && pendientes.length > 0 && (
           <span className="flex items-center gap-1 rounded-md bg-background/60 px-2 py-0.5 pr-1 font-medium">
