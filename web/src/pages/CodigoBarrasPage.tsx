@@ -46,7 +46,11 @@ export default function CodigoBarrasPage() {
   const [query, setQuery] = useState('')
   const [seleccion, setSeleccion] = useState<LineaStock | null>(null)
   const [nombreLibre, setNombreLibre] = useState('')
-  const [cantidad, setCantidad] = useState(1)
+  const [cantidadTexto, setCantidadTexto] = useState('1')
+  const cantidad = Math.min(
+    100,
+    Math.max(1, Math.trunc(Number(cantidadTexto)) || 1),
+  )
   const [etiquetas, setEtiquetas] = useState<EtiquetaCodigo[]>([])
   const [usados, setUsados] = useState<Set<string>>(() => new Set())
   const [error, setError] = useState<string | null>(null)
@@ -354,13 +358,12 @@ export default function CodigoBarrasPage() {
                 <Input
                   id="cb-cantidad"
                   type="number"
+                  inputMode="numeric"
                   min={1}
                   max={100}
-                  value={cantidad}
-                  onChange={(e) => {
-                    const n = Math.trunc(Number(e.target.value))
-                    setCantidad(Number.isFinite(n) ? n : 1)
-                  }}
+                  value={cantidadTexto}
+                  onChange={(e) => setCantidadTexto(e.target.value)}
+                  onBlur={() => setCantidadTexto(String(cantidad))}
                 />
               </div>
               <Button type="button" onClick={imprimir} className="w-full">

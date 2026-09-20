@@ -139,6 +139,10 @@ export function cortar(): Uint8Array {
  * de `ancho` × `alto`. `ancho` debe ser múltiplo de 8 y `datos` traer
  * `ancho / 8` bytes por fila; en cada byte, el bit de mayor peso (MSB)
  * corresponde al punto de más a la izquierda (convención de GS v 0).
+ *
+ * Ojo: en el header de GS v 0, xL/xH es la cantidad de BYTES por fila (no de
+ * puntos). Poner el ancho en puntos hace que la impresora lea de más y no
+ * imprima la imagen.
  */
 export function imagenRaster(
   ancho: number,
@@ -150,8 +154,8 @@ export function imagenRaster(
   const bytesPorFila = Math.trunc(Math.ceil(x / 8))
   const esperados = bytesPorFila * y
   const fila = datos.length >= esperados ? datos : concatenar([datos, new Uint8Array(esperados - datos.length)])
-  const xL = (bytesPorFila * 8) & 0xff
-  const xH = ((bytesPorFila * 8) >> 8) & 0xff
+  const xL = bytesPorFila & 0xff
+  const xH = (bytesPorFila >> 8) & 0xff
   const yL = y & 0xff
   const yH = (y >> 8) & 0xff
   return concatenar([
