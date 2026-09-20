@@ -25,7 +25,7 @@ export interface KahaboxPrinterPlugin {
   disconnect(): Promise<void>
   estado(): Promise<{ connected: boolean; address: string | null }>
   version(): Promise<{ build: number; version: string }>
-  updateApk(options: { url: string }): Promise<void>
+  updateApk(options: { url: string; sha256?: string }): Promise<void>
 }
 
 export const KahaboxPrinter = registerPlugin<KahaboxPrinterPlugin>(
@@ -79,6 +79,9 @@ export async function versionApp(): Promise<{ build: number; version: string }> 
   return await KahaboxPrinter.version()
 }
 
-export async function instalarActualizacion(url: string): Promise<void> {
-  await KahaboxPrinter.updateApk({ url })
+export async function instalarActualizacion(
+  url: string,
+  sha256?: string,
+): Promise<void> {
+  await KahaboxPrinter.updateApk({ url, sha256 })
 }

@@ -43,7 +43,7 @@ export function AvisoActualizacion() {
     if (!info) return
     setError(null)
     try {
-      await actualizarApp(info.url)
+      await actualizarApp(info)
       setAbierto(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo descargar el APK.')

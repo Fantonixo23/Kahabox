@@ -111,7 +111,7 @@ export default function ConfiguracionPage() {
     setMensajeActualizacion('')
     setErrorActualizacion(false)
     try {
-      await actualizarApp(actualizacion.url)
+      await actualizarApp(actualizacion)
       setMensajeActualizacion(
         'Se abrió el instalador de Android. Confirmá la instalación.',
       )

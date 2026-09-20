@@ -18,6 +18,7 @@ export type InfoActualizacion = {
   versionName: string
   fecha: string
   url: string
+  sha256?: string
 }
 
 const URL_METADATA = 'https://kahabox-web.vercel.app/kahabox-caja.json'
@@ -67,8 +68,10 @@ function parseMetadata(data: unknown): Partial<InfoActualizacion> | null {
 }
 
 /** Descarga e instala el APK nuevo (abre el instalador de Android). */
-export async function actualizarApp(url: string): Promise<void> {
-  await instalarActualizacion(url)
+export async function actualizarApp(
+  info: InfoActualizacion,
+): Promise<void> {
+  await instalarActualizacion(info.url, info.sha256)
 }
 
 export function fechaLegible(iso: string): string {

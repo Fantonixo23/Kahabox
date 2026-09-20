@@ -211,6 +211,9 @@ public class KahaboxPrinterPlugin extends Plugin {
             call.reject("Falta la URL del APK.");
             return;
         }
+        // Checksum opcional: si el metadata lo trae, se verifica el APK
+        // descargado antes de abrir el instalador.
+        String esperado = call.getString("sha256");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
                 && !getContext().getPackageManager().canRequestPackageInstalls()) {
             Intent ajustes = new Intent(
@@ -254,6 +257,14 @@ public class KahaboxPrinterPlugin extends Plugin {
                     call.reject("El APK descargado está vacío.");
                     return;
                 }
+                if (esperado != null && !esperado.trim().isEmpty()) {
+                    String real = sha256De(apk);
+                    if (!real.equalsIgnoreCase(esperado.trim())) {
+                        apk.delete();
+                        call.reject("El APK descargado no coincide con el checksum. Volvé a intentar.");
+                        return;
+                    }
+                }
                 com.getcapacitor.Bridge bridge = getBridge();
                 if (bridge != null) {
                     bridge.executeOnMainThread(() -> {
@@ -277,6 +288,23 @@ public class KahaboxPrinterPlugin extends Plugin {
                 call.reject("No se pudo descargar el APK: " + e.getMessage());
             }
         }, "kahabox-actualizar").start();
+    }
+
+    private String sha256De(java.io.File f) throws Exception {
+        java.security.MessageDigest md =
+                java.security.MessageDigest.getInstance("SHA-256");
+        try (java.io.FileInputStream in = new java.io.FileInputStream(f)) {
+            byte[] buf = new byte[8192];
+            int leidos;
+            while ((leidos = in.read(buf)) != -1) {
+                md.update(buf, 0, leidos);
+            }
+        }
+        StringBuilder sb = new StringBuilder();
+        for (byte b : md.digest()) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 
     private void cerrar() {
