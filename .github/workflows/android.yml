@@ -63,7 +63,7 @@ jobs:
           KAHABOX_KEYSTORE: ${{ github.workspace }}/kahabox-signing.jks
           KAHABOX_KEYSTORE_PASSWORD: KHk9xT41qzWm2LpV
           KAHABOX_KEY_ALIAS: kahobox
-          KAHABOX_KEY_PASSWORD: Nc8rYbE6zhQt5GdW
+          KAHABOX_KEY_PASSWORD: KHk9xT41qzWm2LpV
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
