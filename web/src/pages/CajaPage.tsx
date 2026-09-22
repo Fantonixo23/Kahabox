@@ -139,7 +139,9 @@ type Aviso = { tipo: 'ok' | 'error'; texto: string }
 
 const CLAVE_ULTIMO_TICKET = 'kahabox:ultimo-ticket'
 const FRESCURA_ULTIMO_TICKET_MS = 5 * 60 * 1000
-const CLAVE_CARRITO = 'kahabox:caja:carrito'
+const CLAVE_CARRITO_LEGADO = 'kahabox:caja:carrito'
+const CLAVE_CARRITO_PREFIJO = 'kahabox:caja:carrito:v2'
+const FRESCURA_CARRITO_PERSISTIDO_MS = 48 * 60 * 60 * 1000
 
 function parseMonto(valor: string): number {
   const limpio = valor.replace(/[^\d.,-]/g, '').replace(/,/g, '.')
@@ -167,9 +169,27 @@ function buscarPorQuery(lista: StockRow[], texto: string): StockRow[] {
   )
 }
 
-function leerCarritoPersistido(): { id: string; cantidad: number }[] {
+/**
+ * Carrito guardado en localStorage para que la venta en curso sobreviva a
+ * navegar entre módulos y a la falta de conexión. Cada línea guarda un
+ * snapshot de la línea (sin depender del stock cargado) para poder restaurar
+ * y cobrar offline; cuando el stock vuelve, se refrescan los datos reales.
+ */
+type CarritoPersistidoV2 = {
+  guardadoEn: number
+  carrito: CarritoItem[]
+  pagos: Pago[]
+  monedaCobro: Moneda
+  multiples: boolean
+}
+
+function claveCarrito(cajaNumero: number, usuarioId: string): string {
+  return `${CLAVE_CARRITO_PREFIJO}:${cajaNumero}:${usuarioId}`
+}
+
+function leerCarritoLegado(): { id: string; cantidad: number }[] {
   try {
-    const raw = localStorage.getItem(CLAVE_CARRITO)
+    const raw = localStorage.getItem(CLAVE_CARRITO_LEGADO)
     if (!raw) return []
     const lista = JSON.parse(raw) as { id?: string; cantidad?: number }[]
     if (!Array.isArray(lista)) return []
@@ -186,23 +206,82 @@ function leerCarritoPersistido(): { id: string; cantidad: number }[] {
   }
 }
 
-function guardarCarritoPersistido(items: CarritoItem[]) {
+function guardarCarritoPersistido(
+  cajaNumero: number,
+  usuarioId: string,
+  dato: CarritoPersistidoV2,
+): void {
   try {
-    localStorage.setItem(
-      CLAVE_CARRITO,
-      JSON.stringify(items.map((c) => ({ id: c.linea.id, cantidad: c.cantidad }))),
-    )
+    localStorage.setItem(claveCarrito(cajaNumero, usuarioId), JSON.stringify(dato))
+    localStorage.removeItem(CLAVE_CARRITO_LEGADO)
   } catch {
     // Sin storage: no se conserva entre visitas.
   }
 }
 
-function limpiarCarritoPersistido() {
+function limpiarCarritoLegado(): void {
   try {
-    localStorage.removeItem(CLAVE_CARRITO)
+    localStorage.removeItem(CLAVE_CARRITO_LEGADO)
   } catch {
     // Sin storage.
   }
+}
+
+function limpiarCarritoPersistido(cajaNumero: number, usuarioId: string): void {
+  try {
+    localStorage.removeItem(claveCarrito(cajaNumero, usuarioId))
+    limpiarCarritoLegado()
+  } catch {
+    // Sin storage.
+  }
+}
+
+function leerCarritoPersistido(
+  cajaNumero: number,
+  usuarioId: string,
+): CarritoPersistidoV2 | null {
+  try {
+    const raw = localStorage.getItem(claveCarrito(cajaNumero, usuarioId))
+    if (!raw) return null
+    const dato = JSON.parse(raw) as Partial<CarritoPersistidoV2>
+    if (typeof dato.guardadoEn !== 'number' || !Array.isArray(dato.carrito)) {
+      limpiarCarritoPersistido(cajaNumero, usuarioId)
+      return null
+    }
+    if (Date.now() - dato.guardadoEn > FRESCURA_CARRITO_PERSISTIDO_MS) {
+      limpiarCarritoPersistido(cajaNumero, usuarioId)
+      return null
+    }
+    const carrito = dato.carrito.filter(
+      (c) =>
+        c != null &&
+        typeof c.cantidad === 'number' &&
+        Number.isFinite(c.cantidad) &&
+        c.linea != null &&
+        typeof c.linea.id === 'string',
+    ) as CarritoItem[]
+    return {
+      guardadoEn: dato.guardadoEn,
+      carrito,
+      pagos: Array.isArray(dato.pagos) ? (dato.pagos as Pago[]) : [],
+      monedaCobro: dato.monedaCobro as Moneda,
+      multiples: Boolean(dato.multiples),
+    }
+  } catch {
+    return null
+  }
+}
+
+function pagosValidos(lista: Pago[]): Pago[] {
+  return lista.filter(
+    (p) =>
+      p != null &&
+      typeof p.id === 'string' &&
+      typeof p.metodo === 'string' &&
+      METODOS[p.metodo] != null &&
+      typeof p.monto === 'string' &&
+      MONEDAS.some((m) => m.codigo === p.moneda),
+  )
 }
 
 function nombreLocalPropio(): string {
@@ -236,6 +315,7 @@ function guardarUltimoTicket(ticket: TicketVenta) {
 export default function CajaPage() {
   const config = useConfig()
   const { user } = useAuth()
+  const usuarioId = user?.id ?? 'anon'
   const vista = vistaStock(user)
   const sucursalFiltro = config.sucursalId ?? sucursalIdDeClaim(user)
   const monedasDisponibles =
@@ -255,6 +335,7 @@ export default function CajaPage() {
   const [monedaCobro, setMonedaCobro] = useState<Moneda>(() => monedaPrincipal())
   const [pagos, setPagos] = useState<Pago[]>([])
   const [multiples, setMultiples] = useState(false)
+  const [yaRestaurado, setYaRestaurado] = useState(false)
 
   const [posAbierto, setPosAbierto] = useState(false)
   const [posEstado, setPosEstado] = useState<EstadoCobroPos>('idle')
@@ -347,25 +428,71 @@ export default function CajaPage() {
   }, [recargarStock])
 
   useEffect(() => {
-    guardarCarritoPersistido(carrito)
-  }, [carrito])
+    if (carrito.length === 0) {
+      // No escribir un carrito vacío sobre el guardado: al montar esto se
+      // ejecuta con el carrito inicialmente vacío y borraría la venta en curso.
+      return
+    }
+    guardarCarritoPersistido(config.cajaNumero, usuarioId, {
+      guardadoEn: Date.now(),
+      carrito,
+      pagos,
+      monedaCobro,
+      multiples,
+    })
+  }, [carrito, pagos, monedaCobro, multiples, config.cajaNumero, usuarioId])
 
   useEffect(() => {
-    if (stock === null || carrito.length > 0) return
-    const previo = leerCarritoPersistido()
-    if (previo.length === 0) return
-    const restaurados: CarritoItem[] = []
-    for (const p of previo) {
-      const linea = stock.find((s) => s.id === p.id)
-      if (linea && linea.cantidad > 0) {
-        restaurados.push({ linea, cantidad: Math.min(p.cantidad, linea.cantidad) })
+    if (yaRestaurado) return
+    const dato = leerCarritoPersistido(config.cajaNumero, usuarioId)
+    if (!dato || dato.carrito.length === 0) return
+    setYaRestaurado(true)
+    setCarrito(dato.carrito)
+    setPagos(pagosValidos(dato.pagos))
+    setMonedaCobro(
+      config.monedasActivas.some((m) => m === dato.monedaCobro)
+        ? dato.monedaCobro
+        : monedaPrincipal(),
+    )
+    setMultiples(dato.multiples)
+    setAviso({ tipo: 'ok', texto: 'Se restauró la venta en curso.' })
+  }, [config.cajaNumero, config.monedasActivas, usuarioId, yaRestaurado])
+
+  useEffect(() => {
+    if (stock === null) return
+    // Migración desde la clave vieja (solo guardaba id/cantidad): la venta se
+    // reconstruye con el stock recién cargado en vez de un snapshot offline.
+    if (carrito.length === 0) {
+      const legado = leerCarritoLegado()
+      if (legado.length > 0) {
+        const restaurados: CarritoItem[] = []
+        for (const p of legado) {
+          const linea = stock.find((s) => s.id === p.id)
+          if (linea && linea.cantidad > 0) {
+            restaurados.push({
+              linea,
+              cantidad: Math.min(p.cantidad, linea.cantidad),
+            })
+          }
+        }
+        if (restaurados.length > 0) {
+          setCarrito(restaurados)
+          limpiarCarritoLegado()
+          setAviso({ tipo: 'ok', texto: 'Se restauró la venta en curso.' })
+        }
       }
     }
-    if (restaurados.length > 0) {
-      setCarrito(restaurados)
-      setAviso({ tipo: 'ok', texto: 'Se restauró la venta en curso.' })
-      limpiarCarritoPersistido()
-    }
+    // Re-sincroniza las líneas con el stock real: refresca datos, recorta las
+    // cantidades a lo disponible y descarta productos que ya no existen.
+    setCarrito((prev) =>
+      prev
+        .map((c) => {
+          const linea = stock.find((s) => s.id === c.linea.id)
+          if (!linea || linea.cantidad <= 0) return null
+          return { linea, cantidad: Math.min(c.cantidad, linea.cantidad) }
+        })
+        .filter((c): c is CarritoItem => c !== null),
+    )
   }, [stock, carrito])
 
   useEffect(() => {
@@ -784,7 +911,7 @@ export default function CajaPage() {
     setCarrito([])
     setPagos([])
     setQuery('')
-    limpiarCarritoPersistido()
+    limpiarCarritoPersistido(config.cajaNumero, usuarioId)
     setConcluirOpen(false)
   }
 
