@@ -484,15 +484,27 @@ export default function CajaPage() {
     }
     // Re-sincroniza las líneas con el stock real: refresca datos, recorta las
     // cantidades a lo disponible y descarta productos que ya no existen.
-    setCarrito((prev) =>
-      prev
-        .map((c) => {
-          const linea = stock.find((s) => s.id === c.linea.id)
-          if (!linea || linea.cantidad <= 0) return null
-          return { linea, cantidad: Math.min(c.cantidad, linea.cantidad) }
-        })
-        .filter((c): c is CarritoItem => c !== null),
-    )
+    // Ojo: comparar con prev y no pisar si nada cambió, porque un array nuevo
+    // en cada pasada hace que el efecto se vuelva a ejecutar y congela la app.
+    setCarrito((prev) => {
+      const siguiente: CarritoItem[] = []
+      if (prev.length === 0) return prev
+      for (const c of prev) {
+        const linea = stock.find((s) => s.id === c.linea.id)
+        if (!linea || linea.cantidad <= 0) continue
+        siguiente.push({ linea, cantidad: Math.min(c.cantidad, linea.cantidad) })
+      }
+      if (siguiente.length !== prev.length) return siguiente
+      for (let i = 0; i < prev.length; i += 1) {
+        if (
+          siguiente[i].linea !== prev[i].linea ||
+          siguiente[i].cantidad !== prev[i].cantidad
+        ) {
+          return siguiente
+        }
+      }
+      return prev
+    })
   }, [stock, carrito])
 
   useEffect(() => {
