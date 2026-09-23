@@ -193,7 +193,7 @@ export default function ConfiguracionPage() {
     try {
       const t = await buscarCotizacionesAutomaticas()
       setAutoInfo(
-        `Hoy: ${formatMoney(t.USD, 'PYG')} el US$ · ${formatMoney(t.BRL, 'PYG')} el R$ · ${formatMoney(t.ARS, 'PYG')} el $`,
+        `Hoy: 1 US$ (dólar) = ${formatMoney(t.USD, 'PYG')} · 1 R$ (real) = ${formatMoney(t.BRL, 'PYG')} · 1 Peso arg. (ARS) = ${formatMoney(t.ARS, 'PYG')}`,
       )
     } catch (e) {
       setAutoError(

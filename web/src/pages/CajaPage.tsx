@@ -1057,17 +1057,13 @@ export default function CajaPage() {
         guardarTicketVentaMock(ventaId, ticket)
         guardarUltimoTicket(ticket)
         setUltimoTicket(ticket)
-        if (config.metodoImpresion === 'bluetooth') {
-          setResultadoImpresion(
-            await imprimirBluetooth(ticket, config.anchoTicketPc),
-          )
-        } else {
-          setResultadoImpresion({
-            texto: armarTextoPlano(ticket),
-            nativo: false,
-            compartido: false,
-          })
-        }
+        // No imprimir al confirmar: el ticket sale solo cuando se aprieta
+        // «Imprimir / Celular / PC» en el diálogo de resultado.
+        setResultadoImpresion({
+          texto: armarTextoPlano(ticket),
+          nativo: false,
+          compartido: false,
+        })
       }
     } catch (e) {
       avisar(e instanceof Error ? e.message : 'Ocurrió un error al cobrar.')
@@ -1461,15 +1457,17 @@ export default function CajaPage() {
               </div>
               <ul className="mt-2 space-y-1 text-xs tabular-nums">
                 <li className="flex justify-between">
-                  <span className="text-muted-foreground">1 US$</span>
+                  <span className="text-muted-foreground">1 US$ (dólar)</span>
                   <span>{formatMoney(tasas.USD, 'PYG')}</span>
                 </li>
                 <li className="flex justify-between">
-                  <span className="text-muted-foreground">1 $ ARS</span>
+                  <span className="text-muted-foreground">
+                    1 Peso arg. (ARS)
+                  </span>
                   <span>{formatMoney(tasas.ARS, 'PYG')}</span>
                 </li>
                 <li className="flex justify-between">
-                  <span className="text-muted-foreground">1 R$</span>
+                  <span className="text-muted-foreground">1 R$ (real)</span>
                   <span>{formatMoney(tasas.BRL, 'PYG')}</span>
                 </li>
               </ul>
