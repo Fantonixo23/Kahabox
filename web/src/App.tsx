@@ -8,6 +8,7 @@ import RequiereRol from '@/components/RequiereRol'
 import TenantGate from '@/components/TenantGate'
 import { useAuth } from '@/components/auth/AuthContext'
 import AuditoriaPage from '@/pages/AuditoriaPage'
+import AdminPage from '@/pages/AdminPage'
 import CajaPage from '@/pages/CajaPage'
 import AprobacionPage from '@/pages/AprobacionPage'
 import ClientesPage from '@/pages/ClientesPage'
@@ -144,6 +145,7 @@ export default function App() {
             </RequiereRol>
           }
         />
+        <Route path="admin" element={<AdminPage />} />
         <Route
           path="instalar"
           element={

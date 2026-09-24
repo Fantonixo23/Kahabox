@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   Barcode,
@@ -15,6 +15,7 @@ import {
   Smartphone,
   Store,
   Truck,
+  UserCog,
   Users,
 } from 'lucide-react'
 
@@ -59,6 +60,8 @@ export default function AppLayout() {
   const { modulosOcultos } = useConfig()
   const plan = usePlan()
 
+  const [esAdmin, setEsAdmin] = useState(false)
+
   const nav = useMemo(
     () =>
       MODULOS_CON_CONFIGURACION.filter(
@@ -70,6 +73,18 @@ export default function AppLayout() {
       ),
     [modulosOcultos, user, plan],
   )
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return
+    ;(async () => {
+      try {
+        const { data } = await supabase.rpc('es_superadmin')
+        setEsAdmin(data === true)
+      } catch {
+        setEsAdmin(false)
+      }
+    })()
+  }, [])
 
   async function handleLogout() {
     if (isSupabaseConfigured) {
@@ -117,6 +132,20 @@ export default function AppLayout() {
           ))}
         </nav>
         <div className="border-t p-2">
+          {esAdmin && (
+            <NavLink
+              to="/app/admin"
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground',
+                  isActive && 'bg-muted font-medium text-foreground',
+                )
+              }
+            >
+              <UserCog className="size-4" />
+              Admin
+            </NavLink>
+          )}
           {puedeVerModulo('/app/instalar', rolUsuario(user), plan) && (
             <NavLink
               to="/app/instalar"

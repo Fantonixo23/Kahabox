@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { Hourglass, RefreshCw, ShieldX } from 'lucide-react'
+import { Clock, Hourglass, RefreshCw, ShieldX } from 'lucide-react'
 
 import { AuthShell } from '@/components/auth/AuthShell'
 import { useAuth } from '@/components/auth/AuthContext'
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { miEstadoEquipo } from '@/lib/equipoData'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 
-type EstadoAcceso = 'verificando' | 'ok' | 'pendiente' | 'rechazado'
+type EstadoAcceso = 'verificando' | 'ok' | 'pendiente' | 'rechazado' | 'suspendido'
 type MotivoBloqueo = 'tenant' | 'miembro'
 
 export default function TenantGate({ children }: { children: ReactNode }) {
@@ -59,15 +59,10 @@ export default function TenantGate({ children }: { children: ReactNode }) {
         return
       }
 
-      const { data: fila, error } = await supabase
-        .from('tenants')
-        .select('estado')
-        .eq('id', tenantId)
-        .maybeSingle()
-
+      const { data: estadoRes, error } = await supabase.rpc('mi_estado_tenant')
       if (error) throw error
 
-      const tenantEstado = fila?.estado
+      const tenantEstado = estadoRes?.[0]?.estado
 
       if (tenantEstado === 'pendiente' || tenantEstado === 'rechazado') {
         setMotivo('tenant')
@@ -75,7 +70,12 @@ export default function TenantGate({ children }: { children: ReactNode }) {
         return
       }
 
-      // Estado activo/trial/suspendido o sin datos (JWT sin claim): se entra.
+      if (tenantEstado === 'suspendido') {
+        setEstado('suspendido')
+        return
+      }
+
+      // Estado activo/trial o sin datos (JWT sin claim): se entra.
       setEstado('ok')
     } catch {
       // Sin red o error de lectura: no bloquear a los ya aprobados.
@@ -97,6 +97,25 @@ export default function TenantGate({ children }: { children: ReactNode }) {
   }, [verificar])
 
   if (estado === 'verificando') return <FullscreenLoader />
+
+  if (estado === 'suspendido') {
+    return (
+      <AuthShell subtitle="Tu tienda está suspendida temporalmente">
+        <div className="flex flex-col items-center gap-3 py-4 text-center">
+          <Clock className="size-10 text-amber-600" />
+          <p className="text-sm font-medium">Subscripcion vencida</p>
+          <p className="text-sm text-muted-foreground">
+            Tu subscripcion ha vencido. Por favor renovala con el administrador
+            para seguir usando Kahabox.
+          </p>
+          <Button variant="outline" className="mt-2 w-full" onClick={verificar}>
+            <RefreshCw />
+            Revisar de nuevo
+          </Button>
+        </div>
+      </AuthShell>
+    )
+  }
 
   if (estado === 'pendiente') {
     return (

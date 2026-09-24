@@ -1039,6 +1039,42 @@ Relationships: [
         }
         Returns: undefined
       }
+      es_superadmin: {
+        Args: Record<string, never>
+        Returns: boolean
+      }
+      mi_estado_tenant: {
+        Args: Record<string, never>
+        Returns: {
+          estado: string
+        }[]
+      }
+      listar_tenants_admin: {
+        Args: Record<string, never>
+        Returns: {
+          id: string
+          nombre_comercial: string
+          email_contacto: string | null
+          estado: string
+          plan: string
+          integrantes: number
+          creada: string
+        }[]
+      }
+      admin_cambiar_estado: {
+        Args: {
+          p_tenant_id: string
+          p_estado: string
+        }
+        Returns: undefined
+      }
+      admin_cambiar_plan: {
+        Args: {
+          p_tenant_id: string
+          p_plan: string
+        }
+        Returns: undefined
+      }
       mi_estado_equipo: {
         Args: Record<string, never>
         Returns: {
