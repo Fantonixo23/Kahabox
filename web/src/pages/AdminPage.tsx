@@ -46,14 +46,22 @@ export default function AdminPage() {
   const [tenants, setTenants] = useState<FilaTenant[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [errorTecnico, setErrorTecnico] = useState<string | null>(null)
   const [guardando, setGuardando] = useState<string | null>(null)
 
   const cargar = useCallback(async () => {
     setCargando(true)
     setError(null)
+    setErrorTecnico(null)
     try {
       const { data: admin, error: errAdmin } = await supabase.rpc('es_superadmin')
-      if (errAdmin || !admin) {
+      if (errAdmin) {
+        setErrorTecnico(
+          'La consola todavia no esta activa en la base de datos. Aplicá la migracion 20260924120000_admin_dashboard.sql en Supabase Studio y volvé a entrar.',
+        )
+        return
+      }
+      if (!admin) {
         setEsAdmin(false)
         return
       }
@@ -114,8 +122,20 @@ export default function AdminPage() {
         <Lock className="size-10 text-muted-foreground" />
         <p className="text-sm font-semibold">Acceso restringido</p>
         <p className="text-sm text-muted-foreground">
-          Solo el administrador de Kahabox puede entrar aca.
+          Solo el administrador de Kahabox puede entrar aca. Si sos el
+          administrador, revisá que tu cuenta esté en la tabla superadmins
+          (public.superadmins) con tu user_id.
         </p>
+      </div>
+    )
+  }
+
+  if (errorTecnico) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-16 text-center">
+        <Lock className="size-10 text-destructive" />
+        <p className="text-sm font-semibold">Consola no activada</p>
+        <p className="max-w-md text-sm text-muted-foreground">{errorTecnico}</p>
       </div>
     )
   }
