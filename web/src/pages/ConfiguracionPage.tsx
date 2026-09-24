@@ -51,17 +51,23 @@ import { buscarCotizacionesAutomaticas } from '@/lib/cotizaciones'
 import { MONEDAS, formatMoney, type Moneda } from '@/lib/format'
 import {
   MODULOS,
+  PLAN_POR_MODULO,
   actualizarConfig,
   useConfig,
   type AnchoTicketPc,
   type CajaNumero,
   type CertificadoSifen,
   type MetodoImpresion,
+  type ModoCotizaciones,
   type Tema,
 } from '@/lib/config'
+import { esPlanMinimo, usePlan } from '@/lib/plan'
 
 export default function ConfiguracionPage() {
   const config = useConfig()
+  const plan = usePlan()
+  const autoDisponible = esPlanMinimo(plan, 'estandar')
+  const cajasDisponibles = plan === 'pro' ? 3 : plan === 'estandar' ? 2 : 1
   const [nombre, setNombre] = useState(config.nombreNegocio)
   const [ruc, setRuc] = useState(config.ruc)
   const [direccion, setDireccion] = useState(config.direccion)
@@ -396,13 +402,17 @@ export default function ConfiguracionPage() {
             {(
               [
                 { valor: 'manual', etiqueta: 'Manual' },
-                { valor: 'automatico', etiqueta: 'Automático' },
+                ...(autoDisponible
+                  ? [{ valor: 'automatico', etiqueta: 'Automático' }]
+                  : []),
               ] as const
             ).map(({ valor, etiqueta }) => (
               <button
                 key={valor}
                 type="button"
-                onClick={() => actualizarConfig({ cotizacionesModo: valor })}
+                onClick={() =>
+                  actualizarConfig({ cotizacionesModo: valor as ModoCotizaciones })
+                }
                 className={cn(
                   'flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-semibold',
                   config.cotizacionesModo === valor
@@ -415,7 +425,14 @@ export default function ConfiguracionPage() {
             ))}
           </div>
 
-          {config.cotizacionesModo === 'automatico' ? (
+          {!autoDisponible && (
+            <p className="text-xs text-amber-600">
+              La actualización automática de cotizaciones es del plan Estándar
+              en adelante. Cargá las tasas a mano acá abajo.
+            </p>
+          )}
+
+          {autoDisponible && config.cotizacionesModo === 'automatico' ? (
             <>
               <p className="text-xs text-muted-foreground">
                 Se consulta en vivo al abrir la Caja y con su botón de recargar.
@@ -491,12 +508,13 @@ export default function ConfiguracionPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShieldCheck className="size-4" />
-            Facturación electrónica (SIFEN)
-          </CardTitle>
+      {esPlanMinimo(plan, 'pro') && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="size-4" />
+              Facturación electrónica (SIFEN)
+            </CardTitle>
           <CardDescription>
             De momento guardamos esta configuración. La emisión de facturas
             electrónicas de Paraguay se activa en una próxima etapa.
@@ -551,13 +569,15 @@ export default function ConfiguracionPage() {
           />
         </CardContent>
       </Card>
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="size-4" />
-            Pos/tarjeta
-          </CardTitle>
+      {esPlanMinimo(plan, 'pro') && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="size-4" />
+              Pos/tarjeta
+            </CardTitle>
           <CardDescription>
             Apagado: cobrás con el botón "Tarjeta" y registrás el pago directo,
             sin terminal. Encendido: cobrás con el terminal físico Bancard
@@ -659,6 +679,7 @@ export default function ConfiguracionPage() {
           </p>
         </CardContent>
       </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -672,7 +693,10 @@ export default function ConfiguracionPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
-          {MODULOS.map((m) => {
+          {MODULOS.filter((m) => {
+            const minimo = PLAN_POR_MODULO[m.ruta]
+            return !minimo || esPlanMinimo(plan, minimo)
+          }).map((m) => {
             const oculto = config.modulosOcultos.includes(m.ruta)
             return (
               <label
@@ -786,7 +810,10 @@ export default function ConfiguracionPage() {
           <div className="space-y-1.5">
             <Label htmlFor="cfg-caja">Número de Caja</Label>
             <div className="flex gap-2 sm:max-w-xs">
-              {([1, 2, 3] as CajaNumero[]).map((n) => (
+              {Array.from(
+                { length: cajasDisponibles },
+                (_, i) => (i + 1) as CajaNumero,
+              ).map((n) => (
                 <button
                   key={n}
                   type="button"
@@ -802,6 +829,10 @@ export default function ConfiguracionPage() {
                 </button>
               ))}
             </div>
+            <p className="text-xs text-muted-foreground">
+              Tu plan permite {cajasDisponibles}{' '}
+              {cajasDisponibles === 1 ? 'caja' : 'cajas'} por sucursal.
+            </p>
             <p className="text-xs text-muted-foreground">
               Estas en la Caja {config.cajaNumero} (canal{' '}
               <span className="font-mono">caja-{config.cajaNumero}</span>).

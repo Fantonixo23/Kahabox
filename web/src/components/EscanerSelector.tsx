@@ -4,6 +4,7 @@ import { Check, Copy, Smartphone, Usb } from 'lucide-react'
 
 import QrCode from '@/components/QrCode'
 import type { EstadoConexion } from '@/lib/escaneoRemoto'
+import { etiquetaPlan, usePlan } from '@/lib/plan'
 import { cn } from 'cn'
 
 /**
@@ -26,6 +27,14 @@ export default function EscanerSelector({
 }) {
   const [dispositivo, setDispositivo] = useState<'telefono' | 'usb'>('telefono')
   const [copiado, setCopiado] = useState(false)
+
+  const plan = usePlan()
+  const maximos: Record<ReturnType<typeof usePlan>, number | null> = {
+    basico: 1,
+    estandar: 2,
+    pro: null,
+  }
+  const maxPermitidos = maximos[plan]
 
   async function copiarEnlace() {
     try {
@@ -121,6 +130,12 @@ export default function EscanerSelector({
                 } conectado${escaneadoresConectados === 1 ? '' : 's'}`
               : 'Ningún celular conectado todavía'}
           </p>
+          {maxPermitidos !== null && escaneadoresConectados > maxPermitidos && (
+            <p className="mt-2 text-xs text-amber-600">
+              Tu plan {etiquetaPlan(plan)} permite {maxPermitidos} celular de
+              escaneo a la vez. Para conectar más, pasá a un plan superior.
+            </p>
+          )}
         </div>
       ) : (
         <div className="mt-3 space-y-2">

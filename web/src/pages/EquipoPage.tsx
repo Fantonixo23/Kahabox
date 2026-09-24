@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ETIQUETA_ROL, nombreNegocio } from '@/lib/config'
+import { etiquetaPlan, useLimitesPlan, usePlan } from '@/lib/plan'
 import {
   cancelarInvitacion,
   confirmarMiembro,
@@ -73,6 +74,8 @@ export default function EquipoPage() {
   const [link, setLink] = useState<string | null>(null)
   const [ultimoInvitado, setUltimoInvitado] = useState<{ nombre: string } | null>(null)
   const [copiado, setCopiado] = useState(false)
+  const plan = usePlan()
+  const limites = useLimitesPlan()
 
   const load = useCallback(async () => {
     setError(null)
@@ -154,12 +157,35 @@ export default function EquipoPage() {
     (inv) => inv.estado === 'pendiente' || inv.estado === 'registrado',
   )
 
+  // Cupos del plan: administradores y empleados (el dueño no cuenta).
+  const usadosPorRol = {
+    administrador:
+      miembros.filter(
+        (m) => m.rol === 'administrador' && m.estado !== 'rechazado',
+      ).length +
+      invitacionesVivas.filter((i) => i.rol === 'administrador').length,
+    vendedor:
+      miembros.filter((m) => m.rol === 'vendedor' && m.estado !== 'rechazado')
+        .length +
+      invitacionesVivas.filter((i) => i.rol === 'vendedor').length,
+  }
+  const cupoDe = (rol: 'administrador' | 'vendedor') =>
+    rol === 'administrador' ? limites?.admins : limites?.empleados
+  const cupoLleno = (rol: 'administrador' | 'vendedor') => {
+    const cupo = cupoDe(rol)
+    return typeof cupo === 'number' && usadosPorRol[rol] >= cupo
+  }
+
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-lg font-semibold">Mi equipo</h1>
         <p className="text-sm text-muted-foreground">
-          Invitá a tu equipo por link y asigná roles.
+          Invitá a tu equipo por link y asigná roles. Tu plan {etiquetaPlan(plan)}:
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {usadosPorRol.administrador}/{limites?.admins ?? '…'} administradores y{' '}
+          {usadosPorRol.vendedor}/{limites?.empleados ?? '…'} empleados.
         </p>
       </div>
 
@@ -205,11 +231,20 @@ export default function EquipoPage() {
             </Select>
           </div>
           <div className="flex items-end">
-            <Button type="submit" disabled={invitando}>
+            <Button type="submit" disabled={invitando || cupoLleno(rol)}>
               {invitando ? 'Generando…' : 'Generar link'}
             </Button>
           </div>
         </div>
+
+        {cupoLleno(rol) && (
+          <p className="mt-2 text-xs text-amber-600">
+            Alcanzaste el cupo de{' '}
+            {ETIQUETA_ROL[rol === 'administrador' ? 'administrador' : 'vendedor']}{' '}
+            de tu plan {etiquetaPlan(plan)}. Para sumar más, cambiá el rol o
+            pasá a un plan superior.
+          </p>
+        )}
 
         {link && (
           <div className="mt-3 space-y-2 rounded-md border border-emerald-300/40 bg-emerald-50 p-3 dark:bg-emerald-950/30">
@@ -430,6 +465,7 @@ export default function EquipoPage() {
                                 <Button
                                   size="sm"
                                   variant="outline"
+                                  disabled={cupoLleno('administrador')}
                                   onClick={() =>
                                     accion(async () => {
                                       if (

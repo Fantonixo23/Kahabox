@@ -42,6 +42,7 @@ import {
 import { datosEmpresa, nombreNegocio, useConfig } from '@/lib/config'
 import type { Database } from '@/lib/database'
 import { formatFecha, formatMoney, type Moneda } from '@/lib/format'
+import { etiquetaPlan, usePlan } from '@/lib/plan'
 import {
   copiarTicket,
   imprimirBluetooth,
@@ -125,6 +126,7 @@ function armarTicketDesdeVenta(v: VentaConItems): TicketVenta {
 
 export default function VentasPage() {
   const config = useConfig()
+  const plan = usePlan()
   const { user } = useAuth()
   const vista = vistaStock(user)
   const [rows, setRows] = useState<VentaConItems[] | null>(null)
@@ -171,11 +173,17 @@ export default function VentasPage() {
       setRows(getMockVentasDetalle())
       return
     }
-    const { data: ventasRes, error } = await supabase
-      .from('ventas')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(100)
+    const { data: ventasRes, error } = await (async () => {
+      let query = supabase.from('ventas').select('*')
+      if (plan === 'basico') {
+        const desde = new Date()
+        desde.setDate(desde.getDate() - 7)
+        query = query.gte('created_at', desde.toISOString())
+      }
+      return query
+        .order('created_at', { ascending: false })
+        .limit(100)
+    })()
     if (error) {
       setError(error.message)
       setRows(null)
@@ -226,7 +234,7 @@ export default function VentasPage() {
           .map((v) => v.id),
       ),
     )
-  }, [vista])
+  }, [vista, plan])
 
   useEffect(() => {
     void load()
@@ -322,6 +330,14 @@ export default function VentasPage() {
         </div>
         <NuevaVentaDialog onCreated={load} vista={vista} />
       </div>
+
+      {plan === 'basico' && (
+        <p className="rounded-md border border-amber-400/30 bg-amber-50 p-3 text-sm text-amber-700">
+          Tu plan {etiquetaPlan(plan)} guarda el historial de ventas de la
+          última semana. Para ver todo el historial, pasá al plan Estándar o
+          Pro.
+        </p>
+      )}
 
       {error && (
         <p className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">

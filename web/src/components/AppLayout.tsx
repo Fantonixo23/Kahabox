@@ -23,8 +23,9 @@ import { AvisoActualizacion } from '@/components/AvisoActualizacion'
 import SyncBar from '@/components/SyncBar'
 import { Button } from '@/components/ui/button'
 import { cn } from 'cn'
-import { MODULOS, puedeVerRuta, useConfig } from '@/lib/config'
+import { MODULOS, puedeVerModulo, useConfig } from '@/lib/config'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { usePlan } from '@/lib/plan'
 import { rolUsuario } from '@/lib/vistaStock'
 
 const ICONOS = {
@@ -56,17 +57,18 @@ export default function AppLayout() {
   const navigate = useNavigate()
   const { user, salirDemo } = useAuth()
   const { modulosOcultos } = useConfig()
+  const plan = usePlan()
 
   const nav = useMemo(
     () =>
       MODULOS_CON_CONFIGURACION.filter(
         (m) =>
           !modulosOcultos.includes(m.ruta) &&
-          puedeVerRuta(m.ruta, rolUsuario(user)),
+          puedeVerModulo(m.ruta, rolUsuario(user), plan),
       ).map(
         (m) => ({ to: m.ruta, label: m.label, corto: m.corto, icon: ICONOS[m.ruta as keyof typeof ICONOS] ?? Settings }),
       ),
-    [modulosOcultos, user],
+    [modulosOcultos, user, plan],
   )
 
   async function handleLogout() {
@@ -115,7 +117,7 @@ export default function AppLayout() {
           ))}
         </nav>
         <div className="border-t p-2">
-          {puedeVerRuta('/app/instalar', rolUsuario(user)) && (
+          {puedeVerModulo('/app/instalar', rolUsuario(user), plan) && (
             <NavLink
               to="/app/instalar"
               className={({ isActive }) =>
@@ -187,7 +189,7 @@ export default function AppLayout() {
                 {item.corto}
               </NavLink>
             ))}
-            {puedeVerRuta('/app/instalar', rolUsuario(user)) && (
+            {puedeVerModulo('/app/instalar', rolUsuario(user), plan) && (
               <NavLink
                 to="/app/instalar"
                 className={({ isActive }) =>

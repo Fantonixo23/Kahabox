@@ -4,7 +4,7 @@
 -- Tenant demo
 insert into public.tenants (id, nombre_comercial, estado, plan)
 values
-  ('11111111-1111-1111-1111-111111111111', 'Kahabox Demo', 'activo', 'piloto')
+  ('11111111-1111-1111-1111-111111111111', 'Kahabox Demo', 'activo', 'pro')
 on conflict (id) do nothing;
 
 -- Sucursal principal del tenant demo

@@ -3,7 +3,8 @@ import type { ReactNode } from 'react'
 import { EyeOff } from 'lucide-react'
 
 import { useAuth } from '@/components/auth/AuthContext'
-import { puedeVerRuta } from '@/lib/config'
+import { puedeVerModulo } from '@/lib/config'
+import { usePlan } from '@/lib/plan'
 import { rolUsuario } from '@/lib/vistaStock'
 
 export default function RequiereRol({
@@ -14,8 +15,9 @@ export default function RequiereRol({
   children: ReactNode
 }) {
   const { user } = useAuth()
+  const plan = usePlan()
 
-  if (!puedeVerRuta(ruta, rolUsuario(user))) {
+  if (!puedeVerModulo(ruta, rolUsuario(user), plan)) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-md border border-dashed p-10 text-center">
         <EyeOff className="size-8 text-muted-foreground" />

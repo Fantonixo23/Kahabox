@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 
 import type { Moneda } from '@/lib/format'
+import { esPlanMinimo, type PlanApp } from '@/lib/plan'
 
 export type CertificadoSifen = {
   nombre: string
@@ -85,6 +86,26 @@ export function puedeVerRuta(ruta: string, rol: RolApp | null | undefined): bool
   const permitidos = MODULOS_POR_ROL[ruta]
   if (!permitidos) return true
   return rol !== null && rol !== undefined && permitidos.includes(rol)
+}
+
+/** Plan comercial mínimo para ver cada módulo (además del rol). */
+export const PLAN_POR_MODULO: Record<string, PlanApp> = {
+  '/app/proveedores': 'estandar',
+  '/app/pagos-proveedores': 'estandar',
+  '/app/reportes': 'estandar',
+  '/app/sucursal': 'estandar',
+  '/app/auditoria': 'pro',
+}
+
+export function puedeVerModulo(
+  ruta: string,
+  rol: RolApp | null | undefined,
+  plan: PlanApp,
+): boolean {
+  if (!puedeVerRuta(ruta, rol)) return false
+  const minimo = PLAN_POR_MODULO[ruta]
+  if (!minimo) return true
+  return esPlanMinimo(plan, minimo)
 }
 
 export const ETIQUETA_ROL: Record<RolApp, string> = {

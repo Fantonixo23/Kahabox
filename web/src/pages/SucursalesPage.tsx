@@ -35,6 +35,7 @@ import {
   type DatosSucursal,
 } from '@/lib/sucursal'
 import { listarMiembros, type MiembroDetalle } from '@/lib/equipoData'
+import { useLimitesPlan } from '@/lib/plan'
 import type { Sucursal } from '@/lib/mock'
 
 type ValoresForm = {
@@ -43,11 +44,11 @@ type ValoresForm = {
   telefono: string
 }
 
-const MAXIMO_SUCURSALES = 3
-
 export default function SucursalesPage() {
   const { user } = useAuth()
   const { sucursalId: sucursalGlobal, cambiarSucursal } = useSucursalActual(user)
+  const limites = useLimitesPlan()
+  const maximoSucursales = limites?.sucursales ?? 3
 
   const [sucursales, setSucursales] = useState<Sucursal[]>([])
   const [lineas, setLineas] = useState<ConteoLineas>({})
@@ -191,12 +192,12 @@ export default function SucursalesPage() {
           <p className="text-sm text-muted-foreground">
             {cargando
               ? 'Cargando…'
-              : `${sucursales.length}/${MAXIMO_SUCURSALES} creadas. El stock y los empleados se agrupan por sucursal.`}
+              : `${sucursales.length}/${maximoSucursales} creadas. El stock y los empleados se agrupan por sucursal.`}
           </p>
         </div>
         <Button
           onClick={() => void abrirNueva()}
-          disabled={sucursales.length >= MAXIMO_SUCURSALES}
+          disabled={sucursales.length >= maximoSucursales}
         >
           <Plus />
           Nueva sucursal
@@ -321,7 +322,7 @@ export default function SucursalesPage() {
             <DialogDescription>
               {editando
                 ? 'Actualizá los datos de la sucursal.'
-                : 'Podés tener hasta 3 sucursales.'}
+                : `Podés tener hasta ${maximoSucursales} sucursales en tu plan.`}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={(e) => void guardarForm(e)} className="space-y-3">

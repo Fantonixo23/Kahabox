@@ -1045,6 +1045,21 @@ Relationships: [
           estado: 'activo' | 'pendiente' | 'rechazado'
         }[]
       }
+      mi_plan: {
+        Args: Record<string, never>
+        Returns: {
+          plan: string
+        }[]
+      }
+      limites_plan: {
+        Args: Record<string, never>
+        Returns: {
+          plan: string
+          admins: number
+          empleados: number
+          sucursales: number | null
+        }[]
+      }
     }
     Enums: {}
     CompositeTypes: {}
