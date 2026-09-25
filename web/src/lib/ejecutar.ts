@@ -10,6 +10,7 @@ import {
   type OperacionCola,
 } from '@/lib/cola'
 import { esErrorDeRed, navegadorEnLinea } from '@/lib/red'
+import { mensajeDeError } from '@/lib/mensajesError'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { dispositivoActual } from '@/lib/auditoriaData'
 
@@ -305,10 +306,7 @@ export async function sincronizar(opciones?: {
         ok += 1
       } catch (e) {
         if (esErrorDeRed(e)) break
-        marcarFallo(
-          item.id,
-          e instanceof Error ? e.message : 'Error desconocido al sincronizar',
-        )
+        marcarFallo(item.id, mensajeDeError(e, 'Error desconocido al sincronizar'))
         fallos += 1
       }
     }

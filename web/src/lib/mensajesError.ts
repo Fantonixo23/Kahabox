@@ -50,3 +50,27 @@ export function esErrorEmailNoConfirmado(mensaje: string): boolean {
     mensaje,
   )
 }
+
+/**
+ * Saca el mensaje legible de un error, sea cual sea su forma. supabase-js no
+ * lanza objetos Error: tira un PostgrestError plano ({code, message, details,
+ * hint}), así que `e instanceof Error` da false y el mensaje se perdía. Eso
+ * importaba porque los raise exception de Postgres llegan como P0001 con HTTP
+ * 400 y su message es lo único que dice qué validación falló — un not-null o un
+ * check se leen como ruido si no se muestra.
+ */
+export function mensajeDeError(e: unknown, porDefecto = 'Ocurrió un error.'): string {
+  if (typeof e === 'string') {
+    const s = e.trim()
+    return s === '' ? porDefecto : mensajeErrorSupabase(s)
+  }
+  if (e === null || typeof e !== 'object') return porDefecto
+
+  const causa = e as { message?: unknown; details?: unknown; error?: unknown }
+  for (const campo of [causa.message, causa.details, causa.error]) {
+    if (typeof campo === 'string' && campo.trim() !== '') {
+      return mensajeErrorSupabase(campo.trim())
+    }
+  }
+  return porDefecto
+}

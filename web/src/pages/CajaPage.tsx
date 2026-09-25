@@ -105,6 +105,7 @@ import {
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { dispositivoActual } from '@/lib/auditoriaData'
 import { esErrorDeRed } from '@/lib/red'
+import { mensajeDeError } from '@/lib/mensajesError'
 import { sucursalIdDeClaim } from '@/lib/sucursal'
 import { vistaStock } from '@/lib/vistaStock'
 import { useKeyboardScanner } from '@/lib/useKeyboardScanner'
@@ -1096,7 +1097,7 @@ export default function CajaPage() {
         }
       }
     } catch (e) {
-      avisar(e instanceof Error ? e.message : 'Ocurrió un error al cobrar.')
+      avisar(mensajeDeError(e, 'Ocurrió un error al cobrar.'))
     }
   }
 
