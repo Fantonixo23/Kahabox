@@ -10,7 +10,8 @@
 // cualquiera podria pedir firmas con la clave del comercio.
 //
 // Secrets:
-//   QZ_PRIVATE_KEY  (obligatorio) contenido del private-key.pem en PEM/PKCS8.
+//   QZ_PRIVATE_KEY  (obligatorio) base64 del DER (PKCS8) de la clave privada.
+//   Tambien se acepta el PEM original (con cabeceras) por compatibilidad.
 
 function base64DeBytes(bytes: Uint8Array): string {
   let binario = ''
@@ -64,7 +65,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const der = pemADer(pem)
+    const secreto = pem.trim()
+    const der = secreto.startsWith('-----')
+      ? pemADer(secreto)
+      : decodificarBase64(secreto)
     const key = await crypto.subtle.importKey(
       'pkcs8',
       der as BufferSource,
