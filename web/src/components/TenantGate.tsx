@@ -27,6 +27,20 @@ export default function TenantGate({ children }: { children: ReactNode }) {
     }
 
     try {
+      // Los administradores de Kahabox siempre entran: aunque su propia tienda
+      // esté suspendida, tienen que poder llegar al panel para desbloquearla.
+      if (isSupabaseConfigured) {
+        try {
+          const { data: admin } = await supabase.rpc('es_superadmin')
+          if (admin === true) {
+            setEstado('ok')
+            return
+          }
+        } catch {
+          // Sin acceso o sin la función: sigue como miembro normal.
+        }
+      }
+
       // Empleados invitados: hasta que el dueño confirme el alta no hay tenant
       // en el JWT, así que primero se chequea el estado como miembro.
       const miembroEstado = await miEstadoEquipo()
