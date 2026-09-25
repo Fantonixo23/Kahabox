@@ -29,17 +29,34 @@ export function formatMoney(saldo: number, moneda: Moneda): string {
 // "1.234,5". El estado del formulario sigue guardando el valor crudo.
 export function formatearMiles(valor: string): string {
   if (!valor) return ''
-  const [entero = '', decimal] = valor.split('.')
+  const [entero = '', ...resto] = valor.split('.')
   const conPuntos = entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-  return decimal === undefined ? conPuntos : `${conPuntos},${decimal}`
+  return resto.length === 0 ? conPuntos : `${conPuntos},${resto.join('')}`
 }
 
-// Convierte lo que el usuario ve ("3.000", "1.234,5") al valor crudo ("3000",
-// "1234.5") que espera Number().
+// Convierte lo que el usuario escribe al valor crudo ("3000", "12.5") que
+// espera Number(). El separador se deduce por posición en vez de asumir que el
+// punto siempre es de miles: el último símbolo es decimal salvo que le sigan
+// exactamente 3 dígitos, en cuyo caso es de miles. Así conviven las dos
+// convenciones sin depender de la moneda — "12.50" y "1,234.56" valen 12.5 y
+// 1234.56 (dólares), y "45.000" y "1.234,56" valen 45000 y 1234.56
+// (guaraníes). Sin esto, escribir "12.50" en un pago en dólares devolvía
+// "1250" y cobraba cien veces de más.
 export function desformatearMonto(texto: string): string {
-  const limpio = texto.replace(/\./g, '').replace(/,/g, '.')
-  const match = limpio.match(/^\d*\.?\d*/)
-  return match ? match[0] : ''
+  const limpio = texto.replace(/[^\d.,-]/g, '')
+  const negativo = limpio.startsWith('-')
+  const grupos = limpio.replace(/-/g, '').split(/[.,]/).filter((g) => g !== '')
+  if (grupos.length === 0) return negativo ? '-0' : ''
+
+  const ultimo = grupos[grupos.length - 1]
+  const esDecimal = grupos.length > 1 && ultimo.length !== 3
+  const entero = grupos.slice(0, esDecimal ? -1 : grupos.length).join('')
+  const decimal = esDecimal ? ultimo : ''
+  const base = Number(entero || '0')
+
+  return `${negativo && (base !== 0 || decimal) ? '-' : ''}${base}${
+    decimal ? `.${decimal}` : ''
+  }`
 }
 
 export function formatFecha(iso: string): string {

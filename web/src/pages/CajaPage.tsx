@@ -943,8 +943,25 @@ export default function CajaPage() {
     // ventas del día.
     const estado: 'pendiente_sync' | 'confirmada' = 'confirmada'
 
-    const resumen = pagos
-      .filter((p) => pagoGs(p) > 0)
+    // Un monto que no se puede leer no puede llegar al servidor: JSON.stringify
+    // manda los no-números como null y Postgres responde con un error de
+    // constraint que no dice qué revisar. Se corta acá, con el método y la
+    // moneda del pago problemático.
+    const pagosACobrar = pagos.filter((p) => pagoGs(p) > 0)
+    const montoDe = (p: Pago) => Math.round(parseMonto(p.monto) * 100) / 100
+    const ilegible = pagos.find((p) => {
+      if (p.monto.trim() === '') return false
+      const monto = montoDe(p)
+      return !Number.isFinite(monto) || monto <= 0
+    })
+    if (ilegible) {
+      avisar(
+        `No se pudo leer el monto de ${METODOS[ilegible.metodo].nombre} en ${ilegible.moneda}. Revisá ese monto e intentá de nuevo.`,
+      )
+      return
+    }
+
+    const resumen = pagosACobrar
       .map((p) => {
         const base = METODOS[p.metodo].nombre
         return p.metodo === 'pos' && p.detalle ? `${base} (${p.detalle})` : base
@@ -965,14 +982,12 @@ export default function CajaPage() {
           })),
           totalGs,
           estado,
-          pagos: pagos
-            .filter((p) => pagoGs(p) > 0)
-            .map((p) => ({
-              metodo: p.metodo,
-              moneda: p.moneda,
-              monto: Math.round(parseMonto(p.monto) * 100) / 100,
-              detalle: p.detalle ?? null,
-            })),
+          pagos: pagosACobrar.map((p) => ({
+            metodo: p.metodo,
+            moneda: p.moneda,
+            monto: montoDe(p),
+            detalle: p.detalle ?? null,
+          })),
         })
         ventaId = venta.id
         setStock(getMockStock())
@@ -994,15 +1009,13 @@ export default function CajaPage() {
               precioUnitario: c.linea.precio,
               precioUnitarioGs: convertir(c.linea.precio, c.linea.moneda, 'PYG', tasas),
             })),
-            pagos: pagos
-              .filter((p) => pagoGs(p) > 0)
-              .map((p) => ({
-                id: p.id,
-                metodo: p.metodo as MetodoPagoVenta,
-                moneda: p.moneda,
-                monto: Math.round(parseMonto(p.monto) * 100) / 100,
-                detalle: p.detalle ?? undefined,
-              })),
+            pagos: pagosACobrar.map((p) => ({
+              id: p.id,
+              metodo: p.metodo as MetodoPagoVenta,
+              moneda: p.moneda,
+              monto: montoDe(p),
+              detalle: p.detalle ?? undefined,
+            })),
           },
           ejecutarRemoto: async () => {
             const { error } = await supabase.rpc('registrar_venta', {
@@ -1017,15 +1030,13 @@ export default function CajaPage() {
                 precio_unitario: c.linea.precio,
                 precio_unitario_gs: convertir(c.linea.precio, c.linea.moneda, 'PYG', tasas),
               })),
-              p_pagos: pagos
-                .filter((p) => pagoGs(p) > 0)
-                .map((p) => ({
-                  id: p.id,
-                  metodo: p.metodo,
-                  moneda: p.moneda,
-                  monto: Math.round(parseMonto(p.monto) * 100) / 100,
-                  detalle: p.detalle ?? null,
-                })),
+              p_pagos: pagosACobrar.map((p) => ({
+                id: p.id,
+                metodo: p.metodo,
+                moneda: p.moneda,
+                monto: montoDe(p),
+                detalle: p.detalle ?? null,
+              })),
               p_estado: estado,
               p_created_at: ahora,
             })
