@@ -69,7 +69,6 @@ drop trigger if exists suc_guard_ventas on public.ventas;
 drop trigger if exists suc_guard_venta_items on public.venta_items;
 drop trigger if exists suc_guard_stock_tienda on public.stock_tienda;
 drop trigger if exists suc_guard_stock_movs on public.stock_movimientos;
-drop trigger if exists suc_guard_trabajos on public.trabajos_impresion;
 
 create trigger suc_guard_ventas before insert or update on public.ventas
   for each row execute function public.sucursal_rechazar_bloqueada();
@@ -78,8 +77,6 @@ create trigger suc_guard_venta_items before insert or update on public.venta_ite
 create trigger suc_guard_stock_tienda before insert or update on public.stock_tienda
   for each row execute function public.sucursal_rechazar_bloqueada();
 create trigger suc_guard_stock_movs before insert or update on public.stock_movimientos
-  for each row execute function public.sucursal_rechazar_bloqueada();
-create trigger suc_guard_trabajos before insert or update on public.trabajos_impresion
   for each row execute function public.sucursal_rechazar_bloqueada();
 
 -- ---------------------------------------------------------------------------
@@ -107,7 +104,10 @@ begin
   select s.id, s.nombre, s.vencimiento, s.bloqueada,
          case
            when s.vencimiento is null then null
-           else greatest(0, (s.vencimiento - now())::int)
+           else greatest(
+             0,
+             (extract(epoch from (s.vencimiento - now())) / 86400)::int
+           )
          end
   from public.sucursales s
   where s.tenant_id = p_tenant_id
