@@ -8,7 +8,12 @@ import {
   columnasPorAnchoMm,
   type TicketVenta,
 } from './ticket'
-import { impresoraNativaDisponible, imprimirConReintento } from './nativo'
+import {
+  esNativo,
+  impresoraNativaDisponible,
+  imprimirConReintento,
+} from './nativo'
+import { qzDisponible, imprimirRawQz } from './qz'
 import { leerConfig } from '@/lib/config'
 
 export type ResultadoImpresion = {
@@ -109,6 +114,66 @@ export async function imprimirBluetooth(
         e instanceof Error
           ? e.message
           : 'No se pudo imprimir por Bluetooth.',
+    }
+  }
+}
+
+/**
+ * Imprime directo por QZ Tray desde la PC: manda los bytes ESC/POS a la
+ * termica sin dialogo ni driver (silencioso, con corte y apertura de cajon).
+ * Si QZ Tray no esta instalado/corriendo, se equivoca la impresora o falla el
+ * envio, devuelve un error y la venta igual queda confirmada.
+ */
+export async function imprimirTicketQz(
+  ticket: TicketVenta,
+  anchoMm: number,
+): Promise<ResultadoImpresion> {
+  const ancho = columnasPorAnchoMm(anchoMm)
+  const texto = armarTextoPlano(ticket, ancho)
+
+  if (esNativo()) {
+    return {
+      texto,
+      nativo: false,
+      compartido: false,
+      error:
+        'QZ Tray se usa desde la PC. En el celular elegí Bluetooth directo o navegador.',
+    }
+  }
+
+  if (!(await qzDisponible())) {
+    return {
+      texto,
+      nativo: false,
+      compartido: false,
+      error:
+        'QZ Tray no está instalado o no está en ejecución en esta PC. Descargalo en https://qz.io/download/, abrilo una vez (aceptá el certificado) y volvé a intentar.',
+    }
+  }
+
+  const nombre = leerConfig().impresoraQz.nombre.trim()
+  if (!nombre) {
+    return {
+      texto,
+      nativo: false,
+      compartido: false,
+      error:
+        'Configurá la impresora de QZ Tray en Configuración → Impresora y volvé a intentar.',
+    }
+  }
+
+  try {
+    await imprimirRawQz(nombre, armarEscPosBase64(ticket, ancho))
+    return { texto, nativo: false, compartido: false }
+  } catch (e) {
+    return {
+      texto,
+      nativo: false,
+      compartido: false,
+      error:
+        e instanceof Error
+          ? e.message
+          : 'No se pudo imprimir por QZ Tray.',
     }
   }
 }

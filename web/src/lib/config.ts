@@ -12,7 +12,7 @@ export type CertificadoSifen = {
 
 export type AnchoTicketPc = 88 | 58
 
-export type MetodoImpresion = 'navegador' | 'bluetooth'
+export type MetodoImpresion = 'navegador' | 'bluetooth' | 'qztray'
 
 export type CajaNumero = 1 | 2 | 3
 
@@ -35,6 +35,10 @@ export type ImpresoraBluetooth = {
   impresoraDireccion: string
 }
 
+export type ImpresoraQz = {
+  nombre: string
+}
+
 export type ConfigApp = {
   nombreNegocio: string
   ruc: string
@@ -50,6 +54,7 @@ export type ConfigApp = {
   cajaNumero: CajaNumero
   metodoImpresion: MetodoImpresion
   impresoraBluetooth: ImpresoraBluetooth
+  impresoraQz: ImpresoraQz
   modulosOcultos: string[]
   sucursalId: string | null
   monedasActivas: Moneda[]
@@ -146,9 +151,17 @@ function impresoraInicial(): ImpresoraBluetooth {
   }
 }
 
+function impresoraQzInicial(): ImpresoraQz {
+  return { nombre: '' }
+}
+
 function configInicial(): ConfigApp {
   const guardada = leerConfigGuardada()
-  const { impresoraBluetooth: impresoraGuardada, ...resto } = guardada
+  const {
+    impresoraBluetooth: impresoraGuardada,
+    impresoraQz: impresoraQzGuardada,
+    ...resto
+  } = guardada
   const legadoImpresora = (
     guardada as unknown as {
       estacionImpresion?: { impresoraNombre?: string; impresoraDireccion?: string }
@@ -181,6 +194,10 @@ function configInicial(): ConfigApp {
       ...(impresoraGuardada ?? {}),
       ...(legadoImpresora ?? {}),
     },
+    impresoraQz: {
+      ...impresoraQzInicial(),
+      ...(impresoraQzGuardada ?? {}),
+    },
   }
   aplicarTema(config.tema)
   return config
@@ -203,17 +220,19 @@ function leerConfigGuardada(): Partial<ConfigApp> {
     delete datos.certificado
     // Migración: el ancho de ticket angosto pasó de 44mm a 58mm.
     if (Number(datos.anchoTicketPc) === 44) datos.anchoTicketPc = 58
-    // Migración: se retiró QZ Tray; lo que usaba QZ Tray imprime por navegador.
-    const legado = datos as unknown as {
-      metodoImpresion?: unknown
+    // Migración: el nombre de impresora QZ antes era un string suelto
+    // (impresoraQzNombre); ahora vive en el objeto impresoraQz.nombre.
+    const conLegadoQz = datos as Partial<ConfigApp> & {
       impresoraQzNombre?: unknown
     }
-    if (legado.metodoImpresion === 'qztray') {
-      datos.metodoImpresion = 'navegador'
+    if (conLegadoQz.impresoraQzNombre !== undefined) {
+      datos.impresoraQz = { nombre: String(conLegadoQz.impresoraQzNombre) }
+      delete conLegadoQz.impresoraQzNombre
     }
-    if (legado.impresoraQzNombre !== undefined) {
-      delete (datos as Partial<ConfigApp> & { impresoraQzNombre?: unknown })
-        .impresoraQzNombre
+    // Aunque la config vieja traiga un nombre suelto, el metodo qztray sigue
+    // siendo valido: NO forzarlo de vuelta a 'navegador'.
+    if (!datos.impresoraQz || typeof datos.impresoraQz.nombre !== 'string') {
+      datos.impresoraQz = { nombre: '' }
     }
     if (Array.isArray(datos.monedasActivas)) {
       datos.monedasActivas = datos.monedasActivas.filter((m): m is Moneda =>
@@ -260,6 +279,7 @@ function guardar() {
         cajaNumero: config.cajaNumero,
         metodoImpresion: config.metodoImpresion,
         impresoraBluetooth: config.impresoraBluetooth,
+        impresoraQz: config.impresoraQz,
         sucursalId: config.sucursalId,
         monedasActivas: config.monedasActivas,
         monedaPrincipal: config.monedaPrincipal,
@@ -298,6 +318,12 @@ export function actualizarImpresoraBluetooth(
 ) {
   actualizarConfig({
     impresoraBluetooth: { ...config.impresoraBluetooth, ...patch },
+  })
+}
+
+export function actualizarImpresoraQz(patch: Partial<ImpresoraQz>) {
+  actualizarConfig({
+    impresoraQz: { ...config.impresoraQz, ...patch },
   })
 }
 

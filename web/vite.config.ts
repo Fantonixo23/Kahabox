@@ -176,6 +176,11 @@ export default defineConfig({
     // Exponer en la red local para probar desde el celular (https).
     host: true,
   },
+  optimizeDeps: {
+    // qz-tray viene como script global (UMD/CJS): que Vite lo pre-bundlee
+    // bien en dev y no rompa el import esm.
+    include: ['qz-tray'],
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

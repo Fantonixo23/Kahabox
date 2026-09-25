@@ -87,10 +87,14 @@ import {
   imprimirBluetooth,
   imprimirTicket,
   imprimirTicketPC,
+  imprimirTicketQz,
   type ResultadoImpresion,
 } from '@/lib/impresion/imprimir'
 import { armarTextoPlano, type TicketVenta } from '@/lib/impresion/ticket'
-import { impresoraNativaDisponible } from '@/lib/impresion/nativo'
+import {
+  esNativo,
+  impresoraNativaDisponible,
+} from '@/lib/impresion/nativo'
 import {
   crearProductoMock,
   getMockStock,
@@ -887,7 +891,10 @@ export default function CajaPage() {
     if (!ultimoTicket) return
     setReimprimiendo(true)
     try {
-      const res = await imprimirTicketPC(ultimoTicket, config.anchoTicketPc)
+      const res =
+        config.metodoImpresion === 'qztray'
+          ? await imprimirTicketQz(ultimoTicket, config.anchoTicketPc)
+          : await imprimirTicketPC(ultimoTicket, config.anchoTicketPc)
       setResultadoImpresion(res)
     } finally {
       setReimprimiendo(false)
@@ -1057,13 +1064,25 @@ export default function CajaPage() {
         guardarTicketVentaMock(ventaId, ticket)
         guardarUltimoTicket(ticket)
         setUltimoTicket(ticket)
-        // No imprimir al confirmar: el ticket sale solo cuando se aprieta
-        // «Imprimir / Celular / PC» en el diálogo de resultado.
-        setResultadoImpresion({
-          texto: armarTextoPlano(ticket),
-          nativo: false,
-          compartido: false,
-        })
+        // Con QZ Tray la venta imprime sola al confirmar (silencioso, sin
+        // diálogo). Si falla, igual queda guardada y se abre el diálogo con
+        // las opciones manuales. Los otros métodos conservan el diálogo.
+        if (config.metodoImpresion === 'qztray' && !esNativo()) {
+          const res = await imprimirTicketQz(ticket, config.anchoTicketPc)
+          if (res.error) {
+            setResultadoImpresion(res)
+          } else {
+            avisar('Ticket impreso en la impresora.', 'ok')
+            setResultadoImpresion(null)
+            concluirVenta()
+          }
+        } else {
+          setResultadoImpresion({
+            texto: armarTextoPlano(ticket),
+            nativo: false,
+            compartido: false,
+          })
+        }
       }
     } catch (e) {
       avisar(e instanceof Error ? e.message : 'Ocurrió un error al cobrar.')

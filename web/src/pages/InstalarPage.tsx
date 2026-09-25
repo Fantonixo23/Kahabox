@@ -91,6 +91,54 @@ export default function InstalarPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Printer className="size-4" />
+            Imprimir desde la PC (QZ Tray)
+          </CardTitle>
+          <CardDescription>
+            Para que la PC imprima el ticket en la térmica silencioso —sin
+            diálogo ni driver de Windows— instalá QZ Tray una sola vez.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
+            <li>
+              Descargá e instalá QZ Tray desde{' '}
+              <a
+                href="https://qz.io/download/"
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                qz.io/download
+              </a>
+              .
+            </li>
+            <li>Abrí la app una vez: queda en la bandeja del sistema.</li>
+            <li>
+              La primera impresión te pide confiar en el certificado de
+              Kahabox: marcá <b>«Recordar esta decisión»</b>.
+            </li>
+            <li>
+              En Configuración → Impresora elegí <b>«QZ Tray (PC)»</b> y la
+              térmica del ticket.
+            </li>
+          </ol>
+          <Button asChild className="h-11">
+            <a
+              href="https://qz.io/download/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Download />
+              Descargar QZ Tray
+            </a>
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Printer className="size-4" />
             ¿Para qué sirve la app?
           </CardTitle>
         </CardHeader>

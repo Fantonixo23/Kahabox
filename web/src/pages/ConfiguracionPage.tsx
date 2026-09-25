@@ -724,7 +724,7 @@ export default function ConfiguracionPage() {
           </CardTitle>
           <CardDescription>
             En el celular con la app: impresión directa por Bluetooth. En la PC:
-            ventana de impresión del navegador.
+            silencioso por QZ Tray o con la ventana de impresión del navegador.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -743,6 +743,11 @@ export default function ConfiguracionPage() {
                 {esNativo() && (
                   <SelectItem value="bluetooth">
                     Bluetooth directo (este celular)
+                  </SelectItem>
+                )}
+                {!esNativo() && (
+                  <SelectItem value="qztray">
+                    QZ Tray (PC, impresión silenciosa)
                   </SelectItem>
                 )}
                 <SelectItem value="navegador">
@@ -772,9 +777,13 @@ export default function ConfiguracionPage() {
 
           <div className="flex flex-wrap items-center gap-2 rounded-md border px-3 py-2.5">
             <span className="text-sm">
-              {config.impresoraBluetooth.impresoraDireccion
-                ? `Impresora Bluetooth · ${config.impresoraBluetooth.impresoraNombre || config.impresoraBluetooth.impresoraDireccion}`
-                : 'Sin impresora Bluetooth configurada'}
+              {config.metodoImpresion === 'qztray'
+                ? config.impresoraQz.nombre
+                  ? `Impresora QZ Tray · ${config.impresoraQz.nombre}`
+                  : 'Sin impresora QZ Tray configurada'
+                : config.impresoraBluetooth.impresoraDireccion
+                  ? `Impresora Bluetooth · ${config.impresoraBluetooth.impresoraNombre || config.impresoraBluetooth.impresoraDireccion}`
+                  : 'Sin impresora Bluetooth configurada'}
             </span>
             <Button
               type="button"

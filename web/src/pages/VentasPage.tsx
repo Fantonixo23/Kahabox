@@ -48,6 +48,7 @@ import {
   imprimirBluetooth,
   imprimirTicket,
   imprimirTicketPC,
+  imprimirTicketQz,
   type ResultadoImpresion,
 } from '@/lib/impresion/imprimir'
 import { armarTextoPlano, type TicketVenta } from '@/lib/impresion/ticket'
@@ -285,7 +286,11 @@ export default function VentasPage() {
     if (!ticket) return
     setReimprimiendo(true)
     try {
-      setResultado(await imprimirTicketPC(ticket, config.anchoTicketPc))
+      setResultado(
+        config.metodoImpresion === 'qztray'
+          ? await imprimirTicketQz(ticket, config.anchoTicketPc)
+          : await imprimirTicketPC(ticket, config.anchoTicketPc),
+      )
     } finally {
       setReimprimiendo(false)
     }

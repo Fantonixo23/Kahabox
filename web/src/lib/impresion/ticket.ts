@@ -213,6 +213,7 @@ export function armarEscPos(
 ): Uint8Array {
   const partes: Uint8Array[] = [
     escpos.inicializar(),
+    escpos.abrirCajon(),
     escpos.codepage(escpos.CODIFICACION_PC850),
   ]
   let alineacion: Alineacion = 'izq'

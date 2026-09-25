@@ -135,6 +135,15 @@ export function cortar(): Uint8Array {
 }
 
 /**
+ * Apertura de cajón de dinero (ESC p 0 25 250): pulso al pin 2 del conector
+ * RJ11 de impresoras que tienen el cajón enchufado. Si el cajón no está, la
+ * impresora ignora el comando sin problema.
+ */
+export function abrirCajon(): Uint8Array {
+  return Uint8Array.of(0x1b, 0x70, 0x00, 0x19, 0xfa)
+}
+
+/**
  * Imagen rasterizada (GS v 0, modo normal): dibuja una matriz de puntos 1bpp
  * de `ancho` × `alto`. `ancho` debe ser múltiplo de 8 y `datos` traer
  * `ancho / 8` bytes por fila; en cada byte, el bit de mayor peso (MSB)

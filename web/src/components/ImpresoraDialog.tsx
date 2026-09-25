@@ -3,9 +3,11 @@ import { useEffect, useState } from 'react'
 import {
   Bluetooth,
   CheckCircle2,
+  Download,
   Monitor,
   Printer,
   RotateCw,
+  WifiOff,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -19,11 +21,22 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   actualizarConfig,
   actualizarImpresoraBluetooth,
+  actualizarImpresoraQz,
   useConfig,
 } from '@/lib/config'
-import { imprimirTicketPC } from '@/lib/impresion/imprimir'
+import {
+  imprimirTicketPC,
+  imprimirTicketQz,
+} from '@/lib/impresion/imprimir'
 import {
   esNativo,
   impresoraNativaDisponible,
@@ -31,6 +44,11 @@ import {
   listarImpresoras,
   type DispositivoBluetooth,
 } from '@/lib/impresion/nativo'
+import {
+  listarImpresorasQz,
+  qzDisponible,
+  vigilarQz,
+} from '@/lib/impresion/qz'
 import { armarEscPosBase64, type TicketVenta } from '@/lib/impresion/ticket'
 import { cn } from 'cn'
 
@@ -57,19 +75,15 @@ function ticketPrueba(): TicketVenta {
         precio: 'Gs 180.000',
         total: 'Gs 180.000',
       },
-      {
-        nombre: 'Funda de celular',
-        cantidad: 2,
-        precio: 'Gs 45.000',
-        total: 'Gs 90.000',
-      },
     ],
-    total: 'Gs 270.000',
+    total: 'Gs 180.000',
     metodosPago: 'Efectivo',
-    recibido: 'Gs 300.000',
-    cambio: 'Gs 30.000',
+    recibido: 'Gs 200.000',
+    cambio: 'Gs 20.000',
   }
 }
+
+type EstadoQz = 'verificando' | 'listo' | 'caido'
 
 export default function ImpresoraDialog({
   open,
@@ -80,47 +94,36 @@ export default function ImpresoraDialog({
 }) {
   const config = useConfig()
   const nativo = esNativo() && impresoraNativaDisponible()
+  const usarQz = !nativo && config.metodoImpresion === 'qztray'
   const [dispositivos, setDispositivos] = useState<DispositivoBluetooth[]>([])
   const [buscando, setBuscando] = useState(false)
   const [probando, setProbando] = useState(false)
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null)
+  const [estadoQz, setEstadoQz] = useState<EstadoQz>('verificando')
+  const [impresorasQz, setImpresorasQz] = useState<string[]>([])
+  const [buscandoQz, setBuscandoQz] = useState(false)
 
   const impresora = config.impresoraBluetooth
 
-  const selectorMetodo = (
-    <div className="space-y-2">
-      <Label>Método de impresión de esta caja</Label>
-      <div className="grid grid-cols-2 gap-2">
-        {nativo && (
-          <Button
-            type="button"
-            variant={
-              config.metodoImpresion === 'bluetooth' ? 'default' : 'outline'
-            }
-            onClick={() => actualizarConfig({ metodoImpresion: 'bluetooth' })}
-          >
-            <Bluetooth />
-            Bluetooth directo
-          </Button>
-        )}
-        <Button
-          type="button"
-          variant={
-            config.metodoImpresion === 'navegador' ? 'default' : 'outline'
-          }
-          onClick={() => actualizarConfig({ metodoImpresion: 'navegador' })}
-        >
-          <Monitor />
-          PC / navegador
-        </Button>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        {config.metodoImpresion === 'bluetooth'
-          ? 'Al cobrar, este celular imprime el ticket directo por Bluetooth.'
-          : 'Al cobrar se muestra el ticket para imprimir desde la PC, por Bluetooth o copiarlo.'}
-      </p>
-    </div>
-  )
+  async function revisarQz() {
+    setBuscandoQz(true)
+    setEstadoQz('verificando')
+    const ok = await qzDisponible()
+    if (!ok) {
+      setEstadoQz('caido')
+      setBuscandoQz(false)
+      return
+    }
+    try {
+      const lista = await listarImpresorasQz()
+      setImpresorasQz(lista)
+      setEstadoQz('listo')
+    } catch {
+      setEstadoQz('caido')
+    } finally {
+      setBuscandoQz(false)
+    }
+  }
 
   useEffect(() => {
     if (!open) return
@@ -133,14 +136,36 @@ export default function ImpresoraDialog({
           setAviso({ ok: false, texto: 'No se pudieron listar los dispositivos.' }),
         )
         .finally(() => setBuscando(false))
+    } else if (config.metodoImpresion === 'qztray') {
+      void revisarQz()
     }
-  }, [open, nativo])
+  }, [open, nativo, config.metodoImpresion])
+
+  // Estado en vivo: si QZ Tray se cierra a mitad de turno, se avisa al toque.
+  useEffect(() => {
+    if (!open || !usarQz) return
+    const quitar = vigilarQz(() => setEstadoQz('caido'))
+    return quitar
+  }, [open, usarQz])
 
   async function probar() {
     setAviso(null)
     setProbando(true)
     try {
-      if (nativo) {
+      if (config.metodoImpresion === 'qztray' && !nativo) {
+        const res = await imprimirTicketQz(
+          ticketPrueba(),
+          config.anchoTicketPc,
+        )
+        setAviso(
+          res.error
+            ? { ok: false, texto: res.error }
+            : {
+                ok: true,
+                texto: 'Ticket de prueba enviado a la impresora.',
+              },
+        )
+      } else if (nativo) {
         if (!impresora.impresoraDireccion) {
           setAviso({ ok: false, texto: 'Elegí una impresora primero.' })
           return
@@ -166,6 +191,58 @@ export default function ImpresoraDialog({
     }
   }
 
+  const selectorMetodo = (
+    <div className="space-y-2">
+      <Label>Método de impresión de esta caja</Label>
+      <div className="grid grid-cols-2 gap-2">
+        {nativo && (
+          <Button
+            type="button"
+            variant={
+              config.metodoImpresion === 'bluetooth' ? 'default' : 'outline'
+            }
+            onClick={() => actualizarConfig({ metodoImpresion: 'bluetooth' })}
+          >
+            <Bluetooth />
+            Bluetooth directo
+          </Button>
+        )}
+        {!nativo && (
+          <Button
+            type="button"
+            variant={
+              config.metodoImpresion === 'qztray' ? 'default' : 'outline'
+            }
+            onClick={() => {
+              actualizarConfig({ metodoImpresion: 'qztray' })
+              void revisarQz()
+            }}
+          >
+            <Printer />
+            QZ Tray (PC)
+          </Button>
+        )}
+        <Button
+          type="button"
+          variant={
+            config.metodoImpresion === 'navegador' ? 'default' : 'outline'
+          }
+          onClick={() => actualizarConfig({ metodoImpresion: 'navegador' })}
+        >
+          <Monitor />
+          PC / navegador
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {config.metodoImpresion === 'bluetooth'
+          ? 'Al cobrar, este celular imprime el ticket directo por Bluetooth.'
+          : config.metodoImpresion === 'qztray'
+            ? 'Al cobrar, la PC imprime silencioso por QZ Tray, sin diálogo ni driver.'
+            : 'Al cobrar se muestra el ticket para imprimir desde la PC, por Bluetooth o copiarlo.'}
+      </p>
+    </div>
+  )
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-svh overflow-y-auto sm:max-w-md">
@@ -174,7 +251,9 @@ export default function ImpresoraDialog({
           <DialogDescription>
             {nativo
               ? 'Elegí la impresora Bluetooth y la app imprime el ticket directo.'
-              : 'La impresora Bluetooth se configura desde la app del celular. En la PC se imprime con el diálogo del navegador.'}
+              : config.metodoImpresion === 'qztray'
+                ? 'QZ Tray imprime el ticket por la térmica de esta PC, silencioso y con corte.'
+                : 'La impresora Bluetooth se configura desde la app del celular. En la PC se imprime con el diálogo del navegador.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -219,6 +298,110 @@ export default function ImpresoraDialog({
                 })}
               </div>
             </div>
+
+            {selectorMetodo}
+          </div>
+        ) : usarQz ? (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Impresoras detectadas</Label>
+              {buscandoQz && (
+                <p className="text-sm text-muted-foreground">Buscando…</p>
+              )}
+              {!buscandoQz &&
+                estadoQz === 'listo' &&
+                impresorasQz.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    No se detectó ninguna impresora. Asegurate de que QZ Tray
+                    esté abierto y que la térmica esté conectada a esta PC.
+                  </p>
+                )}
+              <Select
+                value={config.impresoraQz.nombre || undefined}
+                onValueChange={(nombre) => actualizarImpresoraQz({ nombre })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Elegí la térmica del ticket…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {impresorasQz.map((nombre) => (
+                    <SelectItem key={nombre} value={nombre}>
+                      {nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={buscandoQz}
+                onClick={() => void revisarQz()}
+              >
+                <RotateCw
+                  className={cn('size-4', buscandoQz && 'animate-spin')}
+                />
+                Volver a buscar impresoras
+              </Button>
+            </div>
+
+            {estadoQz === 'caido' && (
+              <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                <WifiOff className="mt-0.5 size-4 shrink-0" />
+                <div className="space-y-1.5">
+                  <p>
+                    QZ Tray no está instalado o no está en ejecución en esta PC.
+                  </p>
+                  <ol className="list-decimal space-y-1 pl-4 text-xs">
+                    <li>
+                      Descargá e instalá QZ Tray desde{' '}
+                      <a
+                        href="https://qz.io/download/"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline"
+                      >
+                        qz.io/download
+                      </a>
+                      .
+                    </li>
+                    <li>
+                      Abrí la app una vez (queda en la bandeja del sistema).
+                    </li>
+                    <li>
+                      La primera impresión te pide confiar en el certificado de
+                      Kahabox: marcá <b>«Recordar esta decisión»</b>.
+                    </li>
+                  </ol>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    asChild
+                  >
+                    <a
+                      href="https://qz.io/download/"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <Download />
+                      Ir a la descarga
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {config.impresoraQz.nombre && (
+              <p className="text-xs text-muted-foreground">
+                Al cobrar se imprime silencioso en{' '}
+                <span className="font-medium">
+                  {config.impresoraQz.nombre}
+                </span>
+                .
+              </p>
+            )}
 
             {selectorMetodo}
           </div>
