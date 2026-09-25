@@ -26,9 +26,10 @@ import SyncBar from '@/components/SyncBar'
 import { Button } from '@/components/ui/button'
 import { cn } from 'cn'
 import { MODULOS, puedeVerModulo, useConfig } from '@/lib/config'
-import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { esNativo } from '@/lib/impresion/nativo'
 import { usePlan } from '@/lib/plan'
 import { useDiasRestantesSucursal } from '@/lib/sucursal'
+import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { rolUsuario } from '@/lib/vistaStock'
 
 const ICONOS = {
@@ -62,6 +63,7 @@ export default function AppLayout() {
   const { modulosOcultos } = useConfig()
   const plan = usePlan()
   const diasSucursal = useDiasRestantesSucursal(user)
+  const esNavegadorApk = esNativo()
 
   const [esAdmin, setEsAdmin] = useState(false)
 
@@ -149,20 +151,21 @@ export default function AppLayout() {
               Admin
             </NavLink>
           )}
-          {puedeVerModulo('/app/instalar', rolUsuario(user), plan) && (
-            <NavLink
-              to="/app/instalar"
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground',
-                  isActive && 'bg-muted font-medium text-foreground',
-                )
-              }
-            >
-              <Smartphone className="size-4" />
-              Instalar app
-            </NavLink>
-          )}
+          {!esNavegadorApk &&
+            puedeVerModulo('/app/instalar', rolUsuario(user), plan) && (
+              <NavLink
+                to="/app/instalar"
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground',
+                    isActive && 'bg-muted font-medium text-foreground',
+                  )
+                }
+              >
+                <Smartphone className="size-4" />
+                Instalar app
+              </NavLink>
+            )}
         </div>
         <div className="border-t p-3">
           <div className="mb-2 flex items-center gap-2 px-1">
@@ -231,20 +234,21 @@ export default function AppLayout() {
                 {item.corto}
               </NavLink>
             ))}
-            {puedeVerModulo('/app/instalar', rolUsuario(user), plan) && (
-              <NavLink
-                to="/app/instalar"
-                className={({ isActive }) =>
-                  cn(
-                    'flex min-w-14 flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[10px] text-muted-foreground hover:bg-muted',
-                    isActive && 'font-semibold text-foreground',
-                  )
-                }
-              >
-                <Smartphone className="size-5" />
-                Instalar
-              </NavLink>
-            )}
+            {!esNavegadorApk &&
+              puedeVerModulo('/app/instalar', rolUsuario(user), plan) && (
+                <NavLink
+                  to="/app/instalar"
+                  className={({ isActive }) =>
+                    cn(
+                      'flex min-w-14 flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[10px] text-muted-foreground hover:bg-muted',
+                      isActive && 'font-semibold text-foreground',
+                    )
+                  }
+                >
+                  <Smartphone className="size-5" />
+                  Instalar
+                </NavLink>
+              )}
           </div>
         </nav>
       </div>

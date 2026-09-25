@@ -1,3 +1,4 @@
+import { Navigate } from 'react-router-dom'
 import { Download, Printer, QrCode as QrIcon, Smartphone } from 'lucide-react'
 
 import QrCode from '@/components/QrCode'
@@ -9,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { esNativo } from '@/lib/impresion/nativo'
 
 const APK_CANONICA = 'https://kahabox-web.vercel.app/kahabox-caja.apk'
 
@@ -30,6 +32,10 @@ const PASOS = [
 ]
 
 export default function InstalarPage() {
+  if (esNativo()) {
+    return <Navigate to="/app/caja" replace />
+  }
+
   const apk = urlApk()
 
   return (
