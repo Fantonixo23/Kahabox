@@ -45,6 +45,7 @@ import {
   estadoStock,
   formatFecha,
   formatMoney,
+  type Moneda,
 } from '@/lib/format'
 import { ejecutarEscritura } from '@/lib/ejecutar'
 import { esErrorDeRed } from '@/lib/red'
@@ -94,7 +95,7 @@ type EntradaProductoStock = {
   sku: string | null
   precio: number
   costo: number | null
-  moneda: 'PYG' | 'USD'
+  moneda: Moneda
   cantidad: number
   sucursalId: string | null
   maestroId: string
@@ -1214,7 +1215,7 @@ function NuevoProductoDialog({
           sku: form.sku.trim() || null,
           precio,
           costo: form.costo ? Number(form.costo) : null,
-          moneda: form.moneda === 'USD' ? 'USD' : 'PYG',
+          moneda: form.moneda,
           cantidad: Number.isFinite(cantidad) ? Math.max(0, Math.floor(cantidad)) : 0,
           sucursal_id: sucursalId,
         })
@@ -1225,7 +1226,7 @@ function NuevoProductoDialog({
       }
 
       const codigoBarras = form.codigo_barras.trim() || null
-      const moneda = form.moneda === 'USD' ? 'USD' : 'PYG'
+      const moneda = form.moneda
       const cantidadNum = Number.isFinite(cantidad)
         ? Math.max(0, Math.floor(cantidad))
         : 0

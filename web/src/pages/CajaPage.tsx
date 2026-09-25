@@ -371,7 +371,7 @@ export default function CajaPage() {
         sku: s.sku,
         precio: s.precio,
         costo: s.costo,
-        moneda: s.moneda === 'USD' ? 'USD' : 'PYG',
+        moneda: s.moneda,
         cantidad: s.cantidad,
       })),
   })

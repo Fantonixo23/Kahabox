@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import type { Moneda } from '@/lib/format'
 
 export type EstadoConexion = 'conectando' | 'conectado' | 'error'
 
@@ -17,7 +18,7 @@ export type PayloadNuevoProducto = {
   sku: string | null
   precio: number
   costo: number | null
-  moneda: 'PYG' | 'USD'
+  moneda: Moneda
   cantidad: number
 }
 

@@ -676,7 +676,7 @@ export function crearProductoMock(entrada: {
     variante: entrada.variante,
     precio: entrada.precio,
     costo: entrada.costo,
-    moneda: entrada.moneda === 'USD' ? 'USD' : 'PYG',
+    moneda: entrada.moneda,
     cantidad: entrada.cantidad,
     updated_at: ahora,
     producto: maestro,
@@ -859,7 +859,7 @@ export function importarStockMock(
           variante: f.variante,
           precio: f.precio,
           costo: f.costo,
-          moneda: f.moneda === 'USD' ? 'USD' : 'PYG',
+          moneda: f.moneda,
           cantidad,
           updated_at: ahora,
           producto: maestro,
@@ -881,7 +881,7 @@ export function importarStockMock(
         const prev = linea.cantidad
         linea.precio = f.precio
         linea.costo = f.costo
-        linea.moneda = f.moneda === 'USD' ? 'USD' : 'PYG'
+        linea.moneda = f.moneda
         linea.cantidad = cantidad
         linea.updated_at = ahora
         if (prev === cantidad) {
@@ -971,7 +971,7 @@ export function actualizarProductoMock(
   linea.variante = datos.variante
   linea.precio = datos.precio
   linea.costo = datos.costo
-  linea.moneda = datos.moneda === 'USD' ? 'USD' : 'PYG'
+  linea.moneda = datos.moneda
   linea.updated_at = new Date().toISOString()
 
   const maestro = productos.find((p) => p.id === linea.producto_id)

@@ -44,7 +44,7 @@ export type ItemProductoCola = {
   variante: string | null
   precio: number
   costo: number | null
-  moneda: 'PYG' | 'USD'
+  moneda: Moneda
   cantidad: number
   creadoEn: string
 }

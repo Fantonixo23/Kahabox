@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   FileUp,
   TriangleAlert,
+  Undo2,
   XCircle,
 } from 'lucide-react'
 
@@ -30,6 +31,7 @@ import {
 import { cn } from '@/lib/utils'
 import { desformatearMonto } from '@/lib/format'
 import {
+  anularImportacion,
   CAMPOS_EXCEL,
   construirFilas,
   detectarColumnas,
@@ -37,6 +39,8 @@ import {
   leerExcel,
   mapeoSinAsignar,
   type MapeoColumnas,
+  type MonedaImport,
+  type ResultadoAnulacion,
   type ResultadoImportacion,
   type TablaExcel,
 } from '@/lib/importarExcel'
@@ -68,8 +72,10 @@ export default function ImportarStockDialog({
       : (sucursales[0]?.id ?? ''),
   )
   const [precioDefault, setPrecioDefault] = useState('')
-  const [monedaDefault, setMonedaDefault] = useState<'PYG' | 'USD'>('PYG')
+  const [monedaDefault, setMonedaDefault] = useState<MonedaImport>('PYG')
   const [resultado, setResultado] = useState<ResultadoImportacion | null>(null)
+  const [revertido, setRevertido] = useState<ResultadoAnulacion | null>(null)
+  const [revertiendo, setRevertiendo] = useState(false)
   const [progreso, setProgreso] = useState({ hecho: 0, total: 0 })
   const [error, setError] = useState<string | null>(null)
 
@@ -91,6 +97,8 @@ export default function ImportarStockDialog({
     setPrecioDefault('')
     setMonedaDefault('PYG')
     setResultado(null)
+    setRevertido(null)
+    setRevertiendo(false)
     setProgreso({ hecho: 0, total: 0 })
     setError(null)
   }
@@ -157,6 +165,25 @@ export default function ImportarStockDialog({
       )
       setResultado(null)
       setPaso('confirmar')
+    }
+  }
+
+  async function deshacer() {
+    if (!resultado?.loteId) return
+    if (!window.confirm('¿Deshacer esta importación? Se restaura el stock como estaba antes de importar.')) {
+      return
+    }
+    setRevertiendo(true)
+    setError(null)
+    try {
+      const r = await anularImportacion(resultado.loteId)
+      setRevertido(r)
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : 'No se pudo deshacer la importación.',
+      )
+    } finally {
+      setRevertiendo(false)
     }
   }
 
@@ -316,20 +343,32 @@ export default function ImportarStockDialog({
 
         {paso === 'resultado' && resultado && (
           <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-2">
-              <ResumenValor valor={resultado.creados} etiqueta="creados" variante="ok" />
-              <ResumenValor
-                valor={resultado.actualizados}
-                etiqueta="actualizados"
-                variante="ok"
-              />
-              <ResumenValor
-                valor={resultado.sinCambios}
-                etiqueta="sin cambios"
-                variante="neutral"
-              />
-            </div>
-            {resultado.errores.length > 0 && (
+            {revertido === null && (
+              <div className="grid grid-cols-3 gap-2">
+                <ResumenValor valor={resultado.creados} etiqueta="creados" variante="ok" />
+                <ResumenValor
+                  valor={resultado.actualizados}
+                  etiqueta="actualizados"
+                  variante="ok"
+                />
+                <ResumenValor
+                  valor={resultado.sinCambios}
+                  etiqueta="sin cambios"
+                  variante="neutral"
+                />
+              </div>
+            )}
+            {revertido !== null && (
+              <div className="space-y-2 rounded-lg border border-emerald-300/50 bg-emerald-50 p-3 text-sm text-emerald-700">
+                <p className="font-semibold">Importación deshecha</p>
+                <p>
+                  {revertido.restauradas} restauradas · {revertido.eliminadas} eliminadas
+                  {revertido.saltadas > 0 &&
+                    ` · ${revertido.saltadas} con ventas, no se tocaron`}
+                </p>
+              </div>
+            )}
+            {resultado.errores.length > 0 && revertido === null && (
               <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border p-2">
                 <p className="text-sm font-semibold">
                   {resultado.errores.length} fila(s) con error
@@ -344,7 +383,13 @@ export default function ImportarStockDialog({
                 ))}
               </div>
             )}
-            <DialogFooter>
+            <DialogFooter className="gap-2">
+              {resultado.loteId && revertido === null && (
+                <Button variant="outline" disabled={revertiendo} onClick={() => void deshacer()}>
+                  <Undo2 />
+                  Deshacer importación
+                </Button>
+              )}
               <Button
                 onClick={() => {
                   onImportado()
@@ -414,8 +459,8 @@ function VistaConfirmar({
   monedaFaltante: boolean
   precioDefault: string
   setPrecioDefault: (v: string) => void
-  monedaDefault: 'PYG' | 'USD'
-  setMonedaDefault: (v: 'PYG' | 'USD') => void
+  monedaDefault: MonedaImport
+  setMonedaDefault: (v: MonedaImport) => void
   atras: () => void
   importar: () => void
 }) {
@@ -438,7 +483,7 @@ function VistaConfirmar({
 
       <div className="grid gap-2 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label>Precio por defecto (Gs)</Label>
+          <Label>Precio por defecto</Label>
           <Input
             inputMode="decimal"
             placeholder={precioFaltante ? 'Ej: 25000' : 'Opcional'}
@@ -448,21 +493,25 @@ function VistaConfirmar({
           />
         </div>
         <div className="space-y-1.5">
-          <Label>Moneda por defecto</Label>
-          <Select value={monedaDefault} onValueChange={(v) => setMonedaDefault(v as 'PYG' | 'USD')}>
+          <Label>Moneda de los precios</Label>
+          <Select
+            value={monedaDefault}
+            onValueChange={(v) => setMonedaDefault(v as MonedaImport)}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="PYG">Guaraníes (PYG)</SelectItem>
-              <SelectItem value="USD">Dólares (USD)</SelectItem>
+              <SelectItem value="PYG">Guaranies (PYG)</SelectItem>
+              <SelectItem value="USD">Dolares (USD)</SelectItem>
+              <SelectItem value="BRL">Reales (BRL)</SelectItem>
+              <SelectItem value="ARS">Pesos argentinos (ARS)</SelectItem>
             </SelectContent>
           </Select>
-          {!monedaFaltante && (
-            <p className="text-xs text-muted-foreground">
-              Solo se usa si alguna fila no tiene moneda reconocible.
-            </p>
-          )}
+          <p className="text-xs text-muted-foreground">
+            Solo etiqueta los precios, no convierte los montos.
+            {!monedaFaltante && ' La columna Moneda del archivo tiene prioridad.'}
+          </p>
         </div>
       </div>
 

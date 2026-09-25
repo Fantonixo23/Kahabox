@@ -612,7 +612,7 @@ export type Database = {
           variante: string | null
           precio: number
           costo: number | null
-          moneda: 'PYG' | 'USD'
+          moneda: 'PYG' | 'USD' | 'ARS' | 'BRL'
           cantidad: number
           updated_at: string
         }
@@ -625,7 +625,7 @@ export type Database = {
           variante?: string | null
           precio: number
           costo?: number | null
-          moneda?: 'PYG' | 'USD'
+          moneda?: 'PYG' | 'USD' | 'ARS' | 'BRL'
           cantidad?: number
           updated_at?: string
         }
@@ -638,7 +638,7 @@ export type Database = {
           variante?: string | null
           precio?: number
           costo?: number | null
-          moneda?: 'PYG' | 'USD'
+          moneda?: 'PYG' | 'USD' | 'ARS' | 'BRL'
           cantidad?: number
           updated_at?: string
         }
@@ -809,7 +809,7 @@ Relationships: [
           sku: string | null
           variante: string | null
           precio: number
-          moneda: 'PYG' | 'USD'
+          moneda: 'PYG' | 'USD' | 'ARS' | 'BRL'
           cantidad: number
           updated_at: string
         }
@@ -835,7 +835,7 @@ Relationships: [
           variante: string | null
           precio: number
           costo: number | null
-          moneda: 'PYG' | 'USD'
+          moneda: 'PYG' | 'USD' | 'ARS' | 'BRL'
           cantidad: number
           updated_at: string
         }
@@ -886,7 +886,7 @@ Relationships: [
           p_variante: string | null
           p_precio: number
           p_costo: number | null
-          p_moneda: 'PYG' | 'USD'
+          p_moneda: 'PYG' | 'USD' | 'ARS' | 'BRL'
           p_cantidad: number
           p_created_at?: string | null
         }
@@ -918,7 +918,7 @@ Relationships: [
           p_variante: string | null
           p_precio: number
           p_costo: number | null
-          p_moneda: 'PYG' | 'USD'
+          p_moneda: 'PYG' | 'USD' | 'ARS' | 'BRL'
           p_dispositivo?: string | null
         }
         Returns: Record<string, unknown>
@@ -937,6 +937,18 @@ Relationships: [
           p_dispositivo?: string | null
         }
         Returns: Record<string, unknown>
+      }
+      anular_importacion: {
+        Args: {
+          p_lote_id: string
+          p_dispositivo?: string | null
+        }
+        Returns: {
+          restauradas?: number
+          eliminadas?: number
+          saltadas?: number
+          revertida?: boolean
+        }
       }
       crear_invitacion: {
         Args: {

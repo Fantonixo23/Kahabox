@@ -70,7 +70,7 @@ function formDeLinea(linea: StockRemotoRow): AdminForm {
     sku: linea.sku ?? '',
     precio: String(linea.precio ?? ''),
     costo: linea.costo != null ? String(linea.costo) : '',
-    moneda: linea.moneda === 'USD' ? 'USD' : 'PYG',
+    moneda: linea.moneda ?? 'PYG',
     ajusteTipo: 'entrada',
     ajusteCantidad: '',
     ajusteMotivo: '',
@@ -189,7 +189,7 @@ export default function AdministrarProductoDialog({
             p_variante: form.variante.trim() || null,
             p_precio: precio,
             p_costo: form.costo ? Number(form.costo) : null,
-            p_moneda: form.moneda === 'USD' ? 'USD' : 'PYG',
+            p_moneda: form.moneda,
             p_dispositivo: dispositivoActual(),
           },
         )
@@ -395,11 +395,7 @@ export default function AdministrarProductoDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {MONEDAS.filter(
-                  (m) =>
-                    monedas.includes(m.codigo) &&
-                    (m.codigo === 'PYG' || m.codigo === 'USD'),
-                ).map((m) => (
+                {MONEDAS.filter((m) => monedas.includes(m.codigo)).map((m) => (
                   <SelectItem key={m.codigo} value={m.codigo}>
                     {m.etiqueta}
                   </SelectItem>

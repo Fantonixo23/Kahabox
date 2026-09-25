@@ -10,6 +10,7 @@ import {
   FilterX,
   Printer,
   ShieldCheck,
+  Undo2,
 } from 'lucide-react'
 
 import { useAuth } from '@/components/auth/AuthContext'
@@ -36,6 +37,7 @@ import {
   type FiltrosAuditoria,
 } from '@/lib/auditoriaData'
 import { formatFecha } from '@/lib/format'
+import { anularImportacion } from '@/lib/importarExcel'
 import {
   getMockSucursales,
   getSucursalNombre,
@@ -43,7 +45,7 @@ import {
   type Sucursal,
 } from '@/lib/mock'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
-import { esJefe } from '@/lib/vistaStock'
+import { esDueno, esJefe } from '@/lib/vistaStock'
 import { cn } from 'cn'
 
 const ETIQUETAS_ENTIDAD: Record<string, string> = {
@@ -66,6 +68,7 @@ const ETIQUETAS_COMANDO: Record<string, string> = {
   anular: 'Anular',
   ajuste: 'Ajuste stock',
   importar: 'Importar',
+  anular_importacion: 'Deshacer importación',
   editar_stock_directo: 'Stock directo',
 }
 
@@ -112,6 +115,7 @@ export default function AuditoriaPage() {
   const [tab, setTab] = useState<'historial' | 'alertas'>('historial')
   const [filtros, setFiltros] = useState<FiltrosAuditoria>(filtroVacio)
   const [expandidas, setExpandidas] = useState<Set<string>>(new Set())
+  const [deshaciendoId, setDeshaciendoId] = useState<string | null>(null)
 
   const cargarSucursales = useCallback(async () => {
     if (!isSupabaseConfigured) {
@@ -197,6 +201,43 @@ export default function AuditoriaPage() {
 
   function limpiarFiltros() {
     setFiltros(filtroVacio())
+  }
+
+  const lotesRevertidos = useMemo(
+    () =>
+      new Set(
+        (eventos ?? [])
+          .filter((e) => e.comando === 'anular_importacion' && e.lote_id)
+          .map((e) => e.lote_id as string),
+      ),
+    [eventos],
+  )
+
+  async function deshacerImportacion(e: Auditoria) {
+    if (!e.lote_id) return
+    if (
+      !window.confirm(
+        '¿Deshacer esta importación? Se restaura el stock como estaba antes de importar.',
+      )
+    ) {
+      return
+    }
+    setDeshaciendoId(e.id)
+    setError(null)
+    try {
+      const r = await anularImportacion(e.lote_id)
+      setAviso(
+        `Importación deshecha: ${r.restauradas} restauradas, ${r.eliminadas} eliminadas` +
+          (r.saltadas > 0 ? `, ${r.saltadas} con ventas no se tocaron.` : '.'),
+      )
+      await recargar()
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'No se pudo deshacer la importación.',
+      )
+    } finally {
+      setDeshaciendoId(null)
+    }
   }
 
   function aplicarAlerta(alerta: AlertaAuditoria) {
@@ -506,8 +547,9 @@ export default function AuditoriaPage() {
                 const abierta = expandidas.has(e.id)
                 return (
                   <div key={e.id} className="rounded-md border bg-card">
+                    <div className="flex items-start">
                     <button
-                      className="flex w-full items-start gap-3 p-3 text-left"
+                      className="flex min-w-0 flex-1 items-start gap-3 p-3 text-left"
                       onClick={() => hayDiff && toggleExpandir(e.id)}
                     >
                       <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold uppercase">
@@ -546,6 +588,22 @@ export default function AuditoriaPage() {
                           (abierta ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />)}
                       </span>
                     </button>
+                    {esDueno(user) &&
+                      e.comando === 'importar' &&
+                      e.lote_id &&
+                      !lotesRevertidos.has(e.lote_id) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mt-2 mr-2 shrink-0"
+                          disabled={deshaciendoId !== null}
+                          onClick={() => void deshacerImportacion(e)}
+                        >
+                          <Undo2 />
+                          {deshaciendoId === e.id ? 'Deshaciendo…' : 'Deshacer'}
+                        </Button>
+                      )}
+                    </div>
                     {abierta && hayDiff && (
                       <div className="border-t px-3 py-3 text-sm">
                         <div className="overflow-x-auto rounded-md border">

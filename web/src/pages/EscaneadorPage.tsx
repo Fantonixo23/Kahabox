@@ -269,7 +269,7 @@ function NuevoProductoRemotoDialog({
     }
 
     const codigoBarras = form.codigo_barras.trim() || null
-    const moneda = form.moneda === 'USD' ? 'USD' : 'PYG'
+    const moneda = form.moneda
     const cantidad = Number.isFinite(Number(form.cantidad))
       ? Math.max(0, Math.floor(Number(form.cantidad)))
       : 0
@@ -521,7 +521,7 @@ export default function EscaneadorPage() {
           sku: linea.sku,
           precio: linea.precio,
           costo: linea.costo,
-          moneda: linea.moneda === 'USD' ? 'USD' : 'PYG',
+          moneda: linea.moneda,
           cantidad: linea.cantidad,
         })
       ) {
@@ -637,7 +637,7 @@ export default function EscaneadorPage() {
         sku: linea.sku,
         precio: linea.precio,
         costo: linea.costo,
-        moneda: linea.moneda === 'USD' ? 'USD' : 'PYG',
+        moneda: linea.moneda,
         cantidad: linea.cantidad,
       })
     }

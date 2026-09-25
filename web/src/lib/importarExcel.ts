@@ -251,6 +251,8 @@ function aNumero(v: unknown): number {
 
 export type FilaImportada = FilaImportacion
 
+export type MonedaImport = 'PYG' | 'USD' | 'ARS' | 'BRL'
+
 /**
  * Construye las filas listas para el RPC según el mapeo elegido.
  * precioDefault / monedaDefault se aplican cuando la columna no existe.
@@ -259,7 +261,7 @@ export function construirFilas(opts: {
   tabla: TablaExcel
   mapeo: MapeoColumnas
   precioDefault: number | null
-  monedaDefault: 'PYG' | 'USD'
+  monedaDefault: MonedaImport
 }): { filas: FilaImportada[]; invalidas: number[] } {
   const { tabla, mapeo, precioDefault, monedaDefault } = opts
   const filas: FilaImportada[] = []
@@ -276,10 +278,13 @@ export function construirFilas(opts: {
     return s ? s.slice(0, largo) : null
   }
 
-  const monedaDe = (v: unknown): 'PYG' | 'USD' => {
+  const monedaDe = (v: unknown): MonedaImport => {
     const s = String(v ?? '').toLowerCase().trim()
-    if (s.includes('usd') || s.includes('us$') || s.includes('dólar') || s.includes('dolar')) {
-      return 'USD'
+    if (s.includes('usd') || s.includes('us$') || s.includes('dolar')) return 'USD'
+    if (s.includes('real') || s.includes('brl')) return 'BRL'
+    if (s.includes('peso') || s.includes('ars') || s.includes('arg')) return 'ARS'
+    if (s.includes('guarani') || s.includes('gs') || s.includes('pyg') || s.includes('₲')) {
+      return 'PYG'
     }
     return monedaDefault
   }
@@ -330,6 +335,14 @@ export type ResultadoImportacion = {
   actualizados: number
   sinCambios: number
   errores: Array<{ fila: number; motivo: string }>
+  loteId: string | null
+}
+
+export type ResultadoAnulacion = {
+  restauradas: number
+  eliminadas: number
+  saltadas: number
+  revertida: boolean
 }
 
 const LOTE = 500
@@ -341,7 +354,7 @@ export async function importarStockExcel(
   onProgreso?: (hecho: number, total: number) => void,
 ): Promise<ResultadoImportacion> {
   if (filas.length === 0) {
-    return { creados: 0, actualizados: 0, sinCambios: 0, errores: [] }
+    return { creados: 0, actualizados: 0, sinCambios: 0, errores: [], loteId: null }
   }
 
   if (!isSupabaseConfigured) {
@@ -351,11 +364,13 @@ export async function importarStockExcel(
       actualizados: res.actualizados,
       sinCambios: res.sinCambios,
       errores: res.errores,
+      loteId: null,
     }
   }
 
-  const acumulado: ResultadoImportacion = { creados: 0, actualizados: 0, sinCambios: 0, errores: [] }
+  const acumulado: ResultadoImportacion = { creados: 0, actualizados: 0, sinCambios: 0, errores: [], loteId: null }
   const loteId = crypto.randomUUID()
+  acumulado.loteId = loteId
   for (let desde = 0; desde < filas.length; desde += LOTE) {
     const lote = filas.slice(desde, desde + LOTE)
     const { data, error } = await supabase.rpc('importar_stock', {
@@ -381,4 +396,22 @@ export async function importarStockExcel(
   }
 
   return acumulado
+}
+
+/**
+ * Deshace una importación completa (por lote). Solo el dueño. Devuelve la
+ * cantidad de líneas restauradas, eliminadas y las que se saltaron por ventas.
+ */
+export async function anularImportacion(loteId: string): Promise<ResultadoAnulacion> {
+  const { data, error } = await supabase.rpc('anular_importacion', {
+    p_lote_id: loteId,
+    p_dispositivo: dispositivoActual(),
+  })
+  if (error) throw error
+  return {
+    restauradas: (data as { restauradas?: number })?.restauradas ?? 0,
+    eliminadas: (data as { eliminadas?: number })?.eliminadas ?? 0,
+    saltadas: (data as { saltadas?: number })?.saltadas ?? 0,
+    revertida: (data as { revertida?: boolean })?.revertida ?? false,
+  }
 }
