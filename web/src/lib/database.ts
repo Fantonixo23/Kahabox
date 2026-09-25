@@ -568,6 +568,8 @@ export type Database = {
           nombre: string
           direccion: string | null
           telefono: string | null
+          vencimiento: string | null
+          bloqueada: boolean
           created_at: string
         }
         Insert: {
@@ -576,6 +578,8 @@ export type Database = {
           nombre: string
           direccion?: string | null
           telefono?: string | null
+          vencimiento?: string | null
+          bloqueada?: boolean
           created_at?: string
         }
         Update: {
@@ -584,6 +588,8 @@ export type Database = {
           nombre?: string
           direccion?: string | null
           telefono?: string | null
+          vencimiento?: string | null
+          bloqueada?: boolean
           created_at?: string
         }
         Relationships: [
@@ -1072,6 +1078,32 @@ Relationships: [
         Args: {
           p_tenant_id: string
           p_plan: string
+        }
+        Returns: undefined
+      }
+      listar_sucursales_admin: {
+        Args: {
+          p_tenant_id: string
+        }
+        Returns: {
+          id: string
+          nombre: string
+          vencimiento: string | null
+          bloqueada: boolean
+          dias_restantes: number | null
+        }[]
+      }
+      admin_cambiar_vencimiento_sucursal: {
+        Args: {
+          p_id: string
+          p_vencimiento: string | null
+        }
+        Returns: undefined
+      }
+      admin_set_sucursal_bloqueada: {
+        Args: {
+          p_id: string
+          p_bloqueada: boolean
         }
         Returns: undefined
       }

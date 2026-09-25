@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Smartphone,
   Store,
+  TriangleAlert,
   Truck,
   UserCog,
   Users,
@@ -27,6 +28,7 @@ import { cn } from 'cn'
 import { MODULOS, puedeVerModulo, useConfig } from '@/lib/config'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { usePlan } from '@/lib/plan'
+import { useDiasRestantesSucursal } from '@/lib/sucursal'
 import { rolUsuario } from '@/lib/vistaStock'
 
 const ICONOS = {
@@ -59,6 +61,7 @@ export default function AppLayout() {
   const { user, salirDemo } = useAuth()
   const { modulosOcultos } = useConfig()
   const plan = usePlan()
+  const diasSucursal = useDiasRestantesSucursal(user)
 
   const [esAdmin, setEsAdmin] = useState(false)
 
@@ -198,6 +201,16 @@ export default function AppLayout() {
           </div>
         </header>
         <SyncBar />
+        {diasSucursal !== null && diasSucursal <= 3 && (
+          <div className="flex items-center gap-2 border-b bg-amber-50 px-4 py-2 text-sm text-amber-800">
+            <TriangleAlert className="size-4 shrink-0" />
+            <span>
+              Faltan {diasSucursal}{' '}
+              {diasSucursal === 1 ? 'dia' : 'dias'} para que el sistema se
+              bloquee. Por favor abona a tiempo.
+            </span>
+          </div>
+        )}
         <main className="min-w-0 flex-1 overflow-x-clip p-4 pb-24 md:p-6 md:pb-6">
           <Outlet />
         </main>

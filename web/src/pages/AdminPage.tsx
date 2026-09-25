@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { Ban, Check, Lock, RefreshCw, ShieldCheck } from 'lucide-react'
+import {
+  Ban,
+  CalendarPlus,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Lock,
+  RefreshCw,
+  ShieldCheck,
+  Store,
+} from 'lucide-react'
 
 import { FullscreenLoader } from '@/components/FullscreenLoader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -33,12 +44,35 @@ type FilaTenant = {
   creada: string
 }
 
+type FilaSucursal = {
+  id: string
+  nombre: string
+  vencimiento: string | null
+  bloqueada: boolean
+  dias_restantes: number | null
+}
+
 const ETIQUETAS_ESTADO: Record<string, { etiqueta: string; variante: 'default' | 'destructive' | 'outline' }> = {
   pendiente: { etiqueta: 'Pendiente', variante: 'outline' },
   trial: { etiqueta: 'Prueba', variante: 'outline' },
   activo: { etiqueta: 'Activo', variante: 'default' },
   suspendido: { etiqueta: 'Suspendido', variante: 'destructive' },
   rechazado: { etiqueta: 'Rechazado', variante: 'destructive' },
+}
+
+function fechaLocal(iso?: string | null): string {
+  if (!iso) return ''
+  return new Date(iso).toLocaleDateString('en-CA')
+}
+
+function fechaISO(dateStr: string): string {
+  return new Date(`${dateStr}T00:00:00`).toISOString()
+}
+
+function diasASumar(dias: number): string {
+  const f = new Date()
+  f.setDate(f.getDate() + dias)
+  return f.toISOString()
 }
 
 export default function AdminPage() {
@@ -48,6 +82,9 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null)
   const [errorTecnico, setErrorTecnico] = useState<string | null>(null)
   const [guardando, setGuardando] = useState<string | null>(null)
+  const [abiertos, setAbiertos] = useState<Record<string, boolean>>({})
+  const [sucursales, setSucursales] = useState<Record<string, FilaSucursal[]>>({})
+  const [fechas, setFechas] = useState<Record<string, string>>({})
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -114,6 +151,94 @@ export default function AdminPage() {
     }
   }
 
+  async function cargarSucursales(tenantId: string) {
+    try {
+      const { data, error } = await supabase.rpc('listar_sucursales_admin', {
+        p_tenant_id: tenantId,
+      })
+      if (error) throw error
+      const filas = data ?? []
+      setSucursales((prev) => ({ ...prev, [tenantId]: filas }))
+      setFechas((prev) => {
+        const prox = { ...prev }
+        for (const s of filas) prox[s.id] = fechaLocal(s.vencimiento)
+        return prox
+      })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudieron cargar las sucursales.')
+    }
+  }
+
+  async function abrirTenant(tenantId: string) {
+    const abierto = !abiertos[tenantId]
+    setAbiertos((prev) => ({ ...prev, [tenantId]: abierto }))
+    if (abierto && !sucursales[tenantId]) {
+      await cargarSucursales(tenantId)
+    }
+  }
+
+  async function guardarFecha(id: string, value: string) {
+    setGuardando(`${id}:fecha`)
+    setError(null)
+    try {
+      const iso = value ? fechaISO(value) : null
+      const { error } = await supabase.rpc('admin_cambiar_vencimiento_sucursal', {
+        p_id: id,
+        p_vencimiento: iso,
+      })
+      if (error) throw error
+      const suc = Object.entries(sucursales).find(([, arr]) =>
+        arr.some((s) => s.id === id),
+      )
+      if (suc) await cargarSucursales(suc[0])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo guardar la fecha.')
+    } finally {
+      setGuardando(null)
+    }
+  }
+
+  async function renovarSucursal(id: string) {
+    setGuardando(`${id}:renovar`)
+    setError(null)
+    try {
+      const { error } = await supabase.rpc('admin_cambiar_vencimiento_sucursal', {
+        p_id: id,
+        p_vencimiento: diasASumar(30),
+      })
+      if (error) throw error
+      const suc = Object.entries(sucursales).find(([, arr]) =>
+        arr.some((s) => s.id === id),
+      )
+      if (suc) await cargarSucursales(suc[0])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo renovar la sucursal.')
+    } finally {
+      setGuardando(null)
+    }
+  }
+
+  async function toggleSucursal(s: FilaSucursal) {
+    const nuevo = !s.bloqueada
+    setGuardando(`${s.id}:bloqueo`)
+    setError(null)
+    try {
+      const { error } = await supabase.rpc('admin_set_sucursal_bloqueada', {
+        p_id: s.id,
+        p_bloqueada: nuevo,
+      })
+      if (error) throw error
+      const suc = Object.entries(sucursales).find(([, arr]) =>
+        arr.some((x) => x.id === s.id),
+      )
+      if (suc) await cargarSucursales(suc[0])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo cambiar el bloqueo.')
+    } finally {
+      setGuardando(null)
+    }
+  }
+
   if (esAdmin === null) return <FullscreenLoader />
 
   if (esAdmin === false) {
@@ -146,7 +271,7 @@ export default function AdminPage() {
         <div>
           <h1 className="text-lg font-semibold">Administracion de clientes</h1>
           <p className="text-sm text-muted-foreground">
-            Plane, estados y bloqueos de todas las tiendas de Kahabox.
+            Plane, estados, vencimientos y bloqueos. Toca para ver cada sucursal.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => void cargar()} disabled={cargando}>
@@ -168,20 +293,36 @@ export default function AdminPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tenants.map((t) => {
+            {tenants.flatMap((t) => {
               const estado = ETIQUETAS_ESTADO[t.estado] ?? {
                 etiqueta: t.estado,
                 variante: 'outline' as const,
               }
               const suspendida = t.estado === 'suspendido'
-              return (
+              const abierta = !!abiertos[t.id]
+              const sucs = sucursales[t.id] ?? []
+              return [
                 <TableRow key={t.id}>
                   <TableCell>
-                    <div className="space-y-0.5">
-                      <p className="text-sm font-medium">{t.nombre_comercial}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {t.email_contacto ?? 'Sin email'}
-                      </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void abrirTenant(t.id)}
+                        className="flex items-center gap-1 rounded text-muted-foreground hover:text-foreground"
+                        title={abierta ? 'Ocultar sucursales' : 'Ver sucursales'}
+                      >
+                        {abierta ? (
+                          <ChevronDown className="size-4" />
+                        ) : (
+                          <ChevronRight className="size-4" />
+                        )}
+                      </button>
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-medium">{t.nombre_comercial}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {t.email_contacto ?? 'Sin email'}
+                        </p>
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -239,8 +380,24 @@ export default function AdminPage() {
                       )}
                     </div>
                   </TableCell>
-                </TableRow>
-              )
+                </TableRow>,
+                abierta ? (
+                  <TableRow key={`${t.id}-sucursales`} className="bg-muted/30">
+                    <TableCell colSpan={6}>
+                      <SucursalesTabla
+                        tenantNombre={t.nombre_comercial}
+                        sucs={sucs}
+                        fechas={fechas}
+                        guardando={guardando}
+                        onCambiarFecha={(id, v) => setFechas((prev) => ({ ...prev, [id]: v }))}
+                        onGuardarFecha={(id) => void guardarFecha(id, fechas[id] ?? '')}
+                        onRenovar={(id) => void renovarSucursal(id)}
+                        onToggle={(s) => void toggleSucursal(s)}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ) : null,
+              ]
             })}
             {tenants.length === 0 && (
               <TableRow>
@@ -260,10 +417,147 @@ export default function AdminPage() {
       )}
 
       <p className="text-xs text-muted-foreground">
-        Nota: al bloquear se corta el acceso de esa tienda (lectura y escritura)
-        en toda la base. La app del cliente muestra el aviso de subscripcion
-        vencida hasta que la desbloquees.
+        Bloquear una tienda corta todo su acceso. Bloquear una sucursal (o que
+        venza su fecha) corta solo esa sucursal: esa parte del cliente ve el
+        aviso de subscripcion vencida y no puede vender ni mover stock hasta
+        renovarla.
       </p>
+    </div>
+  )
+}
+
+function SucursalesTabla({
+  tenantNombre,
+  sucs,
+  fechas,
+  guardando,
+  onCambiarFecha,
+  onGuardarFecha,
+  onRenovar,
+  onToggle,
+}: {
+  tenantNombre: string
+  sucs: FilaSucursal[]
+  fechas: Record<string, string>
+  guardando: string | null
+  onCambiarFecha: (id: string, value: string) => void
+  onGuardarFecha: (id: string) => void
+  onRenovar: (id: string) => void
+  onToggle: (s: FilaSucursal) => void
+}) {
+  return (
+    <div className="space-y-2">
+      <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+        <Store className="size-3.5" />
+        Sucursales de {tenantNombre}
+      </p>
+      {sucs.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          Esta tienda no tiene sucursales cargadas.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-xs text-muted-foreground">
+                <th className="pb-1.5 pr-3 font-medium">Sucursal</th>
+                <th className="pb-1.5 pr-3 font-medium">Estado</th>
+                <th className="pb-1.5 pr-3 font-medium">Vencimiento</th>
+                <th className="pb-1.5 pr-3 font-medium">Cambiar fecha</th>
+                <th className="pb-1.5 text-right font-medium">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sucs.map((s) => {
+                const vencio =
+                  s.vencimiento !== null &&
+                  new Date(s.vencimiento as string).getTime() <= Date.now()
+                const bloqueada = s.bloqueada || vencio
+                const diasBajos = !bloqueada && s.dias_restantes !== null && s.dias_restantes <= 3
+                return (
+                  <tr key={s.id} className="border-b last:border-0">
+                    <td className="py-2 pr-3">
+                      <span className="font-medium">{s.nombre}</span>
+                    </td>
+                    <td className="py-2 pr-3">
+                      {bloqueada ? (
+                        <Badge variant="destructive">
+                          {s.bloqueada ? 'Bloqueada' : 'Vencida'}
+                        </Badge>
+                      ) : s.vencimiento === null ? (
+                        <Badge variant="outline">Sin limite</Badge>
+                      ) : (
+                        <Badge variant="outline" className={diasBajos ? 'text-amber-600' : ''}>
+                          {s.dias_restantes} dias
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="py-2 pr-3 text-muted-foreground">
+                      {s.vencimiento ? formatFecha(s.vencimiento) : '-'}
+                    </td>
+                    <td className="py-2 pr-3">
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          type="date"
+                          className="h-8 w-40"
+                          value={fechas[s.id] ?? ''}
+                          onChange={(e) => onCambiarFecha(s.id, e.target.value)}
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 px-2 text-xs"
+                          disabled={guardando === `${s.id}:fecha`}
+                          onClick={() => onGuardarFecha(s.id)}
+                        >
+                          Guardar
+                        </Button>
+                      </div>
+                    </td>
+                    <td className="py-2 text-right">
+                      <div className="flex justify-end gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 px-2 text-xs"
+                          disabled={guardando === `${s.id}:renovar`}
+                          onClick={() => onRenovar(s.id)}
+                        >
+                          <CalendarPlus className="size-3.5" />
+                          Renovar 30 dias
+                        </Button>
+                        {s.bloqueada ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-2 text-xs"
+                            disabled={guardando === `${s.id}:bloqueo`}
+                            onClick={() => onToggle(s)}
+                          >
+                            <Check className="size-3.5" />
+                            Desbloquear
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="h-8 px-2 text-xs"
+                            disabled={guardando === `${s.id}:bloqueo`}
+                            onClick={() => onToggle(s)}
+                          >
+                            <Ban className="size-3.5" />
+                            Bloquear
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

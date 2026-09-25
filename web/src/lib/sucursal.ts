@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 
 import { actualizarConfig, useConfig } from '@/lib/config'
@@ -11,6 +11,8 @@ import {
   type Sucursal,
 } from '@/lib/mock'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+
+const MS_POR_DIA = 24 * 60 * 60 * 1000
 
 export type DatosSucursal = {
   nombre: string
@@ -110,4 +112,58 @@ export function useSucursalActual(user: User | null | undefined) {
     sucursalId: config.sucursalId ?? sucursalIdDeClaim(user),
     cambiarSucursal,
   }
+}
+
+/**
+ * Dias restantes hasta el vencimiento de la sucursal activa (config o claim).
+ * Devuelve null si no hay sucursal activa, si es de demo o si no tiene fecha.
+ */
+export function useDiasRestantesSucursal(user: User | null | undefined) {
+  const config = useConfig()
+  const [dias, setDias] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setDias(null)
+      return
+    }
+    const activa = config.sucursalId ?? sucursalIdDeClaim(user)
+    if (!activa) {
+      setDias(null)
+      return
+    }
+    let activo = true
+    const ver = async () => {
+      try {
+        const { data } = await supabase
+          .from('sucursales')
+          .select('vencimiento')
+          .eq('id', activa)
+          .maybeSingle()
+        if (!activo) return
+        if (!data?.vencimiento) {
+          setDias(null)
+          return
+        }
+        const fin = new Date(data.vencimiento).getTime()
+        const hoy = new Date()
+        const inicioDia = new Date(
+          hoy.getFullYear(),
+          hoy.getMonth(),
+          hoy.getDate(),
+        ).getTime()
+        setDias(Math.max(Math.ceil((fin - inicioDia) / MS_POR_DIA), 0))
+      } catch {
+        if (activo) setDias(null)
+      }
+    }
+    void ver()
+    window.addEventListener('focus', ver)
+    return () => {
+      activo = false
+      window.removeEventListener('focus', ver)
+    }
+  }, [config.sucursalId, user])
+
+  return dias
 }

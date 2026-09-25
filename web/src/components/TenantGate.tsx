@@ -1,21 +1,33 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { Clock, Hourglass, RefreshCw, ShieldX } from 'lucide-react'
+import {
+  ArrowLeftRight,
+  Clock,
+  Hourglass,
+  RefreshCw,
+  ShieldX,
+  Store,
+} from 'lucide-react'
 
 import { AuthShell } from '@/components/auth/AuthShell'
 import { useAuth } from '@/components/auth/AuthContext'
 import { FullscreenLoader } from '@/components/FullscreenLoader'
 import { Button } from '@/components/ui/button'
+import { actualizarConfig, useConfig } from '@/lib/config'
 import { miEstadoEquipo } from '@/lib/equipoData'
+import { sucursalIdDeClaim } from '@/lib/sucursal'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 
 type EstadoAcceso = 'verificando' | 'ok' | 'pendiente' | 'rechazado' | 'suspendido'
-type MotivoBloqueo = 'tenant' | 'miembro'
+type MotivoBloqueo = 'tenant' | 'miembro' | 'sucursal'
+type SucursalBasica = { id: string; nombre: string }
 
 export default function TenantGate({ children }: { children: ReactNode }) {
   const { session } = useAuth()
+  const { sucursalId } = useConfig()
   const [estado, setEstado] = useState<EstadoAcceso>('verificando')
   const [motivo, setMotivo] = useState<MotivoBloqueo>('tenant')
+  const [sucursalesDisponibles, setSucursalesDisponibles] = useState<SucursalBasica[]>([])
   const refrescoHecho = useRef(false)
 
   const tenantId = session?.user?.app_metadata?.tenant_id as string | undefined
@@ -89,13 +101,48 @@ export default function TenantGate({ children }: { children: ReactNode }) {
         return
       }
 
+      // Bloqueo por sucursal: si la sucursal activa (config o claim) vencio o
+      // fue bloqueada, se corta solo esa sucursal. Las demas quedan activas.
+      const activaId = sucursalId ?? sucursalIdDeClaim(session?.user ?? null)
+      if (activaId) {
+        const { data: sucs, error: errSuc } = await supabase
+          .from('sucursales')
+          .select('id, nombre, vencimiento, bloqueada')
+        if (errSuc) throw errSuc
+        const filas = sucs ?? []
+        const activaFila = filas.find((s) => s.id === activaId)
+        if (activaFila) {
+          const vence = activaFila.vencimiento
+            ? new Date(activaFila.vencimiento).getTime()
+            : null
+          const bloqueada =
+            activaFila.bloqueada || (vence !== null && vence <= Date.now())
+          if (bloqueada) {
+            setMotivo('sucursal')
+            setSucursalesDisponibles(
+              filas
+                .filter(
+                  (s) =>
+                    s.id !== activaId &&
+                    !s.bloqueada &&
+                    (s.vencimiento === null ||
+                      new Date(s.vencimiento).getTime() > Date.now()),
+                )
+                .map((s) => ({ id: s.id, nombre: s.nombre })),
+            )
+            setEstado('suspendido')
+            return
+          }
+        }
+      }
+
       // Estado activo/trial o sin datos (JWT sin claim): se entra.
       setEstado('ok')
     } catch {
       // Sin red o error de lectura: no bloquear a los ya aprobados.
       setEstado('ok')
     }
-  }, [tenantId])
+  }, [tenantId, sucursalId, session])
 
   useEffect(() => {
     setEstado('verificando')
@@ -111,6 +158,47 @@ export default function TenantGate({ children }: { children: ReactNode }) {
   }, [verificar])
 
   if (estado === 'verificando') return <FullscreenLoader />
+
+  if (estado === 'suspendido' && motivo === 'sucursal') {
+    return (
+      <AuthShell subtitle="Esta sucursal esta fuera de servicio">
+        <div className="flex flex-col items-center gap-3 py-4 text-center">
+          <Store className="size-10 text-amber-600" />
+          <p className="text-sm font-medium">Subscripcion vencida</p>
+          <p className="text-sm text-muted-foreground">
+            Esta sucursal tiene la subscripcion vencida. Por favor renovala con
+            el administrador para seguir usando Kahabox.
+          </p>
+          {sucursalesDisponibles.length > 0 && (
+            <div className="w-full space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                Tus otras sucursales siguen activas. Elegi una para continuar
+                trabajando:
+              </p>
+              {sucursalesDisponibles.map((s) => (
+                <Button
+                  key={s.id}
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    actualizarConfig({ sucursalId: s.id })
+                    void verificar()
+                  }}
+                >
+                  <ArrowLeftRight />
+                  {s.nombre}
+                </Button>
+              ))}
+            </div>
+          )}
+          <Button variant="ghost" className="mt-1 w-full" onClick={verificar}>
+            <RefreshCw />
+            Revisar de nuevo
+          </Button>
+        </div>
+      </AuthShell>
+    )
+  }
 
   if (estado === 'suspendido') {
     return (
